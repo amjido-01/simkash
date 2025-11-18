@@ -7,9 +7,10 @@ module.exports = function (api) {
       "nativewind/babel",
     ],
 
-    plugins: [["module-resolver", {
+    plugins: [
+      'react-native-worklets/plugin',
+      ["module-resolver", {
       root: ["./"],
-
       alias: {
         "@": "./",
         "tailwind.config": "./tailwind.config.js"

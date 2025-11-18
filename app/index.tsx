@@ -1,13 +1,12 @@
-import { View } from "react-native";
+import Entypo from "@expo/vector-icons/Entypo";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Font from "expo-font";
+import * as SplashScreen from "expo-splash-screen";
+import { useCallback, useEffect, useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
+import OnboardingScreens from "./(app)/onboarding";
 import Splash from "./(app)/splash";
 import SignIn from "./(auth)/signin";
-import * as SplashScreen from "expo-splash-screen";
-import { useState, useEffect, useCallback } from "react";
-import * as Font from "expo-font";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import Entypo from "@expo/vector-icons/Entypo";
-import OnboardingScreens from "./(app)/onboarding";
 
 // Keep native splash visible
 SplashScreen.preventAutoHideAsync();
@@ -75,7 +74,7 @@ export default function Home() {
       {showSplash ? (
         <Splash />
       ) : !isFirstLaunch ? (
-        <OnboardingScreens />   // <---- FIRST TIME USER
+        <OnboardingScreens /> 
       ) : (
         <SignIn />       // <---- RETURNING USER
       )}

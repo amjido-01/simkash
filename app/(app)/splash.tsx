@@ -1,27 +1,51 @@
-import { View, Animated, Easing } from "react-native";
-import { useEffect, useRef } from "react";
+import { View, Image } from "react-native";
+import BottomSvg from "@/assets/images/BottomSvg.svg";
+import TopRight from "@/assets/images/topright.svg"
+import TopLeft from "@/assets/images/topleft.svg"
 
 export default function Splash() {
-  const scaleAnim = useRef(new Animated.Value(0.2)).current; // start tiny
-
-  useEffect(() => {
-    Animated.timing(scaleAnim, {
-      toValue: 1.2,        // zoom bigger smoothly
-      duration: 1600,       // slower → smoother
-      easing: Easing.out(Easing.quad),
-      useNativeDriver: true,
-    }).start();
-  }, [scaleAnim]);
-
   return (
-    <View className="flex-1 items-center justify-center bg-white">
-      <Animated.Image
+    <View
+      style={{
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+        backgroundColor: "#fff",
+      }}
+    >
+       <TopRight
+        width={"40%"}
+        height={170}
+        style={{
+          position: "absolute",
+          left: 0,
+          top: -50,
+        }}
+      />
+       <TopLeft
+        width={"40%"}
+        height={100}
+        style={{
+          position: "absolute",
+          right: 0,
+          top: -50,
+        }}
+      />
+
+       <BottomSvg
+        width={"100%"}
+        height={"40%"}
+        style={{
+          position: "absolute",
+          bottom: -20,
+        }}
+      />
+      <Image
         source={require("../../assets/images/splash.png")}
         resizeMode="contain"
         style={{
-          width: 160,
-          height: 160,
-          transform: [{ scale: scaleAnim }],
+          width: 180,   
+          height: 180,
         }}
       />
     </View>
