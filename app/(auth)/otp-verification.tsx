@@ -11,10 +11,12 @@ import { OtpInput } from "react-native-otp-entry";
 export default function OtpVerification() {
   const [otp, setOtp] = useState("");
 
-//   const verifyOtp = () => {
-//     console.log("OTP:", otp);
-//     // Handle verification logic here
-//   };
+  const verifyOtp = () => {
+    console.log("OTP:", otp);
+    // Handle verification logic here
+    router.push("/(app)/(profile-setup)/basic-info")
+
+  };
 
   const goBack = () => router.back();
 
@@ -22,9 +24,10 @@ export default function OtpVerification() {
     <Box className="bg-white p-8 w-full h-full pt-16">
       {/* Title */}
       <VStack space="sm" className="mt-8">
-        <Heading className="text-[18px] font-manropesemibold leading-[28px] text-center my-[32px]">
+        <Heading className="mt-[32px] text-[18px] font-manropesemibold leading-[28px]">
           OTP Verification
         </Heading>
+         <Text className="mb[51px] text-[#303237] mb-[41px] font-medium text-[14px] leading-[100%]">We’ve sent a 6-digit code to yusuf@gmail.com. Please enter it to proceed.</Text>
       </VStack>
 
       {/* OTP Component */}
@@ -48,8 +51,8 @@ export default function OtpVerification() {
               marginTop: 20,
             },
             pinCodeContainerStyle: {
-              width: 48,
-              height: 48,
+              width: 49,
+              height: 49,
               borderRadius: 12,
               borderWidth: 1.5,
               borderColor: "#D0D5DD",
@@ -78,14 +81,13 @@ export default function OtpVerification() {
         <HStack
           space={"sm"}
           className={
-            "items-center justify-center my-[16px] text-[14px] leading-[24px]"
+            "items-center justify-center text-[14px] leading-[24px]"
           }
         >
-          {" "}
           <Text className="text-[#717680] text-[14px]">
             Didn’t receive code?
           </Text>
-          <Button variant="link" className="ml-1">
+          <Button onPress={() => router.push("/(app)/(profile-setup)/basic-info")} variant="link" className="ml-1">
             <ButtonText className="text-[14px]">Resend</ButtonText>
           </Button>
         </HStack>

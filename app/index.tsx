@@ -2,7 +2,7 @@ import Entypo from "@expo/vector-icons/Entypo";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Font from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState  } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import OnboardingScreens from "./(app)/onboarding";
 import Splash from "./(app)/splash";
@@ -73,7 +73,7 @@ export default function Home() {
     <SafeAreaView className="flex-1 bg-white" onLayout={onLayoutRootView}>
       {showSplash ? (
         <Splash />
-      ) : !isFirstLaunch ? (
+      ) : isFirstLaunch ? (
         <OnboardingScreens /> 
       ) : (
         <SignIn />       // <---- RETURNING USER

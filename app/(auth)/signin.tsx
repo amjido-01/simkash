@@ -1,19 +1,182 @@
-import { Link } from "expo-router";
-import { View, Text } from "react-native";
-import { Button } from "@/components/ui/button";
+import { Box } from "@/components/ui/box";
+import { Button, ButtonText } from "@/components/ui/button";
+import {
+  FormControl,
+  FormControlLabel,
+  FormControlLabelText,
+  FormControlError,
+  FormControlErrorText,
+  FormControlErrorIcon,
+} from "@/components/ui/form-control";
+import { Heading } from "@/components/ui/heading";
+import { HStack } from "@/components/ui/hstack";
+import { Input, InputField, InputIcon, InputSlot } from "@/components/ui/input";
+import { Text } from "@/components/ui/text";
+import { VStack } from "@/components/ui/vstack";
+import { AlertCircleIcon, Eye, EyeOff } from "lucide-react-native";
+import { router } from "expo-router";
+import React, { useState } from "react";
+import { useForm, Controller } from "react-hook-form";
+import { yupResolver } from "@hookform/resolvers/yup";
+import * as yup from "yup";
 
-export default function SignIn() {
+const schema = yup.object().shape({
+  email: yup
+    .string()
+    .email("Invalid email address. Try again.")
+    .required("Email is required"),
+  password: yup
+    .string()
+    .required("Password is required")
+    .min(8, "Password must be at least 8 characters"),
+});
+
+export default function Login() {
+  const [showPassword, setShowPassword] = useState(false);
+
+  const {
+    control,
+    handleSubmit,
+    formState: { errors },
+  } = useForm({
+    resolver: yupResolver(schema),
+    mode: "onChange",
+  });
+
+  const submitForm = (data: any) => {
+    console.log("✔ Valid form:", data);
+    // Navigate to dashboard or home
+    router.push("/(app)/dashboard");
+  };
+
   return (
-    <View className="flex-1 items-center justify-center px-6 bg-white">
-      <Text className="text-[18px] leading-[28px] tracking[60px]  font-manropesemibold text-[#000000] mb-8">Create your Account</Text>
+    <Box className="bg-white p-6 w-full h-full pt-16">
+      <VStack space="sm" className="mt-8">
+        <Heading className="text-[18px] font-manropesemibold leading-[28px] mt-[32px]">
+          Welcome Back
+        </Heading>
+        <Text className="mb-[51px] text-[#303237] font-medium text-[14px] leading-[100%]">Your account is just a step away.</Text>
+      </VStack>
 
-     <View>
-      
-     </View>
+      <VStack space="xl" className="flex-1">
+        {/* EMAIL */}
+        <FormControl isInvalid={Boolean(errors.email)}>
+          <FormControlLabel>
+            <FormControlLabelText className="text-[12px] text-[#414651] mb-[6px]">
+              Email
+            </FormControlLabelText>
+          </FormControlLabel>
 
-      <Link href="/(auth)/signup" asChild>
-        <Text className="text-blue-500 mt-6">Dont have an account? Sign Up</Text>
-      </Link>
-    </View>
+          <Controller
+            control={control}
+            name="email"
+            render={({ field: { onChange, onBlur, value } }) => (
+              <Input
+                variant="outline"
+                size="xl"
+                className={`w-full rounded-[99px] focus:border-2 focus:border-[#D0D5DD] h-[48px] ${
+                  errors.email ? "border-2 border-red-500" : "border border-[#D0D5DD]"
+                }`}
+              >
+                <InputField
+                  placeholder="olivia@untitledui.com"
+                  className="w-full text-[14px] text-[#717680] h-[48px]"
+                  value={value}
+                  onChangeText={onChange}
+                  onBlur={onBlur}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                />
+              </Input>
+            )}
+          />
+
+          {errors.email && (
+            <FormControlError>
+              <FormControlErrorIcon className="text-red-500" as={AlertCircleIcon} />
+              <FormControlErrorText className="text-red-500">
+                {errors.email?.message}
+              </FormControlErrorText>
+            </FormControlError>
+          )}
+        </FormControl>
+
+        {/* PASSWORD */}
+        <FormControl isInvalid={Boolean(errors.password)}>
+          <FormControlLabel>
+            <FormControlLabelText className="text-[12px] text-[#414651] mb-[6px]">
+              Password
+            </FormControlLabelText>
+          </FormControlLabel>
+
+          <Controller
+            control={control}
+            name="password"
+            render={({ field: { onChange, onBlur, value } }) => (
+              <Input
+                variant="outline"
+                size="xl"
+                className={`w-full rounded-[99px] h-[48px] focus:border-2 focus:border-[#D0D5DD] ${
+                  errors.password ? "border-2 border-red-500" : "border border-[#D0D5DD]"
+                }`}
+              >
+                <InputField
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Passwordsimcard1"
+                  className="text-[14px] text-[#717680]"
+                  value={value}
+                  onChangeText={onChange}
+                  onBlur={onBlur}
+                  autoCapitalize="none"
+                />
+                <InputSlot className="pr-3" onPress={() => setShowPassword(!showPassword)}>
+                  <InputIcon as={showPassword ? Eye : EyeOff} />
+                </InputSlot>
+              </Input>
+            )}
+          />
+
+          {errors.password && (
+            <FormControlError>
+              <FormControlErrorIcon className="text-red-500" as={AlertCircleIcon} />
+              <FormControlErrorText className="text-red-500">
+                {errors.password?.message}
+              </FormControlErrorText>
+            </FormControlError>
+          )}
+        </FormControl>
+
+        {/* FORGOT PASSWORD */}
+        <HStack className="justify-end">
+          <Button 
+            onPress={() => router.push("/(auth)/otp-verification")} 
+            variant="link"
+            className="p-0"
+          >
+            <ButtonText className="text-[12px] font-manroperegular text-[#132939] font-bold">
+              Forgot Password?
+            </ButtonText>
+          </Button>
+        </HStack>
+      </VStack>
+
+      {/* BUTTONS */}
+      <VStack space="sm" className="mt-auto pb-6">
+        <Button
+          className="rounded-full bg-[#132939] h-[48px]"
+          size="xl"
+          onPress={handleSubmit(submitForm)}
+        >
+          <ButtonText className="text-white text-[16px] font-medium leading-[24px]">Sign In</ButtonText>
+        </Button>
+
+        <HStack space="sm" className="items-center justify-center my-[16px]">
+          <Text className="text-[14px] font-medium text-[#000000]">Dont have an account?</Text>
+          <Button onPress={() => router.push("/(auth)/signup")} variant="link">
+            <ButtonText className="text-[14px]">Sign up</ButtonText>
+          </Button>
+        </HStack>
+      </VStack>
+    </Box>
   );
 }
