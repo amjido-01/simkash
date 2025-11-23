@@ -26,17 +26,19 @@ export default function OtpVerification() {
 
   const verifyOtp = async () => {
     if (otp.length !== 6) {
-      Alert.alert("Invalid OTP", "Please enter a 6-digit code.", [{ text: "OK" }]);
+      Alert.alert("Invalid OTP", "Please enter a 6-digit code.", [
+        { text: "OK" },
+      ]);
       return;
     }
 
     try {
       setIsVerifying(true);
       console.log("OTP:", otp);
-      
+
       // TODO: Add your API call here to verify OTP
       // await verifyOtpWithBackend(otp);
-      
+
       // Navigate to next step
       router.push("/(app)/(profile-setup)/basic-info");
     } catch (error) {
@@ -52,10 +54,10 @@ export default function OtpVerification() {
   const resendOtp = async () => {
     try {
       setIsResending(true);
-      
+
       // TODO: Add your API call here to resend OTP
       // await resendOtpToEmail();
-      
+
       Alert.alert("Success", "A new code has been sent to your email.", [
         { text: "OK" },
       ]);
@@ -100,8 +102,8 @@ export default function OtpVerification() {
                   OTP Verification
                 </Heading>
                 <Text className="text-[#303237] mb-[41px] font-medium text-[14px] leading-[100%]">
-                  Weve sent a 6-digit code to yusuf@gmail.com. Please enter it to
-                  proceed.
+                  Weve sent a 6-digit code to yusuf@gmail.com. Please enter it
+                  to proceed.
                 </Text>
               </VStack>
 

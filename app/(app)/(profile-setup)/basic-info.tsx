@@ -52,13 +52,11 @@ import * as yup from "yup";
 // Validation schema
 const profileSchema = yup.object({
   fullName: yup.string().required("Full name is required"),
-  phoneNumber: yup
-    .string()
-    .required("Phone number is required"),
-    // .matches(
-    //   /^\+234[0-9]{10}$/,
-    //   "Phone number must be in format +234XXXXXXXXXX"
-    // ),
+  phoneNumber: yup.string().required("Phone number is required"),
+  // .matches(
+  //   /^\+234[0-9]{10}$/,
+  //   "Phone number must be in format +234XXXXXXXXXX"
+  // ),
   gender: yup.string().required("Gender is required"),
   dateOfBirth: yup
     .string()
@@ -160,7 +158,10 @@ export default function BasicInfo() {
                 </Heading>
 
                 {/* Step Indicator */}
-                <StepIndicator currentStep={currentStep} totalSteps={totalSteps} />
+                <StepIndicator
+                  currentStep={currentStep}
+                  totalSteps={totalSteps}
+                />
               </VStack>
 
               <VStack space="xl" className="flex-1 mt-6">
@@ -234,7 +235,8 @@ export default function BasicInfo() {
                         {/* Country Code Dropdown inside Input */}
                         <Select
                           onValueChange={(countryCode) => {
-                            const currentNumber = value?.replace(/^\+\d+/, "") || "";
+                            const currentNumber =
+                              value?.replace(/^\+\d+/, "") || "";
                             onChange(`+${countryCode}${currentNumber}`);
                           }}
                           defaultValue="234"
@@ -314,7 +316,10 @@ export default function BasicInfo() {
                             placeholder="Select your gender"
                             className="text-[14px] text-[#717680] flex-1"
                           />
-                          <SelectIcon as={ChevronDownIcon} className="ml-auto mr-3" />
+                          <SelectIcon
+                            as={ChevronDownIcon}
+                            className="ml-auto mr-3"
+                          />
                         </SelectTrigger>
                         <SelectPortal>
                           <SelectBackdrop />
@@ -375,7 +380,10 @@ export default function BasicInfo() {
                               editable={false}
                               pointerEvents="none"
                             />
-                            <InputIcon as={CalendarIcon} className="ml-auto mr-3" />
+                            <InputIcon
+                              as={CalendarIcon}
+                              className="ml-auto mr-3"
+                            />
                           </Input>
                         </Pressable>
 
@@ -435,7 +443,10 @@ export default function BasicInfo() {
                             placeholder="Select your country"
                             className="text-[14px] text-[#717680] flex-1"
                           />
-                          <SelectIcon as={ChevronDownIcon} className="ml-auto mr-3" />
+                          <SelectIcon
+                            as={ChevronDownIcon}
+                            className="ml-auto mr-3"
+                          />
                         </SelectTrigger>
                         <SelectPortal>
                           <SelectBackdrop />
@@ -444,8 +455,14 @@ export default function BasicInfo() {
                               <SelectDragIndicator />
                             </SelectDragIndicatorWrapper>
                             <SelectItem label="Nigeria" value="nigeria" />
-                            <SelectItem label="United States" value="united states" />
-                            <SelectItem label="United Kingdom" value="united kingdom" />
+                            <SelectItem
+                              label="United States"
+                              value="united states"
+                            />
+                            <SelectItem
+                              label="United Kingdom"
+                              value="united kingdom"
+                            />
                             <SelectItem label="Canada" value="canada" />
                             <SelectItem label="Ghana" value="ghana" />
                           </SelectContent>

@@ -147,7 +147,10 @@ export default function SetUpPin() {
                 </Heading>
 
                 {/* Step Indicator */}
-                <StepIndicator currentStep={currentStep} totalSteps={totalSteps} />
+                <StepIndicator
+                  currentStep={currentStep}
+                  totalSteps={totalSteps}
+                />
               </VStack>
 
               <VStack space="xl" className="flex-1 mt-6">
@@ -222,7 +225,10 @@ export default function SetUpPin() {
                 </FormControl>
 
                 {/* Confirm PIN */}
-                <FormControl isInvalid={Boolean(errors.confirmPin)} className="mt-8">
+                <FormControl
+                  isInvalid={Boolean(errors.confirmPin)}
+                  className="mt-8"
+                >
                   <Text className="text-[#414651] text-[14px] font-medium text-center mb-3">
                     Confirm Pin
                   </Text>

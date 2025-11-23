@@ -13,7 +13,7 @@ export default function Splash() {
         backgroundColor: "#fff",
       }}
     >
-       <TopRight
+      <TopRight
         width={"40%"}
         height={170}
         style={{
@@ -22,7 +22,7 @@ export default function Splash() {
           top: -50,
         }}
       />
-       <TopLeft
+      <TopLeft
         width={"40%"}
         height={100}
         style={{
@@ -31,21 +31,21 @@ export default function Splash() {
           top: -50,
         }}
       />
-<BottomSvg
-  width="100%"
-  height={200} // choose a fixed height
-  preserveAspectRatio="xMidYMax slice"
-  style={{
-    position: "absolute",
-    bottom: 0,
-  }}
-/>
+      <BottomSvg
+        width="100%"
+        height={200} // choose a fixed height
+        preserveAspectRatio="xMidYMax slice"
+        style={{
+          position: "absolute",
+          bottom: 0,
+        }}
+      />
 
       <Image
         source={require("../../assets/images/splash.png")}
         resizeMode="contain"
         style={{
-          width: 180,   
+          width: 180,
           height: 180,
         }}
       />

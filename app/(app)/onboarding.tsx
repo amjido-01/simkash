@@ -13,8 +13,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 const pages = [
   {
     title: "Effortlessly Management",
-    subtitle:
-      "Stay connected with ease, activate, and manage SIMs",
+    subtitle: "Stay connected with ease, activate, and manage SIMs",
     image: require("../../assets/images/slide1.gif"),
   },
   {
@@ -70,7 +69,10 @@ export default function OnboardingScreens() {
   const svgHeight = isSmallDevice ? "35%" : "40%";
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }} edges={["bottom"]}>
+    <SafeAreaView
+      style={{ flex: 1, backgroundColor: "#fff" }}
+      edges={["bottom"]}
+    >
       <View className="flex-1">
         {/* Background SVG */}
         <Onboardsvg
@@ -106,18 +108,18 @@ export default function OnboardingScreens() {
                       alignSelf: "center",
                       borderRadius: 24,
                       marginTop: 20,
-                      overflow: 'hidden',
+                      overflow: "hidden",
                     }}
                     resizeMode="cover"
                   />
 
-                  <Text 
+                  <Text
                     className="text-[22px] font-manroperegular text-[#000] text-center mt-[20px] px-[20px]"
                     numberOfLines={2}
                   >
                     {item.title}
                   </Text>
-                  <Text 
+                  <Text
                     className="text-[15px] font-manroperegular text-[#4A4A4A] text-center px-[26px] mb-[10px] mt-[6px]"
                     numberOfLines={3}
                   >
