@@ -283,7 +283,7 @@ export default function SignUp() {
 
                 {/* PASSWORD STRENGTH METER */}
                 {passwordValue.length > 0 && (
-                  <VStack space="xs" className="mt-1">
+                  <VStack space="sm" className="mt-1">
                     <Text className="text-[12px] text-[#414651]">
                       {strength.label} password. Must contain:
                     </Text>

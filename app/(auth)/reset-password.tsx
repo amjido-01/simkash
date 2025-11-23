@@ -15,8 +15,8 @@ import { Text } from "@/components/ui/text";
 import { VStack } from "@/components/ui/vstack";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { router } from "expo-router";
-import { AlertCircleIcon, Eye, EyeOff } from "lucide-react-native";
-import React, { useState } from "react";
+import { AlertCircleIcon } from "lucide-react-native";
+import React from "react";
 import { Controller, useForm } from "react-hook-form";
 import { KeyboardAvoidingView, Platform, ScrollView } from "react-native";
 import * as yup from "yup";
@@ -26,14 +26,9 @@ const schema = yup.object().shape({
     .string()
     .email("Invalid email address. Try again.")
     .required("Email is required"),
-  password: yup
-    .string()
-    .required("Password is required")
-    .min(8, "Password must be at least 8 characters"),
 });
 
-export default function Login() {
-  const [showPassword, setShowPassword] = useState(false);
+export default function ResetPassword() {
 
   const {
     control,
@@ -47,7 +42,7 @@ export default function Login() {
   const submitForm = (data: any) => {
     console.log("✔ Valid form:", data);
     // Navigate to dashboard or home
-    router.push("/(app)/dashboard");
+    router.push("/(auth)/create-password");
   };
 
   return (
@@ -64,10 +59,10 @@ export default function Login() {
         <Box className="bg-white p-6 w-full h-full pt-16 flex1">
           <VStack space="sm" className="mt-8">
             <Heading className="text-[18px] font-manropesemibold leading-[28px] mt-[32px]">
-              Welcome Back
+              Reset Your Password
             </Heading>
             <Text className="mb-[51px] text-[#303237] font-medium text-[14px] leading-[100%]">
-              Your account is just a step away.
+              Enter the email linked to your account and we’ll send you a code to reset your password.
             </Text>
           </VStack>
 
@@ -118,72 +113,6 @@ export default function Login() {
                 </FormControlError>
               )}
             </FormControl>
-
-            {/* PASSWORD */}
-            <FormControl isInvalid={Boolean(errors.password)}>
-              <FormControlLabel>
-                <FormControlLabelText className="text-[12px] text-[#414651] mb-[6px]">
-                  Password
-                </FormControlLabelText>
-              </FormControlLabel>
-
-              <Controller
-                control={control}
-                name="password"
-                render={({ field: { onChange, onBlur, value } }) => (
-                  <Input
-                    variant="outline"
-                    size="xl"
-                    className={`w-full rounded-[99px] h-[48px] focus:border-2 focus:border-[#D0D5DD] ${
-                      errors.password
-                        ? "border-2 border-red-500"
-                        : "border border-[#D0D5DD]"
-                    }`}
-                  >
-                    <InputField
-                      type={showPassword ? "text" : "password"}
-                      placeholder="Passwordsimcard1"
-                      className="text-[14px] text-[#717680]"
-                      value={value}
-                      onChangeText={onChange}
-                      onBlur={onBlur}
-                      autoCapitalize="none"
-                    />
-                    <InputSlot
-                      className="pr-3"
-                      onPress={() => setShowPassword(!showPassword)}
-                    >
-                      <InputIcon as={showPassword ? Eye : EyeOff} />
-                    </InputSlot>
-                  </Input>
-                )}
-              />
-
-              {errors.password && (
-                <FormControlError>
-                  <FormControlErrorIcon
-                    className="text-red-500"
-                    as={AlertCircleIcon}
-                  />
-                  <FormControlErrorText className="text-red-500">
-                    {errors.password?.message}
-                  </FormControlErrorText>
-                </FormControlError>
-              )}
-            </FormControl>
-
-            {/* FORGOT PASSWORD */}
-            <HStack className="justify-end">
-              <Button
-                onPress={() => router.push("/(auth)/reset-password")}
-                variant="link"
-                className="p-0"
-              >
-                <ButtonText className="text-[12px] font-manroperegular text-[#132939] font-bold">
-                  Forgot Password?
-                </ButtonText>
-              </Button>
-            </HStack>
           </VStack>
 
           {/* BUTTONS */}
@@ -194,24 +123,9 @@ export default function Login() {
               onPress={handleSubmit(submitForm)}
             >
               <ButtonText className="text-white text-[16px] font-medium leading-[24px]">
-                Sign In
+                Send Reset Code
               </ButtonText>
             </Button>
-
-            <HStack
-              space="sm"
-              className="items-center justify-center my-[16px]"
-            >
-              <Text className="text-[14px] font-medium text-[#000000]">
-                Dont have an account?
-              </Text>
-              <Button
-                onPress={() => router.push("/(auth)/signup")}
-                variant="link"
-              >
-                <ButtonText className="text-[14px]">Sign up</ButtonText>
-              </Button>
-            </HStack>
           </VStack>
         </Box>
       </ScrollView>
