@@ -1,6 +1,15 @@
 import { Box } from "@/components/ui/box";
 import { Button, ButtonText } from "@/components/ui/button";
 import {
+  Drawer,
+  DrawerBackdrop,
+  DrawerBody,
+  DrawerCloseButton,
+  DrawerContent,
+  DrawerFooter,
+  DrawerHeader,
+} from "@/components/ui/drawer";
+import {
   FormControl,
   FormControlError,
   FormControlErrorIcon,
@@ -11,21 +20,22 @@ import { Text } from "@/components/ui/text";
 import { VStack } from "@/components/ui/vstack";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { router } from "expo-router";
+import { AlertCircleIcon } from "lucide-react-native";
 import React, { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
+import {
+  Alert,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  TouchableWithoutFeedback,
+  useWindowDimensions,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { OtpInput } from "react-native-otp-entry";
-import { View, Alert } from "react-native";
 import * as yup from "yup";
-import { 
-  Drawer, 
-  DrawerBackdrop, 
-  DrawerContent, 
-  DrawerHeader, 
-  DrawerBody, 
-  DrawerFooter,
-  DrawerCloseButton 
-} from "@/components/ui/drawer";
-import { Icon, X, AlertCircleIcon } from "lucide-react-native";
 
 // Validation schema
 const passcodeSchema = yup.object({
@@ -50,14 +60,19 @@ const StepIndicator = ({
   totalSteps: number;
 }) => {
   return (
-    <View className="flex-row gap-1 mt-2" accessibilityLabel={`Step ${currentStep} of ${totalSteps}`}>
+    <View
+      className="flex-row gap-1 mt-2"
+      accessibilityLabel={`Step ${currentStep} of ${totalSteps}`}
+    >
       {Array.from({ length: totalSteps }).map((_, index) => (
         <View
           key={index}
           className={`h-1 flex-1 rounded-full ${
             index < currentStep ? "bg-[#132939]" : "bg-[#E4E7EC]"
           }`}
-          accessibilityLabel={`Step ${index + 1} ${index < currentStep ? 'completed' : 'not completed'}`}
+          accessibilityLabel={`Step ${index + 1} ${
+            index < currentStep ? "completed" : "not completed"
+          }`}
         />
       ))}
     </View>
@@ -67,6 +82,7 @@ const StepIndicator = ({
 export default function SetPasscode() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showDrawer, setShowDrawer] = useState(false);
+  const { height } = useWindowDimensions();
   const currentStep = 3;
   const totalSteps = 3;
 
@@ -74,7 +90,6 @@ export default function SetPasscode() {
     control,
     handleSubmit,
     formState: { errors, isValid },
-    setValue,
     trigger,
     watch,
   } = useForm<PasscodeFormData>({
@@ -92,22 +107,20 @@ export default function SetPasscode() {
     try {
       setIsSubmitting(true);
       console.log("Passcode set successfully:", data);
-      
+
       // TODO: Add your API call here to save the passcode
       // await savePasscodeToBackend(data.newPasscode);
-      
+
       // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
       // Show success drawer
       setShowDrawer(true);
     } catch (error) {
       console.error("Error setting passcode:", error);
-      Alert.alert(
-        "Error",
-        "Failed to set up passcode. Please try again.",
-        [{ text: "OK" }]
-      );
+      Alert.alert("Error", "Failed to set up passcode. Please try again.", [
+        { text: "OK" },
+      ]);
     } finally {
       setIsSubmitting(false);
     }
@@ -119,188 +132,223 @@ export default function SetPasscode() {
     // router.push("/(app)/(tabs)/home");
   };
 
-  const goBack = () => router.back();
-
   return (
     <>
-      <Box className="bg-white p-6 w-full h-full pt-16">
-        {/* Title */}
-        <VStack space="sm" className="my-8">
-          <Text className="text-[#303237] font-medium text-[14px] leading-[100%]">
-            Profile Setup
-          </Text>
-          <Heading className="text-[18px] font-manropesemibold leading-[28px]">
-            Set up Passcode
-          </Heading>
+      <SafeAreaView
+        style={{ flex: 1, backgroundColor: "#fff" }}
+        edges={["top", "bottom"]}
+      >
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+        >
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <Box className="flex-1 bg-white">
+              <ScrollView
+                contentContainerStyle={{
+                  flexGrow: 1,
+                  paddingHorizontal: 24,
+                  // paddingTop: 64,
+                  paddingBottom: 24,
+                  minHeight: height - 100,
+                }}
+                keyboardShouldPersistTaps="handled"
+                bounces={false}
+                showsVerticalScrollIndicator={false}
+              >
+                {/* Title */}
+                <VStack space="sm" className="mt-8">
+                  <Text className="text-[#303237] font-medium text-[14px] leading-[100%]">
+                    Profile Setup
+                  </Text>
+                  <Heading className="text-[18px] font-manropesemibold leading-[28px]">
+                    Set up Passcode
+                  </Heading>
 
-          {/* Step Indicator */}
-          <StepIndicator currentStep={currentStep} totalSteps={totalSteps} />
-        </VStack>
+                  {/* Step Indicator */}
+                  <StepIndicator currentStep={currentStep} totalSteps={totalSteps} />
+                </VStack>
 
-        <VStack space="xl" className="flex-1">
-          {/* New Passcode */}
-          <FormControl isInvalid={Boolean(errors.newPasscode)}>
-            <Text className="text-[#414651] text-[14px] font-medium text-center mb-3">
-              New Passcode
-            </Text>
+                <VStack space="xl" className="flex-1 mt-6">
+                  {/* New Passcode */}
+                  <FormControl isInvalid={Boolean(errors.newPasscode)}>
+                    <Text className="text-[#414651] text-[14px] font-medium text-center mb-3">
+                      New Passcode
+                    </Text>
 
-            <Controller
-              control={control}
-              name="newPasscode"
-              render={({ field: { onChange, value } }) => (
-                <OtpInput
-                  numberOfDigits={6}
-                  autoFocus={true}
-                  focusColor="#132939"
-                  placeholder="000000"
-                  type="numeric"
-                  secureTextEntry={true}
-                  onTextChange={(text) => {
-                    onChange(text);
-                    if (text.length === 6) {
-                      trigger("newPasscode");
-                    }
-                  }}
-                  onFilled={(text) => {
-                    onChange(text);
-                    trigger("newPasscode");
-                  }}
-                  theme={{
-                    containerStyle: {
-                      width: "auto",
-                      alignSelf: "center",
-                      marginTop: 4,
-                    },
-                    pinCodeContainerStyle: {
-                      width: 49,
-                      height: 49,
-                      borderRadius: 12,
-                      borderWidth: 1.5,
-                      borderColor: errors.newPasscode ? "#EF4444" : "#E4E7EC",
-                      backgroundColor: "#FFFFFF",
-                      marginHorizontal: 4,
-                      justifyContent: "center",
-                      alignItems: "center",
-                    },
-                    focusedPinCodeContainerStyle: {
-                      borderColor: errors.newPasscode ? "#EF4444" : "#132939",
-                    },
-                    pinCodeTextStyle: {
-                      color: "#131416",
-                      fontSize: 20,
-                      fontWeight: "500",
-                    },
-                    filledPinCodeContainerStyle: {
-                      borderColor: errors.newPasscode ? "#EF4444" : "#132939",
-                    },
-                  }}
-                />
-              )}
-            />
-            {errors.newPasscode && (
-              <FormControlError className="mt-2">
-                <FormControlErrorIcon
-                  className="text-red-500"
-                  as={AlertCircleIcon}
-                />
-                <FormControlErrorText className="text-red-500 text-[14px]">
-                  {errors.newPasscode?.message}
-                </FormControlErrorText>
-              </FormControlError>
-            )}
-          </FormControl>
+                    <Controller
+                      control={control}
+                      name="newPasscode"
+                      render={({ field: { onChange } }) => (
+                        <OtpInput
+                          numberOfDigits={6}
+                          autoFocus={true}
+                          focusColor="#132939"
+                          placeholder="000000"
+                          type="numeric"
+                          secureTextEntry={true}
+                          onTextChange={(text) => {
+                            onChange(text);
+                            if (text.length === 6) {
+                              trigger("newPasscode");
+                            }
+                          }}
+                          onFilled={(text) => {
+                            onChange(text);
+                            trigger("newPasscode");
+                          }}
+                          theme={{
+                            containerStyle: {
+                              width: "auto",
+                              alignSelf: "center",
+                              marginTop: 4,
+                            },
+                            pinCodeContainerStyle: {
+                              width: 49,
+                              height: 49,
+                              borderRadius: 12,
+                              borderWidth: 1.5,
+                              borderColor: errors.newPasscode ? "#EF4444" : "#E4E7EC",
+                              backgroundColor: "#FFFFFF",
+                              marginHorizontal: 4,
+                              justifyContent: "center",
+                              alignItems: "center",
+                            },
+                            focusedPinCodeContainerStyle: {
+                              borderColor: errors.newPasscode ? "#EF4444" : "#132939",
+                            },
+                            pinCodeTextStyle: {
+                              color: "#131416",
+                              fontSize: 20,
+                              fontWeight: "500",
+                            },
+                            filledPinCodeContainerStyle: {
+                              borderColor: errors.newPasscode ? "#EF4444" : "#132939",
+                            },
+                          }}
+                        />
+                      )}
+                    />
+                    {errors.newPasscode && (
+                      <FormControlError className="mt-2 items-center justify-center">
+                        <FormControlErrorIcon
+                          className="text-red-500"
+                          as={AlertCircleIcon}
+                        />
+                        <FormControlErrorText className="text-red-500 text-[14px]">
+                          {errors.newPasscode?.message}
+                        </FormControlErrorText>
+                      </FormControlError>
+                    )}
+                  </FormControl>
 
-          {/* Confirm Passcode */}
-          <FormControl isInvalid={Boolean(errors.confirmPasscode)} className="mt-8">
-            <Text className="text-[#414651] text-[14px] font-medium text-center mb-3">
-              Confirm Passcode
-            </Text>
-            
-            <Controller
-              control={control}
-              name="confirmPasscode"
-              render={({ field: { onChange, value } }) => (
-                <OtpInput
-                  numberOfDigits={6}
-                  focusColor="#132939"
-                  type="numeric"
-                  placeholder="000000"
-                  secureTextEntry={true}
-                  disabled={!newPasscodeValue || newPasscodeValue.length < 6}
-                  onTextChange={(text) => {
-                    onChange(text);
-                    if (text.length === 6) {
-                      trigger("confirmPasscode");
-                    }
-                  }}
-                  onFilled={(text) => {
-                    onChange(text);
-                    trigger("confirmPasscode");
-                  }}
-                  theme={{
-                    containerStyle: {
-                      width: "auto",
-                      alignSelf: "center",
-                      marginTop: 4,
-                    },
-                    pinCodeContainerStyle: {
-                      width: 49,
-                      height: 49,
-                      borderRadius: 12,
-                      borderWidth: 1.5,
-                      borderColor: errors.confirmPasscode ? "#EF4444" : "#E4E7EC",
-                      backgroundColor: "#FFFFFF",
-                      marginHorizontal: 4,
-                      justifyContent: "center",
-                      alignItems: "center",
-                    },
-                    focusedPinCodeContainerStyle: {
-                      borderColor: errors.confirmPasscode ? "#EF4444" : "#132939",
-                    },
-                    pinCodeTextStyle: {
-                      color: "#131416",
-                      fontSize: 20,
-                      fontWeight: "500",
-                    },
-                    filledPinCodeContainerStyle: {
-                      borderColor: errors.confirmPasscode ? "#EF4444" : "#132939",
-                    },
-                  }}
-                />
-              )}
-            />
-            {errors.confirmPasscode && (
-              <FormControlError className="mt-2">
-                <FormControlErrorIcon
-                  className="text-red-500"
-                  as={AlertCircleIcon}
-                />
-                <FormControlErrorText className="text-red-500 text-[14px]">
-                  {errors.confirmPasscode?.message}
-                </FormControlErrorText>
-              </FormControlError>
-            )}
-          </FormControl>
-        </VStack>
+                  {/* Confirm Passcode */}
+                  <FormControl
+                    isInvalid={Boolean(errors.confirmPasscode)}
+                    className="mt-8"
+                  >
+                    <Text className="text-[#414651] text-[14px] font-medium text-center mb-3">
+                      Confirm Passcode
+                    </Text>
 
-        {/* Continue Button */}
-        <VStack space="sm" className="mt-auto pb-6">
-          <Button
-            className="rounded-full bg-[#132939] h-[48px]"
-            size="xl"
-            onPress={handleSubmit(onSubmit)}
-            isDisabled={!isValid || isSubmitting}
-            accessibilityLabel="Continue to next step"
-          >
-            <ButtonText className="text-white text-[16px] font-medium leading-[24px]">
-              {isSubmitting ? "Setting up..." : "Continue"}
-            </ButtonText>
-          </Button>
-        </VStack>
-      </Box>
+                    <Controller
+                      control={control}
+                      name="confirmPasscode"
+                      render={({ field: { onChange } }) => (
+                        <OtpInput
+                          numberOfDigits={6}
+                          focusColor="#132939"
+                          type="numeric"
+                          placeholder="000000"
+                          secureTextEntry={true}
+                          disabled={!newPasscodeValue || newPasscodeValue.length < 6}
+                          onTextChange={(text) => {
+                            onChange(text);
+                            if (text.length === 6) {
+                              trigger("confirmPasscode");
+                            }
+                          }}
+                          onFilled={(text) => {
+                            onChange(text);
+                            trigger("confirmPasscode");
+                          }}
+                          theme={{
+                            containerStyle: {
+                              width: "auto",
+                              alignSelf: "center",
+                              marginTop: 4,
+                            },
+                            pinCodeContainerStyle: {
+                              width: 49,
+                              height: 49,
+                              borderRadius: 12,
+                              borderWidth: 1.5,
+                              borderColor: errors.confirmPasscode
+                                ? "#EF4444"
+                                : "#E4E7EC",
+                              backgroundColor: "#FFFFFF",
+                              marginHorizontal: 4,
+                              justifyContent: "center",
+                              alignItems: "center",
+                            },
+                            focusedPinCodeContainerStyle: {
+                              borderColor: errors.confirmPasscode
+                                ? "#EF4444"
+                                : "#132939",
+                            },
+                            pinCodeTextStyle: {
+                              color: "#131416",
+                              fontSize: 20,
+                              fontWeight: "500",
+                            },
+                            filledPinCodeContainerStyle: {
+                              borderColor: errors.confirmPasscode
+                                ? "#EF4444"
+                                : "#132939",
+                            },
+                          }}
+                        />
+                      )}
+                    />
+                    {errors.confirmPasscode && (
+                      <FormControlError className="mt-2 items-center justify-center">
+                        <FormControlErrorIcon
+                          className="text-red-500"
+                          as={AlertCircleIcon}
+                        />
+                        <FormControlErrorText className="text-red-500 text-[14px]">
+                          {errors.confirmPasscode?.message}
+                        </FormControlErrorText>
+                      </FormControlError>
+                    )}
+                  </FormControl>
 
-      {/* Success Drawer - Following the exact pattern from docs */}
-      <Drawer
+                  {/* Spacer to push button to bottom */}
+                  <Box className="flex-1 min-h-[24px]" />
+                </VStack>
+
+                {/* Continue Button */}
+                <VStack space="sm" className="mt-auto pt-6">
+                  <Button
+                    className="rounded-full bg-[#132939] h-[48px]"
+                    size="xl"
+                    onPress={handleSubmit(onSubmit)}
+                    isDisabled={!isValid || isSubmitting}
+                    accessibilityLabel="Continue to next step"
+                  >
+                    <ButtonText className="text-white text-[16px] font-medium leading-[24px]">
+                      {isSubmitting ? "Setting up..." : "Continue"}
+                    </ButtonText>
+                  </Button>
+                </VStack>
+              </ScrollView>
+            </Box>
+          </TouchableWithoutFeedback>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+
+       <Drawer
         className="border-t-0"
         isOpen={showDrawer}
         size="md"
@@ -309,24 +357,29 @@ export default function SetPasscode() {
           setShowDrawer(false);
         }}
       >
-        <DrawerBackdrop 
-        style={{
-      backgroundColor: '#24242440', // Force red background
-      opacity: 1,           // Force full opacity
-    }}
+        <DrawerBackdrop
+          style={{
+            backgroundColor: "#24242440",
+            opacity: 1,
+          }}
         />
-        <DrawerContent className="pb-8 bottom-2 rounded-t-3xl bg-[#FFFFFF]">
-          <DrawerHeader>
-            <Heading size="lg">Welcome!</Heading>
-            <DrawerCloseButton>
-              {/* <Icon as={X} /> */}
-            </DrawerCloseButton>
+        <DrawerContent
+          className="rounded-t-3xl bg-[#FFFFFF]"
+          style={{
+            borderTopWidth: 0,
+            borderColor: "transparent",
+            shadowOpacity: 0,
+            elevation: 0,
+            paddingBottom: Platform.OS === "ios" ? 20 : 8,
+          }}
+        >
+          <DrawerHeader className="pb-2">
+            <DrawerCloseButton />
           </DrawerHeader>
-          <DrawerBody className="px-6 pt-4 pb-6">
-            <VStack space="lg" className="items-center">
+          <DrawerBody className="px6 py-2">
+            <VStack space="md" className="items-center">
               {/* Celebration Image/Icon */}
-              <View className="relative items-center justify-center mb-4">
-                {/* Decorative confetti elements */}
+              <View className="relative items-center justify-center mb-2">
                 <View className="absolute -left-8 -top-4">
                   <Text className="text-2xl">🎉</Text>
                 </View>
@@ -339,25 +392,36 @@ export default function SetPasscode() {
                 <View className="absolute -right-8 top-10">
                   <Text className="text-xl">⭐</Text>
                 </View>
-                
+
                 {/* Main celebration icon */}
-                <View className="w-24 h-24 bg-[#FEF3C7] rounded-full items-center justify-center">
-                  <Text className="text-5xl">🎉</Text>
+                <View className="w-20 h-20 bg-[#FEF3C7] rounded-full items-center justify-center">
+                  <Text className="text-4xl">🎉</Text>
                 </View>
               </View>
 
               {/* Welcome Text */}
-              <VStack space="sm" className="items-center">
-                <Heading className="text-[24px] font-manropesemibold text-center leading-[32px]">
+              <VStack space="xs" className="items-center border2 mt-2">
+                <Heading className="text-[18px] leading-[24px] font-semibold font-manropesemibold text-center">
                   Welcome on Board, Yusuf!
                 </Heading>
-                <Text className="text-[#667085] text-[14px] text-center leading-[20px] px-4">
-                  Your profile is all set. Youre now ready to enjoy everything Simkash has to offer.
+                <Text className="text-[#303237] text-[14px] text-center leading-[20px] font-medium px-4 mt-1">
+                  Your profile is all set. Youre now ready to enjoy everything
+                  Simkash has to offer.
                 </Text>
               </VStack>
+                <Button
+              className="rounded-full bg-[#132939] mt-10 h-[48px] w-full"
+              size="xl"
+              onPress={handleGetStarted}
+              accessibilityLabel="Get started with Simkash"
+            >
+              <ButtonText className="text-white text-[16px] font-medium leading-[24px]">
+                Get Started
+              </ButtonText>
+            </Button>
             </VStack>
           </DrawerBody>
-          <DrawerFooter>
+          {/* <DrawerFooter className="px-6 m-0m border-2 pt-4 pb-2">
             <Button
               className="rounded-full bg-[#132939] h-[48px] w-full"
               size="xl"
@@ -368,9 +432,10 @@ export default function SetPasscode() {
                 Get Started
               </ButtonText>
             </Button>
-          </DrawerFooter>
+          </DrawerFooter> */}
         </DrawerContent>
       </Drawer>
+
     </>
   );
 }

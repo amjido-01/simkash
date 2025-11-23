@@ -1,7 +1,7 @@
-import { View, Image } from "react-native";
 import BottomSvg from "@/assets/images/BottomSvg.svg";
-import TopRight from "@/assets/images/topright.svg"
-import TopLeft from "@/assets/images/topleft.svg"
+import TopLeft from "@/assets/images/topleft.svg";
+import TopRight from "@/assets/images/topright.svg";
+import { Image, View } from "react-native";
 
 export default function Splash() {
   return (
@@ -31,15 +31,16 @@ export default function Splash() {
           top: -50,
         }}
       />
+<BottomSvg
+  width="100%"
+  height={200} // choose a fixed height
+  preserveAspectRatio="xMidYMax slice"
+  style={{
+    position: "absolute",
+    bottom: 0,
+  }}
+/>
 
-       <BottomSvg
-        width={"100%"}
-        height={"40%"}
-        style={{
-          position: "absolute",
-          bottom: -20,
-        }}
-      />
       <Image
         source={require("../../assets/images/splash.png")}
         resizeMode="contain"
