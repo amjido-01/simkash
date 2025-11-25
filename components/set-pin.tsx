@@ -10,7 +10,6 @@ import { Heading } from "@/components/ui/heading";
 import { Text } from "@/components/ui/text";
 import { VStack } from "@/components/ui/vstack";
 import { yupResolver } from "@hookform/resolvers/yup";
-import { router } from "expo-router";
 import { AlertCircleIcon } from "lucide-react-native";
 import React, { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
@@ -23,10 +22,10 @@ import {
   ScrollView,
   TouchableWithoutFeedback,
   useWindowDimensions,
-  View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { StepIndicator } from "./step-indicator";
 import * as yup from "yup";
+import { StepProps } from "@/types";
 
 // Validation schema
 const pinSchema = yup.object({
@@ -42,39 +41,9 @@ const pinSchema = yup.object({
 
 type PinFormData = yup.InferType<typeof pinSchema>;
 
-// Step Indicator Component
-const StepIndicator = ({
-  currentStep,
-  totalSteps,
-}: {
-  currentStep: number;
-  totalSteps: number;
-}) => {
-  return (
-    <View
-      className="flex-row gap-1 mt-2"
-      accessibilityLabel={`Step ${currentStep} of ${totalSteps}`}
-    >
-      {Array.from({ length: totalSteps }).map((_, index) => (
-        <View
-          key={index}
-          className={`h-1 flex-1 rounded-full ${
-            index < currentStep ? "bg-[#132939]" : "bg-[#E4E7EC]"
-          }`}
-          accessibilityLabel={`Step ${index + 1} ${
-            index < currentStep ? "completed" : "not completed"
-          }`}
-        />
-      ))}
-    </View>
-  );
-};
-
-export default function SetUpPin() {
+export default function SetPin({ onNext, onBack, initialData }: StepProps<PinFormData>) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { height } = useWindowDimensions();
-  const currentStep = 2;
-  const totalSteps = 3;
 
   const {
     control,
@@ -93,19 +62,19 @@ export default function SetUpPin() {
 
   const newPinValue = watch("newPin");
 
-  const onSubmit = async (data: PinFormData) => {
+ const onSubmit = async (data: PinFormData) => {
     try {
       setIsSubmitting(true);
-      console.log("PIN set successfully:", data);
+      console.log("PIN data collected:", data);
 
-      // TODO: Add your API call here to save the PIN
-      // await savePinToBackend(data.newPin);
+      // Simulate brief processing
+      await new Promise((resolve) => setTimeout(resolve, 300));
 
-      // Navigate to next step
-      router.push("/(app)/(profile-setup)/set-passcode");
+      // Pass data to parent - NOT submitting to API yet
+      onNext(data);
     } catch (error) {
-      console.error("Error setting PIN:", error);
-      Alert.alert("Error", "Failed to set up PIN. Please try again.", [
+      console.error("Error processing PIN:", error);
+      Alert.alert("Error", "Failed to process PIN. Please try again.", [
         { text: "OK" },
       ]);
     } finally {
@@ -114,10 +83,6 @@ export default function SetUpPin() {
   };
 
   return (
-    <SafeAreaView
-      style={{ flex: 1, backgroundColor: "#fff" }}
-      edges={["top", "bottom"]}
-    >
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -145,13 +110,9 @@ export default function SetUpPin() {
                 <Heading className="text-[18px] font-manropesemibold leading-[28px]">
                   Set up Pin
                 </Heading>
-
-                {/* Step Indicator */}
-                <StepIndicator
-                  currentStep={currentStep}
-                  totalSteps={totalSteps}
-                />
               </VStack>
+
+              <StepIndicator  currentStep={2} totalSteps={3}/>
 
               <VStack space="xl" className="flex-1 mt-6">
                 {/* New PIN */}
@@ -325,6 +286,5 @@ export default function SetUpPin() {
           </Box>
         </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
-    </SafeAreaView>
   );
 }

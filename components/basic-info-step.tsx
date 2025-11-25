@@ -9,7 +9,7 @@ import {
   FormControlLabelText,
 } from "@/components/ui/form-control";
 import { Heading } from "@/components/ui/heading";
-import { HStack } from "@/components/ui/hstack";
+import { StepIndicator } from "./step-indicator";
 import { Input, InputField, InputIcon } from "@/components/ui/input";
 import {
   Select,
@@ -28,7 +28,6 @@ import { VStack } from "@/components/ui/vstack";
 import { yupResolver } from "@hookform/resolvers/yup";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { format } from "date-fns";
-import { router } from "expo-router";
 import {
   AlertCircleIcon,
   CalendarIcon,
@@ -44,10 +43,9 @@ import {
   ScrollView,
   TouchableWithoutFeedback,
   useWindowDimensions,
-  View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import * as yup from "yup";
+import { ProfileFormData, StepProps } from "@/types";
 
 // Validation schema
 const profileSchema = yup.object({
@@ -65,35 +63,12 @@ const profileSchema = yup.object({
   country: yup.string().required("Country is required"),
 });
 
-type ProfileFormData = yup.InferType<typeof profileSchema>;
 
 // Step Indicator Component
-const StepIndicator = ({
-  currentStep,
-  totalSteps,
-}: {
-  currentStep: number;
-  totalSteps: number;
-}) => {
-  return (
-    <HStack space="xs" className="mt-2">
-      {Array.from({ length: totalSteps }).map((_, index) => (
-        <View
-          key={index}
-          className={`h-1 flex-1 rounded-full ${
-            index < currentStep ? "bg-[#132939]" : "bg-[#E4E7EC]"
-          }`}
-        />
-      ))}
-    </HStack>
-  );
-};
 
-export default function BasicInfo() {
+export function BasicInfo({ onNext, initialData }: StepProps<ProfileFormData>) {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const { height } = useWindowDimensions();
-  const currentStep = 1;
-  const totalSteps = 3;
 
   const {
     control,
@@ -103,17 +78,18 @@ export default function BasicInfo() {
   } = useForm<ProfileFormData>({
     resolver: yupResolver(profileSchema),
     defaultValues: {
-      gender: "",
-      country: "",
-      fullName: "",
-      phoneNumber: "+234",
-      dateOfBirth: "",
+      gender: initialData?.gender || "",
+      country: initialData?.country || "",
+      fullName: initialData?.fullName || "",
+      phoneNumber: initialData?.phoneNumber || "+234",
+      dateOfBirth: initialData?.dateOfBirth || "",
     },
   });
 
   const onSubmit = (data: ProfileFormData) => {
-    console.log("Profile data:", data);
-    router.push("/(app)/(profile-setup)/set-pin");
+    onNext(data)
+    // console.log("Profile data:", data);
+    // router.push("/(app)/(profile-setup)/set-pin");
   };
 
   const handleDateChange = (event: any, selectedDate?: Date) => {
@@ -125,10 +101,7 @@ export default function BasicInfo() {
   };
 
   return (
-    <SafeAreaView
-      style={{ flex: 1, backgroundColor: "#fff" }}
-      edges={["top", "bottom"]}
-    >
+ 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -157,12 +130,8 @@ export default function BasicInfo() {
                   Basic Information
                 </Heading>
 
-                {/* Step Indicator */}
-                <StepIndicator
-                  currentStep={currentStep}
-                  totalSteps={totalSteps}
-                />
               </VStack>
+              <StepIndicator  currentStep={1} totalSteps={3}/>
 
               <VStack space="xl" className="flex-1 mt-6">
                 {/* Full Name */}
@@ -504,6 +473,5 @@ export default function BasicInfo() {
           </Box>
         </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
-    </SafeAreaView>
   );
 }

@@ -175,7 +175,7 @@ export default function Login() {
             {/* FORGOT PASSWORD */}
             <HStack className="justify-end">
               <Button
-                onPress={() => router.push("/(auth)/reset-password")}
+                onPress={() => router.push("/profile-setup")}
                 variant="link"
                 className="p-0"
               >

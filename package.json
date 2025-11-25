@@ -25,9 +25,11 @@
     "@legendapp/motion": "^2.4.0",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-native-community/datetimepicker": "8.4.4",
+    "@react-native-community/netinfo": "11.4.1",
     "@react-navigation/bottom-tabs": "^7.4.0",
     "@react-navigation/elements": "^2.6.3",
     "@react-navigation/native": "^7.1.8",
+    "@tanstack/react-query": "^5.90.10",
     "@types/react-native-onboarding-swiper": "^1.1.9",
     "date-fns": "^4.1.0",
     "expo": "^54.0.25",
@@ -72,6 +74,7 @@
     "yup": "^1.7.1"
   },
   "devDependencies": {
+    "@tanstack/eslint-plugin-query": "^5.91.2",
     "@types/react": "~19.1.0",
     "babel-plugin-module-resolver": "^5.0.2",
     "eslint": "^9.25.0",
