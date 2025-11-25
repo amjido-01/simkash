@@ -12,36 +12,36 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 const pages = [
   {
-    title: "Effortlessly Management",
-    subtitle: "Stay connected with ease, activate, and manage SIMs",
-    image: require("../../assets/images/slide1.gif"),
+    title: "Manage and Activate Device SIMs Effortlessly",
+    subtitle: "Stay connected with ease — request, activate, and manage SIMs for your POS or other devices in one seamless platform.",
+    image: require("../assets/images/slide1.gif"),
   },
   {
-    title: "Experience Next-Gen Wireless",
-    subtitle: "Enjoy fast, reliable, and secure 5G for all your devices.",
-    image: require("../../assets/images/slide2.gif"),
+    title: "Experience Next-Gen Wireless 5G Connectivity",
+    subtitle: "Enjoy ultra-fast, reliable, and secure 5G internet for your devices. Connect, stream, and work without limits.",
+    image: require("../assets/images/slide2.gif"),
   },
   {
     title: "Pay All Your Bills in One Place",
     subtitle:
-      "From airtime and data to electricity and TV subscriptions — handle everything securely.",
-    image: require("../../assets/images/slide6.gif"),
+      "From airtime and data to electricity and TV subscriptions — handle every payment instantly and securely.",
+    image: require("../assets/images/slide6.gif"),
   },
   {
-    title: "Seamless Transactions",
+    title: "Seamless Transfers & Quick Withdrawals",
     subtitle:
-      "Send and receive money effortlessly — with total security and transparency.",
-    image: require("../../assets/images/slide3.gif"),
+      "Send and receive money effortlessly. Enjoy instant transfers and fast withdrawals — anytime, anywhere, with total security and transparency.",
+    image: require("../assets/images/slide3.gif"),
   },
   {
     title: "Buy Now, Pay Later",
-    subtitle: "Get what you need instantly and spread your payments with ease.",
-    image: require("../../assets/images/slide4.gif"),
+    subtitle: "Get what you need instantly and spread your payments with ease. Simple, flexible, and built to support your cash flow.",
+    image: require("../assets/images/slide4.gif"),
   },
   {
     title: "SIMKASH Pro",
     subtitle: "Enjoy commissions and premium perks designed to reward you.",
-    image: require("../../assets/images/slide5.gif"),
+    image: require("../assets/images/slide5.gif"),
   },
 ];
 
@@ -89,7 +89,7 @@ export default function OnboardingScreens() {
         {/* Main Content Container */}
         <View className="flex-1 justify-between pt-[80px]">
           {/* Carousel Section */}
-          <View style={{ flex: 1 }}>
+          <View>
             <Carousel
               ref={ref}
               width={width}
@@ -99,7 +99,7 @@ export default function OnboardingScreens() {
               autoPlay
               autoPlayInterval={3500}
               renderItem={({ item }) => (
-                <View className="flex-1">
+                <View className="flex-1 mt-[50px]">
                   <Image
                     source={item.image}
                     style={{
@@ -114,7 +114,7 @@ export default function OnboardingScreens() {
                   />
 
                   <Text
-                    className="text-[22px] font-manroperegular text-[#000] text-center mt-[20px] px-[20px]"
+                    className="text-[22px] font-manroperegular text-[#000] text-center mt-[35px] px-[20px]"
                     numberOfLines={2}
                   >
                     {item.title}
@@ -140,7 +140,7 @@ export default function OnboardingScreens() {
                 height: 5,
                 borderRadius: 5,
                 backgroundColor: "#D7EFF6",
-                // marginTop: 20,
+                marginTop: 20,
               }}
               activeDotStyle={{
                 width: 27,

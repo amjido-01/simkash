@@ -47,7 +47,8 @@ export default function Login() {
   const submitForm = (data: any) => {
     console.log("✔ Valid form:", data);
     // Navigate to dashboard or home
-    router.push("/(app)/dashboard");
+    router.push("/(tabs)");
+
   };
 
   return (

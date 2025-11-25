@@ -8,6 +8,7 @@ import {
   QueryClientProvider,
   focusManager,
 } from "@tanstack/react-query";
+// import { StatusBar } from "react-native";
 // import { config } from "@/components/ui/gluestack-ui-provider/config";
 import "../global.css";
 
@@ -35,6 +36,7 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <GluestackUIProvider mode="light">
           <QueryClientProvider client={queryClient}>
+            {/* <StatusBar /> */}
           <Stack screenOptions={{ headerShown: false }} />
           </QueryClientProvider>
         </GluestackUIProvider>

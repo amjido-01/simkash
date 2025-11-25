@@ -23,4 +23,42 @@ export interface StepProps<T> {
   initialData?: Partial<CompleteProfileData>;
 }
 
-export interface CompleteProfileData extends ProfileFormData, PinFormData, PasscodeFormData {}
+export interface CompleteProfileData
+  extends ProfileFormData,
+    PinFormData,
+    PasscodeFormData {}
+
+export interface ApiResponse<T = any> {
+  responseSuccessful: boolean;
+  responseMessage: string;
+  responseBody: T;
+}
+
+// Auth response types
+export interface LoginResponse {
+  accessToken: string;
+  refreshToken: string;
+  user: User;
+}
+
+export interface RefreshResponse {
+  accessToken: string;
+}
+
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+}
+
+// Custom error class
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public status: number,
+    public data?: any
+  ) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}

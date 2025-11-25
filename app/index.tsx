@@ -4,9 +4,9 @@ import * as Font from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
 import { useCallback, useEffect, useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
-import OnboardingScreens from "./(app)/onboarding";
-import Splash from "./(app)/splash";
 import SignIn from "./(auth)/signin";
+import OnboardingScreens from "./onboarding";
+import Splash from "./splash";
 
 // Keep native splash visible
 SplashScreen.preventAutoHideAsync();

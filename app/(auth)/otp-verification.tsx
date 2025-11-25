@@ -40,7 +40,7 @@ export default function OtpVerification() {
       // await verifyOtpWithBackend(otp);
 
       // Navigate to next step
-      router.push("/(app)/(profile-setup)/basic-info");
+      router.push("/profile-setup");
     } catch (error) {
       console.error("Error verifying OTP:", error);
       Alert.alert("Error", "Failed to verify OTP. Please try again.", [
@@ -115,7 +115,7 @@ export default function OtpVerification() {
                   focusColor="#132939"
                   placeholder="000000"
                   type="numeric"
-                  secureTextEntry={false}
+                  secureTextEntry={true}
                   onTextChange={(text) => setOtp(text)}
                   onFilled={(text) => {
                     setOtp(text);
