@@ -73,7 +73,7 @@ export default function Home() {
     <SafeAreaView className="flex-1 bg-white" onLayout={onLayoutRootView}>
       {showSplash ? (
         <Splash />
-      ) : !isFirstLaunch ? (
+      ) : isFirstLaunch ? (
         <OnboardingScreens /> 
       ) : (
         <SignIn />       // <---- RETURNING USER
