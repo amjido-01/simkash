@@ -22,6 +22,7 @@ import { yupResolver } from "@hookform/resolvers/yup";
 import { AlertCircleIcon } from "lucide-react-native";
 import React, { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
+import { SafeAreaView } from "react-native-safe-area-context";
 import {
   Alert,
   Keyboard,
@@ -36,6 +37,7 @@ import { OtpInput } from "react-native-otp-entry";
 import { StepIndicator } from "./step-indicator";
 import * as yup from "yup";
 import { PasscodeFormData, StepProps } from "@/types";
+import { router } from "expo-router";
 
 // Validation schema
 const passcodeSchema = yup.object({
@@ -106,13 +108,13 @@ export default function SetPasscode({
   const handleGetStarted = () => {
     setShowDrawer(false);
     // Navigate to main app
-    // router.push("/(app)/(tabs)/home");
+    router.push("/(tabs)")
   };
 
   const isProcessing = isSubmitting || externalIsSubmitting;
 
   return (
-    <>
+    <SafeAreaView className="flex-1">
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -416,6 +418,6 @@ export default function SetPasscode({
           </DrawerFooter> */}
         </DrawerContent>
       </Drawer>
-    </>
+    </SafeAreaView>
   );
 }
