@@ -12,7 +12,7 @@ import { Pressable } from "@/components/ui/pressable";
 import { Heading } from "@/components/ui/heading";
 import { HStack } from "@/components/ui/hstack";
 import { VStack } from "@/components/ui/vstack";
-import { Eye, FileText, Building2, ChevronRight } from "lucide-react-native";
+import { Eye, ChevronRight } from "lucide-react-native";
 import { useState } from "react";
 import {
   Platform,
@@ -21,6 +21,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { quickActions, paymentOptions, moreServices } from "@/constants/menu";
 import { transactions, transferOptions } from "@/utils/mock";
@@ -47,9 +48,13 @@ export default function HomeScreen() {
   };
 
   const handleTransferOptionPress = (option: any) => {
-    console.log("Selected transfer option:", option.title);
-    setShowQuickActionDrawer(false);
-    // Navigate to the specific transfer screen or open another drawer
+    if (option === 'toSimkash') {
+       setShowQuickActionDrawer(false);
+      router.push("/to-simkash")
+    }else {
+      setShowQuickActionDrawer(false);
+
+    }
   };
 
   return (
@@ -260,7 +265,7 @@ export default function HomeScreen() {
             paddingBottom: Platform.OS === "ios" ? 20 : 8,
           }}
         >
-          <DrawerHeader className="border-b-0 mb-[28px] pb-2">
+          <DrawerHeader className="border-b-0 pb-2">
             <Heading
               size="lg"
               className="font-manropesemibold text-[18px] text-[#000000]"
@@ -271,31 +276,31 @@ export default function HomeScreen() {
           </DrawerHeader>
 
           <DrawerBody className="pt-4">
-             <DrawerBody className="pt-4 px-4">
+             <DrawerBody className="pt-4 px-2">
             {selectedQuickAction?.label === "Send" ? (
               // Render transfer options for Send
-              <VStack className="gap-4">
+              <VStack className="gap-[18px]">
                 {transferOptions.map((option) => (
                   <TouchableOpacity
                     key={option.id}
                     activeOpacity={0.7}
-                    onPress={() => handleTransferOptionPress(option)}
-                    className="flex-row items-center justify-between py-4 bg-[#F9FAFB] rounded-[16px]"
+                    onPress={() => handleTransferOptionPress(option?.to)}
+                    className="flex-row items-center border border-[#E5E7EF] px-2 justify-between py-4 rounded-[16px]"
                   >
-                    <HStack className="items-center gap-4 flex-1">
+                    <HStack className="items-center gap-2 flex-1">
                       <View className="w-12 h-12 bg-white items-center justify-center rounded-[12px]">
                         <option.icon size={24} color="#000000" />
                       </View>
                       <VStack className="flex-1">
-                        <Text className="font-manropesemibold text-[16px] text-[#000000] mb-1">
+                        <Text className="font-manropesemibold text-[14px] leading-[100%] font-bold text-[#000000] mb-1">
                           {option.title}
                         </Text>
-                        <Text className="font-manroperegular text-[12px] text-[#6B7280]">
+                        <Text className="font-manroperegular font-medium text-[12px] text-[#303237]">
                           {option.description}
                         </Text>
                       </VStack>
                     </HStack>
-                    <ChevronRight size={20} color="#6B7280" />
+                    <ChevronRight size={20} color="#000000" />
                   </TouchableOpacity>
                 ))}
               </VStack>

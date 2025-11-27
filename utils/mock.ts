@@ -1,4 +1,4 @@
-import { ArrowUp, ArrowUpRight, Building2, FileText } from "lucide-react-native";
+import { ArrowUp, ArrowUpRight, Building2, FileText, Landmark } from "lucide-react-native";
 
 export const transactions = [
   {
@@ -27,12 +27,14 @@ export const transferOptions = [
     id: 1,
     icon: FileText,
     title: "Simkash to Simkash",
+    to: "toSimkash",
     description: "Send money instantly to any simkash user",
   },
   {
     id: 2,
-    icon: Building2,
+    icon: Landmark,
     title: "Send to Bank Account",
+     to: "toBank",
     description: "Transfer to other bank accounts",
   },
 ];
