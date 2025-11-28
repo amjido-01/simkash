@@ -143,7 +143,7 @@ export default function SignUp() {
                       <Input
                         variant="outline"
                         size="xl"
-                        className={`w-full rounded-[99px] h-[48px] ${
+                        className={`w-full p-2 rounded-[99px] h-[48px] ${
                           errors.email
                             ? "border-2 border-red-500"
                             : "border border-[#D0D5DD]"
@@ -190,7 +190,7 @@ export default function SignUp() {
                       <Input
                         variant="outline"
                         size="xl"
-                        className={`w-full rounded-[99px] h-[48px] ${
+                        className={`w-full p-2 rounded-[99px] h-[48px] ${
                           errors.password
                             ? "border-2 border-red-500"
                             : "border border-[#D0D5DD]"
@@ -243,7 +243,7 @@ export default function SignUp() {
                       <Input
                         variant="outline"
                         size="xl"
-                        className={`w-full rounded-[99px] h-[48px] ${
+                        className={`w-full p-2 rounded-[99px] h-[48px] ${
                           errors.confirmPassword
                             ? "border-2 border-red-500"
                             : "border border-[#D0D5DD]"

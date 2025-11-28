@@ -43,6 +43,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { OtpInput } from "react-native-otp-entry";
 import * as yup from "yup";
+import { router } from "expo-router";
 
 const schema = yup.object().shape({
   phone: yup
@@ -166,6 +167,16 @@ export default function ToSimkash() {
     setPin("");
 
     // Show success message or navigate
+    router.push({
+  pathname: "/transaction-success",
+  params: {
+    amount: amountValue,
+    recipient: accountName,
+    phoneNumber: phoneValue,
+    narration: narrationValue || "",
+    commission: "10",
+  },
+});
   };
 
   return (
