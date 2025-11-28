@@ -27,6 +27,7 @@ import { yupResolver } from "@hookform/resolvers/yup";
 import {
   AlertCircleIcon,
   CheckCircle,
+  ChevronDownIcon,
   ChevronLeft,
   Gift,
   Wallet,
@@ -44,6 +45,19 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { OtpInput } from "react-native-otp-entry";
 import * as yup from "yup";
 import { router } from "expo-router";
+import {
+  Select,
+  SelectTrigger,
+  SelectInput,
+  SelectIcon,
+  SelectPortal,
+  SelectBackdrop,
+  SelectContent,
+  SelectDragIndicatorWrapper,
+  SelectDragIndicator,
+  SelectItem,
+} from "@/components/ui/select";
+import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 
 const schema = yup.object().shape({
   phone: yup
@@ -51,7 +65,7 @@ const schema = yup.object().shape({
     .required("Phone number is required")
     .matches(/^[0-9]+$/, "Phone number must contain only digits")
     .length(10, "Phone number must be exactly 10 digits"),
-
+  bank: yup.string().required("Please select a bank"),
   amount: yup
     .string()
     .required("Please enter amount")
@@ -71,13 +85,15 @@ const schema = yup.object().shape({
     .max(200, "Narration must not exceed 200 characters"),
 });
 
-export default function ToSimkash() {
+export default function ToBank() {
   const [showDrawer, setShowDrawer] = useState(false);
   const [showPinDrawer, setShowPinDrawer] = useState(false);
   const [accountName, setAccountName] = useState("");
   const [phoneVerified, setPhoneVerified] = useState(false);
   const [pin, setPin] = useState("");
   const [pinError, setPinError] = useState("");
+  const [stage, setStage] = React.useState<"account" | "amount">("account");
+
   const otpRef = useRef<any>(null);
 
   const {
@@ -93,6 +109,7 @@ export default function ToSimkash() {
   const phoneValue = watch("phone");
   const amountValue = watch("amount");
   const narrationValue = watch("narration");
+
 
   // Simulate phone number verification
   const handlePhoneBlur = () => {
@@ -168,15 +185,24 @@ export default function ToSimkash() {
 
     // Show success message or navigate
     router.push({
-  pathname: "/transaction-success",
-  params: {
-    amount: amountValue,
-    recipient: accountName,
-    phoneNumber: phoneValue,
-    narration: narrationValue || "",
-    commission: "10",
-  },
-});
+      pathname: "/transaction-success",
+      params: {
+        amount: amountValue,
+        recipient: accountName,
+        phoneNumber: phoneValue,
+        narration: narrationValue || "",
+        commission: "10",
+      },
+    });
+  };
+
+  const handleContinue = () => {
+    const bank = watch("bank");
+    const account = watch("phone");
+
+    if (bank && account && account.length === 10 && phoneVerified) {
+      setStage("amount");
+    }
   };
 
   return (
@@ -186,15 +212,24 @@ export default function ToSimkash() {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
         {/* Header */}
-        <HStack className="px-4 mb-[40px] mt-2 py-3 items-center justify-center border-b border-[#F3F4F6]">
+        <HStack className="px-4 mb-[40px] py-3 mt-2 items-center justify-center border-b border-[#F3F4F6]">
           <TouchableOpacity
             className="absolute left-4"
-            onPress={() => console.log("Go back")}
+            onPress={() => {
+              if (stage === "amount") {
+                // Go back to account section
+                setStage("account");
+              } else {
+                // Go back to tabs
+                router.push("/(tabs)");
+              }
+            }}
           >
             <ChevronLeft size={24} color="#000000" />
           </TouchableOpacity>
+
           <Text className="text-[16px] font-semibold font-manropesemibold text-[#000000]">
-            Simkash to Simkash
+            Simkash to Bank Account
           </Text>
         </HStack>
 
@@ -206,169 +241,244 @@ export default function ToSimkash() {
         >
           <Box className="bg-white px-4 pt-6 pb-24 flex-1">
             <VStack space="lg" className="flex-1">
-              {/* RECIPIENT PHONE NUMBER */}
-              <FormControl isInvalid={Boolean(errors.phone)}>
-                <FormControlLabel>
-                  <FormControlLabelText className="text-[12px] text-[#414651] mb-[6px]">
-                    Recipient Phone Number
-                  </FormControlLabelText>
-                </FormControlLabel>
+              {stage === "account" && (
+                <Animated.View entering={FadeIn} exiting={FadeOut}>
+                  <VStack space="lg" className="flex-1">
+                    {/* RECIPIENT PHONE NUMBER */}
+                    <FormControl isInvalid={Boolean(errors.phone)}>
+                      <FormControlLabel>
+                        <FormControlLabelText className="text-[12px] text-[#414651] mb-[6px]">
+                          Recipient Account Number
+                        </FormControlLabelText>
+                      </FormControlLabel>
 
-                <Controller
-                  control={control}
-                  name="phone"
-                  render={({ field: { onChange, onBlur, value } }) => (
-                    <Input
-                      variant="outline"
-                      size="xl"
-                      className={`w-full p-2 rounded-[99px] focus:border-2 focus:border-[#D0D5DD] h-[48px] ${
-                        errors.phone
-                          ? "border-2 border-red-500"
-                          : "border border-[#D0D5DD]"
-                      }`}
-                    >
-                      <InputField
-                        placeholder="Enter recipient simkash number"
-                        className="w-full text-[14px] text-[#717680] h-[48px]"
-                        value={value}
-                        maxLength={10}
-                        keyboardType="number-pad"
-                        onChangeText={(text) => {
-                          const cleaned = text.replace(/[^0-9]/g, "");
-                          onChange(cleaned);
-                        }}
-                        onBlur={() => {
-                          onBlur();
-                          handlePhoneBlur();
-                        }}
-                        autoCapitalize="none"
+                      <Controller
+                        control={control}
+                        name="phone"
+                        render={({ field: { onChange, onBlur, value } }) => (
+                          <Input
+                            variant="outline"
+                            size="xl"
+                            className={`w-full p-2 rounded-[99px] focus:border-2 focus:border-[#D0D5DD] h-[48px] ${
+                              errors.phone
+                                ? "border-2 border-red-500"
+                                : "border border-[#D0D5DD]"
+                            }`}
+                          >
+                            <InputField
+                              placeholder="Enter recipient bank number"
+                              className="w-full text-[14px] text-[#717680] h-[48px]"
+                              value={value}
+                              maxLength={10}
+                              keyboardType="number-pad"
+                              onChangeText={(text) => {
+                                const cleaned = text.replace(/[^0-9]/g, "");
+                                onChange(cleaned);
+                              }}
+                              onBlur={() => {
+                                onBlur();
+                                handlePhoneBlur();
+                              }}
+                              autoCapitalize="none"
+                            />
+                          </Input>
+                        )}
                       />
-                    </Input>
-                  )}
-                />
 
-                {errors.phone && (
-                  <FormControlError>
-                    <FormControlErrorIcon
-                      className="text-red-500"
-                      as={AlertCircleIcon}
-                    />
-                    <FormControlErrorText className="text-red-500">
-                      {errors.phone?.message}
-                    </FormControlErrorText>
-                  </FormControlError>
-                )}
-              </FormControl>
+                      {errors.phone && (
+                        <FormControlError>
+                          <FormControlErrorIcon
+                            className="text-red-500"
+                            as={AlertCircleIcon}
+                          />
+                          <FormControlErrorText className="text-red-500">
+                            {errors.phone?.message}
+                          </FormControlErrorText>
+                        </FormControlError>
+                      )}
+                    </FormControl>
 
-              {/* ACCOUNT NAME */}
-              {phoneVerified && accountName && (
-                <FormControl>
-                  <FormControlLabel>
-                    <FormControlLabelText className="text-[12px] text-[#414651] mb-[6px]">
-                      Account Name
-                    </FormControlLabelText>
-                  </FormControlLabel>
+                    <FormControl isInvalid={Boolean(errors.bank)}>
+                      <FormControlLabel>
+                        <FormControlLabelText className="text-[12px] text-[#414651] mb-[6px]">
+                          Bank
+                        </FormControlLabelText>
+                      </FormControlLabel>
 
-                  <Input
-                    variant="outline"
-                    size="xl"
-                    isReadOnly={true}
-                    className="w-full p-2 rounded-[16px] h-[48px] border border-[#D0D5DD]"
-                  >
-                    <InputField
-                      value={accountName}
-                      className="w-full text-[14px] text-[#000000] h-[48px]"
-                      editable={false}
-                    />
-                    <View className="absolute right-4 top-3">
-                      <CheckCircle size={20} color="#10B981" />
-                    </View>
-                  </Input>
-                </FormControl>
+                      <Controller
+                        control={control}
+                        name="bank"
+                        render={({ field: { onChange, value } }) => (
+                          <Select
+                            onValueChange={onChange}
+                            selectedValue={value}
+                          >
+                            <SelectTrigger
+                              variant="outline"
+                              size="xl"
+                              className={`w-full rounded-[99px] focus:border-2 focus:border-[#D0D5DD] h-[48px] ${
+                                errors.bank
+                                  ? "border-2 border-red-500"
+                                  : "border border-[#D0D5DD]"
+                              }`}
+                            >
+                              <SelectInput
+                                placeholder="Select"
+                                className="text-[14px] text-[#717680] flex-1"
+                              />
+                              <SelectIcon
+                                as={ChevronDownIcon}
+                                className="ml-auto mr-3"
+                              />
+                            </SelectTrigger>
+                            <SelectPortal>
+                              <SelectBackdrop />
+                              <SelectContent className="z-99 border-2">
+                                <SelectDragIndicatorWrapper>
+                                  <SelectDragIndicator />
+                                </SelectDragIndicatorWrapper>
+                                <SelectItem label="Opay" value="opay" />
+                                <SelectItem
+                                  label="Moniepoint"
+                                  value="moniepoint"
+                                />
+                              </SelectContent>
+                            </SelectPortal>
+                          </Select>
+                        )}
+                      />
+
+                      {errors.bank && (
+                        <FormControlError>
+                          <FormControlErrorIcon
+                            className="text-red-500"
+                            as={AlertCircleIcon}
+                          />
+                          <FormControlErrorText className="text-red-500">
+                            {errors.bank?.message}
+                          </FormControlErrorText>
+                        </FormControlError>
+                      )}
+                    </FormControl>
+
+                    {/* ACCOUNT NAME */}
+                    {phoneVerified && accountName && (
+                      <FormControl>
+                        <FormControlLabel>
+                          <FormControlLabelText className="text-[12px] text-[#414651] mb-[6px]">
+                            Account Name
+                          </FormControlLabelText>
+                        </FormControlLabel>
+
+                        <Input
+                          variant="outline"
+                          size="xl"
+                          isReadOnly={true}
+                          className="w-full p-2 rounded-[16px] h-[48px] border border-[#D0D5DD]"
+                        >
+                          <InputField
+                            value={accountName}
+                            className="w-full text-[14px] text-[#000000] h-[48px]"
+                            editable={false}
+                          />
+                          <View className="absolute right-4 top-3">
+                            <CheckCircle size={20} color="#10B981" />
+                          </View>
+                        </Input>
+                      </FormControl>
+                    )}
+                  </VStack>
+                </Animated.View>
               )}
 
-              {/* AMOUNT */}
-              <FormControl isInvalid={Boolean(errors.amount)}>
-                <FormControlLabel>
-                  <FormControlLabelText className="text-[12px] text-[#414651] mb-[6px]">
-                    Amount
-                  </FormControlLabelText>
-                </FormControlLabel>
+              {stage === "amount" && (
+                <Animated.View entering={FadeIn} exiting={FadeOut}>
+                  <VStack space="lg" className="flex-1">
+                    {/* AMOUNT */}
+                    <FormControl isInvalid={Boolean(errors.amount)}>
+                      <FormControlLabel>
+                        <FormControlLabelText className="text-[12px] text-[#414651] mb-[6px]">
+                          Amount
+                        </FormControlLabelText>
+                      </FormControlLabel>
 
-                <Controller
-                  control={control}
-                  name="amount"
-                  render={({ field: { onChange, onBlur, value } }) => (
-                    <Input
-                      variant="outline"
-                      size="xl"
-                      className={`w-full p-2 rounded-[99px] focus:border-2 focus:border-[#D0D5DD] h-[48px] ${
-                        errors.amount
-                          ? "border-2 border-red-500"
-                          : "border border-[#D0D5DD]"
-                      }`}
-                    >
-                      <View className="absolute left-4 top-[12px] z-10">
-                        <Text className="text-[14px] font-manropesemibold text-[#000000]">
-                          ₦
-                        </Text>
-                      </View>
-                      <InputField
-                        placeholder="₦100 - ₦500,000"
-                        className="w-full text-[14px] text-[#717680] h-[48px] pl-6"
-                        value={value}
-                        onChangeText={onChange}
-                        onBlur={onBlur}
-                        keyboardType="numeric"
-                        autoCapitalize="none"
+                      <Controller
+                        control={control}
+                        name="amount"
+                        render={({ field: { onChange, onBlur, value } }) => (
+                          <Input
+                            variant="outline"
+                            size="xl"
+                            className={`w-full p-2 rounded-[99px] focus:border-2 focus:border-[#D0D5DD] h-[48px] ${
+                              errors.amount
+                                ? "border-2 border-red-500"
+                                : "border border-[#D0D5DD]"
+                            }`}
+                          >
+                            <View className="absolute left-4 top-[12px] z-10">
+                              <Text className="text-[14px] font-manropesemibold text-[#000000]">
+                                ₦
+                              </Text>
+                            </View>
+                            <InputField
+                              placeholder="₦100 - ₦500,000"
+                              className="w-full text-[14px] text-[#717680] h-[48px] pl-6"
+                              value={value}
+                              onChangeText={onChange}
+                              onBlur={onBlur}
+                              keyboardType="numeric"
+                              autoCapitalize="none"
+                            />
+                          </Input>
+                        )}
                       />
-                    </Input>
-                  )}
-                />
 
-                {errors.amount && (
-                  <FormControlError>
-                    <FormControlErrorIcon
-                      className="text-red-500"
-                      as={AlertCircleIcon}
-                    />
-                    <FormControlErrorText className="text-red-500">
-                      {errors.amount?.message}
-                    </FormControlErrorText>
-                  </FormControlError>
-                )}
-              </FormControl>
+                      {errors.amount && (
+                        <FormControlError>
+                          <FormControlErrorIcon
+                            className="text-red-500"
+                            as={AlertCircleIcon}
+                          />
+                          <FormControlErrorText className="text-red-500">
+                            {errors.amount?.message}
+                          </FormControlErrorText>
+                        </FormControlError>
+                      )}
+                    </FormControl>
 
-              {/* NARRATION */}
-              <FormControl>
-                <FormControlLabel>
-                  <FormControlLabelText className="text-[12px] text-[#414651] mb-[6px]">
-                    Narration
-                  </FormControlLabelText>
-                </FormControlLabel>
+                    {/* NARRATION */}
+                    <FormControl>
+                      <FormControlLabel>
+                        <FormControlLabelText className="text-[12px] text-[#414651] mb-[6px]">
+                          Narration
+                        </FormControlLabelText>
+                      </FormControlLabel>
 
-                <Controller
-                  control={control}
-                  name="narration"
-                  render={({ field: { onChange, onBlur, value } }) => (
-                    <Textarea
-                      size="md"
-                      isReadOnly={false}
-                      isInvalid={false}
-                      isDisabled={false}
-                      className="w-full p-2 min-h-[80px] rounded-[16px] border border-[#D0D5DD]"
-                    >
-                      <TextareaInput
-                        placeholder="Enter description"
-                        className="text-[14px] text-[#717680]"
-                        value={value}
-                        onChangeText={onChange}
-                        onBlur={onBlur}
+                      <Controller
+                        control={control}
+                        name="narration"
+                        render={({ field: { onChange, onBlur, value } }) => (
+                          <Textarea
+                            size="md"
+                            isReadOnly={false}
+                            isInvalid={false}
+                            isDisabled={false}
+                            className="w-full p-2 min-h-[80px] rounded-[16px] border border-[#D0D5DD]"
+                          >
+                            <TextareaInput
+                              placeholder="Enter description"
+                              className="text-[14px] text-[#717680]"
+                              value={value}
+                              onChangeText={onChange}
+                              onBlur={onBlur}
+                            />
+                          </Textarea>
+                        )}
                       />
-                    </Textarea>
-                  )}
-                />
-              </FormControl>
+                    </FormControl>
+                  </VStack>
+                </Animated.View>
+              )}
             </VStack>
           </Box>
         </ScrollView>
@@ -378,7 +488,8 @@ export default function ToSimkash() {
           <Button
             className="rounded-full bg-[#132939] h-[48px] w-full"
             size="xl"
-            onPress={handleSubmit(submitForm)}
+            onPress={handleContinue}
+            // onPress={handleSubmit(submitForm)}
           >
             <ButtonText className="text-white text-[16px] font-medium leading-[24px]">
               Continue
@@ -567,7 +678,7 @@ export default function ToSimkash() {
           <DrawerBody className="pt-2 px-2 pb-8">
             <VStack space="lg" className="items-center">
               {/* OTP Input Library */}
-             <View className="mb-6">
+              <View className="mb-6">
                 <OtpInput
                   ref={otpRef}
                   numberOfDigits={4}

@@ -53,7 +53,7 @@ export default function HomeScreen() {
       router.push("/to-simkash")
     }else {
       setShowQuickActionDrawer(false);
-
+      router.push("/to-bank")
     }
   };
 
