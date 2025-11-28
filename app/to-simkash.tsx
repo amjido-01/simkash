@@ -1,21 +1,21 @@
 import { Box } from "@/components/ui/box";
 import { Button, ButtonText } from "@/components/ui/button";
 import {
-    Drawer,
-    DrawerBackdrop,
-    DrawerBody,
-    DrawerCloseButton,
-    DrawerContent,
-    DrawerFooter,
-    DrawerHeader,
+  Drawer,
+  DrawerBackdrop,
+  DrawerBody,
+  DrawerCloseButton,
+  DrawerContent,
+  DrawerFooter,
+  DrawerHeader,
 } from "@/components/ui/drawer";
 import {
-    FormControl,
-    FormControlError,
-    FormControlErrorIcon,
-    FormControlErrorText,
-    FormControlLabel,
-    FormControlLabelText,
+  FormControl,
+  FormControlError,
+  FormControlErrorIcon,
+  FormControlErrorText,
+  FormControlLabel,
+  FormControlLabelText,
 } from "@/components/ui/form-control";
 import { Heading } from "@/components/ui/heading";
 import { HStack } from "@/components/ui/hstack";
@@ -25,23 +25,23 @@ import { Textarea, TextareaInput } from "@/components/ui/textarea";
 import { VStack } from "@/components/ui/vstack";
 import { yupResolver } from "@hookform/resolvers/yup";
 import {
-    AlertCircleIcon,
-    CheckCircle,
-    ChevronLeft,
-    Gift,
-    Wallet,
+  AlertCircleIcon,
+  CheckCircle,
+  ChevronLeft,
+  Gift,
+  Wallet,
 } from "lucide-react-native";
 import React, { useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    TextInput,
-    TouchableOpacity,
-    View,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { OtpInput } from "react-native-otp-entry";
 import * as yup from "yup";
 
 const schema = yup.object().shape({
@@ -49,8 +49,8 @@ const schema = yup.object().shape({
     .string()
     .required("Phone number is required")
     .matches(/^[0-9]+$/, "Phone number must contain only digits")
-    .min(10, "Phone number must be at least 10 digits")
-    .max(11, "Phone number must not exceed 11 digits"),
+    .length(10, "Phone number must be exactly 10 digits"),
+
   amount: yup
     .string()
     .required("Please enter amount")
@@ -72,20 +72,13 @@ const schema = yup.object().shape({
 
 export default function ToSimkash() {
   const [showDrawer, setShowDrawer] = useState(false);
-    const [showPinDrawer, setShowPinDrawer] = useState(false);
+  const [showPinDrawer, setShowPinDrawer] = useState(false);
   const [accountName, setAccountName] = useState("");
   const [phoneVerified, setPhoneVerified] = useState(false);
- const [pin, setPin] = useState(["", "", "", ""]);
+  const [pin, setPin] = useState("");
   const [pinError, setPinError] = useState("");
+  const otpRef = useRef<any>(null);
 
-  // Create refs for each PIN input
-  const pinRefs = [
-    useRef<TextInput>(null),
-    useRef<TextInput>(null),
-    useRef<TextInput>(null),
-    useRef<TextInput>(null),
-  ];
-  
   const {
     control,
     handleSubmit,
@@ -116,48 +109,62 @@ export default function ToSimkash() {
     setShowDrawer(true);
   };
 
-   const handleContinueToPin = () => {
+  const handleContinueToPin = () => {
     setShowPinDrawer(true);
   };
 
-  const handlePinChange = (index: number, value: string) => {
-    // Only allow digits
-    if (value && !/^\d$/.test(value)) return;
+  const handleNumberPress = (num: string) => {
+    if (pin.length < 4) {
+      const newPin = pin + num;
+      setPin(newPin);
+      setPinError("");
 
-    const newPin = [...pin];
-    newPin[index] = value;
-    setPin(newPin);
+      // Update OTP input programmatically
+      if (otpRef.current) {
+        otpRef.current.setValue(newPin);
+      }
+
+      // Auto-submit when 4 digits entered
+      if (newPin.length === 4) {
+        setTimeout(() => handlePinSubmit(newPin), 300);
+      }
+    }
+  };
+
+  const handleBackspace = () => {
+    if (pin.length > 0) {
+      const newPin = pin.slice(0, -1);
+      setPin(newPin);
+      setPinError("");
+
+      // Update OTP input programmatically
+      if (otpRef.current) {
+        otpRef.current.setValue(newPin);
+      }
+    }
+  };
+
+  const handlePinChange = (text: string) => {
+    setPin(text);
     setPinError("");
-
-    // Auto-focus next input
-    if (value && index < 3) {
-      pinRefs[index + 1].current?.focus();
-    }
   };
 
-  const handlePinKeyPress = (index: number, key: string) => {
-    // Handle backspace
-    if (key === "Backspace" && !pin[index] && index > 0) {
-      pinRefs[index - 1].current?.focus();
-    }
-  };
+  const handlePinSubmit = (pinToSubmit?: string) => {
+    const finalPin = pinToSubmit || pin;
 
-    const handlePinSubmit = () => {
-    const pinString = pin.join("");
-    
-    if (pinString.length !== 4) {
+    if (finalPin.length !== 4) {
       setPinError("Please enter your 4-digit PIN");
       return;
     }
 
-    console.log("PIN entered:", pinString);
+    console.log("PIN entered:", finalPin);
     // Process transaction here
-    
+
     // Close both drawers on success
     setShowPinDrawer(false);
     setShowDrawer(false);
-    setPin(["", "", "", ""]);
-    
+    setPin("");
+
     // Show success message or navigate
   };
 
@@ -213,12 +220,16 @@ export default function ToSimkash() {
                         placeholder="Enter recipient simkash number"
                         className="w-full text-[14px] text-[#717680] h-[48px]"
                         value={value}
-                        onChangeText={onChange}
+                        maxLength={10}
+                        keyboardType="number-pad"
+                        onChangeText={(text) => {
+                          const cleaned = text.replace(/[^0-9]/g, "");
+                          onChange(cleaned);
+                        }}
                         onBlur={() => {
                           onBlur();
                           handlePhoneBlur();
                         }}
-                        keyboardType="phone-pad"
                         autoCapitalize="none"
                       />
                     </Input>
@@ -238,7 +249,7 @@ export default function ToSimkash() {
                 )}
               </FormControl>
 
-              {/* ACCOUNT NAME (shown after phone verification) */}
+              {/* ACCOUNT NAME */}
               {phoneVerified && accountName && (
                 <FormControl>
                   <FormControlLabel>
@@ -409,7 +420,7 @@ export default function ToSimkash() {
             <DrawerCloseButton />
           </DrawerHeader>
 
-          <DrawerBody className="pt-4 px-1 pb-6">
+          <DrawerBody className="pt-4 px-1 pb-6 border2">
             <VStack space="md">
               {/* Transaction Details */}
               <View className="rounded-[20px] border-[#E5E7EF] border p-4">
@@ -493,7 +504,7 @@ export default function ToSimkash() {
             </VStack>
           </DrawerBody>
 
-          <DrawerFooter className="px-6 pt-4 pb-2 border-t-0">
+          <DrawerFooter className="px4 pt4 pb-4">
             <Button
               className="rounded-full bg-[#132939] h-[48px] w-full"
               size="xl"
@@ -507,15 +518,15 @@ export default function ToSimkash() {
         </DrawerContent>
       </Drawer>
 
-            {/* PIN DRAWER */}
+      {/* PIN DRAWER */}
       <Drawer
         className="border-t-0"
         isOpen={showPinDrawer}
-        size="md"
+        size="lg"
         anchor="bottom"
         onClose={() => {
           setShowPinDrawer(false);
-          setPin(["", "", "", ""]);
+          setPin("");
           setPinError("");
         }}
       >
@@ -536,72 +547,159 @@ export default function ToSimkash() {
           }}
         >
           <DrawerHeader className="border-b-0 pb-6 px-4">
-          
-              <Heading className="font-manropesemibold w-full text-center text-[18px] text-[#000000] mb-2">
-                Enter Transaction PIN
-              </Heading>
+            <Heading className="font-manropesemibold w-full text-center text-[18px] text-[#000000] mb-2">
+              Enter PIN
+            </Heading>
             <DrawerCloseButton />
           </DrawerHeader>
 
-          <DrawerBody className="pt-4 px-6 pb-6">
+          <DrawerBody className="pt-2 px-2 pb-8">
             <VStack space="lg" className="items-center">
-              {/* PIN Input Boxes */}
-              <HStack space="md" className="justify-center">
-                {[0, 1, 2, 3].map((index) => (
-                  <TextInput
-                    key={index}
-                    ref={pinRefs[index]}
-                    value={pin[index]}
-                    onChangeText={(value) => handlePinChange(index, value)}
-                    onKeyPress={({ nativeEvent: { key } }) =>
-                      handlePinKeyPress(index, key)
-                    }
-                    keyboardType="number-pad"
-                    maxLength={1}
-                    secureTextEntry
-                    selectTextOnFocus
-                    style={{
-                      width: 56,
-                      height: 56,
-                      borderWidth: 2,
-                      borderColor: pin[index] ? "#132939" : "#D0D5DD",
+              {/* OTP Input Library */}
+             <View className="mb-6">
+                <OtpInput
+                  ref={otpRef}
+                  numberOfDigits={4}
+                  focusColor="transparent"
+                  type="numeric"
+                  secureTextEntry={true}
+                  disabled={false}
+                  autoFocus={false}
+                  onTextChange={handlePinChange}
+                  theme={{
+                    containerStyle: {
+                      width: "auto",
+                      alignSelf: "center",
+                    },
+                    pinCodeContainerStyle: {
+                      width: 49,
+                      height: 49,
                       borderRadius: 12,
-                      fontSize: 24,
-                      textAlign: "center",
+                      borderWidth: 1.5,
+                      borderColor: "#E5E7EB",
+                      backgroundColor: "#FFFFFF",
+                      marginHorizontal: 4,
+                      justifyContent: "center",
+                      alignItems: "center",
+                    },
+                    focusedPinCodeContainerStyle: {
+                      borderColor: "#E5E7EB",
+                    },
+                    pinCodeTextStyle: {
+                      color: "#000000",
+                      fontSize: 32,
                       fontWeight: "600",
-                      backgroundColor: "#F9FAFB",
-                    }}
-                  />
-                ))}
-              </HStack>
+                    },
+                    filledPinCodeContainerStyle: {
+                      borderColor: "#E5E7EB",
+                    },
+                  }}
+                />
+              </View>
 
               {/* Error Message */}
               {pinError && (
-                <Text className="text-red-500 text-[12px] font-manroperegular text-center">
+                <Text className="text-red-500 text-[12px] font-manroperegular text-center mb-2">
                   {pinError}
                 </Text>
               )}
 
+              {/* Number Keypad */}
+              <View className="w-full max-w[320px]">
+                <VStack space="lg">
+                  {/* Row 1: 1, 2, 3 */}
+                  <HStack className="justify-between px-4">
+                    {[1, 2, 3].map((num) => (
+                      <TouchableOpacity
+                        key={num}
+                        onPress={() => handleNumberPress(num.toString())}
+                        className="w-[70px] h-[60px] items-center justify-center"
+                        activeOpacity={0.6}
+                      >
+                        <Text className="text-[28px] font-manropesemibold text-[#000000]">
+                          {num}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </HStack>
+
+                  {/* Row 2: 4, 5, 6 */}
+                  <HStack className="justify-between px-4">
+                    {[4, 5, 6].map((num) => (
+                      <TouchableOpacity
+                        key={num}
+                        onPress={() => handleNumberPress(num.toString())}
+                        className="w-[70px] h-[60px] items-center justify-center"
+                        activeOpacity={0.6}
+                      >
+                        <Text className="text-[28px] font-manropesemibold text-[#000000]">
+                          {num}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </HStack>
+
+                  {/* Row 3: 7, 8, 9 */}
+                  <HStack className="justify-between px-4">
+                    {[7, 8, 9].map((num) => (
+                      <TouchableOpacity
+                        key={num}
+                        onPress={() => handleNumberPress(num.toString())}
+                        className="w-[70px] h-[60px] items-center justify-center"
+                        activeOpacity={0.6}
+                      >
+                        <Text className="text-[28px] font-manropesemibold text-[#000000]">
+                          {num}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </HStack>
+
+                  {/* Row 4: fingerprint, 0, backspace */}
+                  <HStack className="justify-between px-4">
+                    {/* Fingerprint/Biometric */}
+                    <TouchableOpacity
+                      onPress={() => console.log("Biometric auth")}
+                      className="w-[70px] h-[60px] items-center justify-center"
+                      activeOpacity={0.6}
+                    >
+                      <Text className="text-[28px]">👆</Text>
+                    </TouchableOpacity>
+
+                    {/* Zero */}
+                    <TouchableOpacity
+                      onPress={() => handleNumberPress("0")}
+                      className="w-[70px] h-[60px] items-center justify-center"
+                      activeOpacity={0.6}
+                    >
+                      <Text className="text-[28px] font-manropesemibold text-[#000000]">
+                        0
+                      </Text>
+                    </TouchableOpacity>
+
+                    {/* Backspace */}
+                    <TouchableOpacity
+                      onPress={handleBackspace}
+                      className="w-[70px] h-[60px] items-center justify-center"
+                      activeOpacity={0.6}
+                    >
+                      <Text className="text-[24px]">⌫</Text>
+                    </TouchableOpacity>
+                  </HStack>
+                </VStack>
+              </View>
+
               {/* Forgot PIN */}
-              <TouchableOpacity onPress={() => console.log("Forgot PIN")}>
+              <TouchableOpacity
+                onPress={() => console.log("Forgot PIN")}
+                className="mt-6"
+              >
                 <Text className="text-[14px] font-manropesemibold text-[#132939]">
                   Forgot PIN?
                 </Text>
               </TouchableOpacity>
             </VStack>
           </DrawerBody>
-
-          <DrawerFooter className="px-6 pt-4 pb-2 border-t-0">
-            <Button
-              className="rounded-full bg-[#132939] h-[48px] w-full"
-              size="xl"
-              onPress={handlePinSubmit}
-            >
-              <ButtonText className="text-white text-[16px] font-medium leading-[24px]">
-                Confirm
-              </ButtonText>
-            </Button>
-          </DrawerFooter>
         </DrawerContent>
       </Drawer>
     </SafeAreaView>
