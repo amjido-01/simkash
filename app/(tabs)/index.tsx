@@ -23,7 +23,7 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { quickActions, paymentOptions, moreServices } from "@/constants/menu";
+import { quickActions, paymentOptions, moreServices, MenuOption } from "@/constants/menu";
 import { transactions, transferOptions } from "@/utils/mock";
 
 export default function HomeScreen() {
@@ -31,13 +31,16 @@ export default function HomeScreen() {
   const [showQuickActionDrawer, setShowQuickActionDrawer] = useState(false);
   const [selectedQuickAction, setSelectedQuickAction] = useState<any>(null);
 
-  const handlePaymentOptionPress = (option: any) => {
-    console.log("Option pressed:", option.label);
+  const handlePaymentOptionPress = (option: MenuOption | any) => {
     if (option.label === "More") {
-      console.log("Opening drawer...");
       setShowDrawer(true);
     } else {
-      console.log("Selected:", option.label);
+      if (option.route) {
+        setShowDrawer(false);
+        router.push(option.route);
+      } else {
+        console.log("Selected:", option.label);
+      }
     }
   };
 

@@ -47,7 +47,7 @@ import { OtpInput } from "react-native-otp-entry";
 import * as yup from "yup";
 import { router } from "expo-router";
 import Animated, { FadeIn } from "react-native-reanimated";
-
+import { PIN_LENGTH, ACCOUNT_VERIFICATION_DELAY } from "@/constants/menu";
 // Validation schema
 const schema = yup.object().shape({
   phone: yup
@@ -75,10 +75,6 @@ const schema = yup.object().shape({
 
 type FormData = yup.InferType<typeof schema>;
 
-// Constants
-const PIN_LENGTH = 4;
-const ACCOUNT_VERIFICATION_DELAY = 500;
-
 export default function ToSimkash() {
   // State management
   const [showDrawer, setShowDrawer] = useState(false);
@@ -91,7 +87,9 @@ export default function ToSimkash() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const otpRef = useRef<any>(null);
-  const verificationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const verificationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
 
   // Form setup
   const {
@@ -472,14 +470,14 @@ export default function ToSimkash() {
                           : "border border-[#D0D5DD]"
                       }`}
                     >
-                      <View className="absolute left-4 top-[12px] z-10">
-                        <Text className="text-[14px] font-manropesemibold text-[#000000]">
+                      <View className="absolute left-4  border-r pr-2 border-gray-200 h-full top[12px] z-10">
+                        <Text className="text-[14px] font-manropesemibold text-center mt-3 text-[#000000]">
                           ₦
                         </Text>
                       </View>
                       <InputField
-                        placeholder="100 - 500,000"
-                        className="text-[14px] text-[#717680] pl-6 pr-4 py-3"
+                        placeholder="₦100 - ₦500,000"
+                        className="text-[14px] placeholder:ml-6 text-[#717680] pl-6 pr-4 py-3"
                         value={value}
                         onChangeText={(text) => {
                           const cleaned = text.replace(/[^0-9]/g, "");
@@ -598,7 +596,8 @@ export default function ToSimkash() {
                   Confirm Transaction
                 </Heading>
                 <Text className="text-center text-[12px] font-manroperegular text-[#6B7280] px-4">
-                  Please review details carefully. Transactions are irreversible.
+                  Please review details carefully. Transactions are
+                  irreversible.
                 </Text>
               </VStack>
               <Heading className="text-[28px] font-medium text-center mt-[24px] font-manropebold text-[#000000]">
