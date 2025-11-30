@@ -70,42 +70,48 @@ export const paymentOptions: MenuOption[] = [
   },
 ];
 
-export const moreServices = [
+export const moreServices: MenuOption[] = [
   {
     id: 0,
     icon: PhoneMissed,
-    label: "Aitime2Cash",
+    label: "Airtime2Cash",
     iconColor: "#D257E5",
+    route: "/airtime2cash",
   },
   {
     id: 1,
     icon: Wifi,
     label: "Cable TV",
     iconColor: "#00C53E",
+    route: "/cable-tv",
   },
   {
     id: 2,
     icon: Lightbulb,
     label: "Electricity",
     iconColor: "#D4BF00",
+    route: "/electricity",
   },
   {
     id: 3,
     icon: PhoneCall,
     label: "Esim",
     iconColor: "#D98014",
+    route: "/esim",
   },
   {
     id: 4,
     icon: Banknote,
     label: "Virtual Number",
     iconColor: "#1400C5",
+    route: "/virtual-number",
   },
   {
     id: 7,
     icon: LayoutDashboard,
     label: "Pay Later",
     iconColor: "#D7561EDB",
+    route: "/pay-later",
   },
 ];
 

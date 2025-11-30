@@ -224,6 +224,10 @@ export default function HomeScreen() {
                   onPress={() => {
                     console.log("Selected service:", service.label);
                     setShowDrawer(false);
+                    if (service.route) {
+                      // Cast to any to avoid expo-router path literal typing constraints
+                      router.push(service.route as any);
+                    }
                   }}
                 >
                   <View className="w-[60px] h-[60px] items-center justify-center rounded-2xl mb-2">
