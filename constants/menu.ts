@@ -3,7 +3,6 @@ import {
   ArrowUpRight,
   Banknote,
   CreditCard,
-  Eye,
   LayoutDashboard,
   Lightbulb,
   PhoneCall,
@@ -39,7 +38,7 @@ export const paymentOptions: MenuOption[] = [
     icon: Wifi,
     label: "Data Bundle",
     iconColor: "#00C53E",
-    route: "/data-bundle",
+    route: "/data",
   },
   {
     id: 3,

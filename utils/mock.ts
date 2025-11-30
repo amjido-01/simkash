@@ -70,3 +70,12 @@ export const COUNTRY_CODES = [
   { label: "🇫🇷 France (+33)", value: "FR", callingCode: "33" },
   { label: "🇮🇳 India (+91)", value: "IN", callingCode: "91" },
 ];
+
+
+// Mock data bundles
+export const DATA_BUNDLES = [
+  { id: "1", name: "110MB Daily Plan (1 Day)", price: "100", validity: "1 Day" },
+  { id: "2", name: "250MB Daily Plan (1 Day)", price: "200", validity: "1 Day" },
+  { id: "3", name: "1.5GB Weekly Plan (7 Days)", price: "1000", validity: "7 Days" },
+  { id: "4", name: "110MB Daily Plan (1 Day)", price: "100", validity: "1 Day" },
+];
