@@ -27,12 +27,11 @@ import { yupResolver } from "@hookform/resolvers/yup";
 import {
   AlertCircleIcon,
   CheckCircle,
-  ChevronDownIcon,
   ChevronLeft,
   Gift,
   Wallet,
 } from "lucide-react-native";
-import React, { useRef, useState, useCallback } from "react";
+import React, { useRef, useState, useCallback, useEffect } from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
   KeyboardAvoidingView,
@@ -47,20 +46,13 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { OtpInput } from "react-native-otp-entry";
 import * as yup from "yup";
 import { router } from "expo-router";
-import {
-  Select,
-  SelectTrigger,
-  SelectInput,
-  SelectIcon,
-  SelectPortal,
-  SelectBackdrop,
-  SelectContent,
-  SelectDragIndicatorWrapper,
-  SelectDragIndicator,
-  SelectItem,
-} from "@/components/ui/select";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
-import { BANKS, ACCOUNT_VERIFICATION_DELAY, PIN_LENGTH } from "@/constants/menu";
+import {
+  BANKS,
+  ACCOUNT_VERIFICATION_DELAY,
+  PIN_LENGTH,
+} from "@/constants/menu";
+import BankSelector from "@/components/bank-selector";
 // Validation schema
 const schema = yup.object().shape({
   phone: yup
@@ -133,7 +125,7 @@ export default function ToBank() {
   const narrationValue = watch("narration");
 
   // Cleanup on unmount
-  React.useEffect(() => {
+  useEffect(() => {
     return () => {
       if (verificationTimeoutRef.current) {
         clearTimeout(verificationTimeoutRef.current);
@@ -178,7 +170,7 @@ export default function ToBank() {
   }, [phoneValue, bankValue]);
 
   // Re-verify when bank changes
-  React.useEffect(() => {
+  useEffect(() => {
     if (phoneValue && phoneValue.length === 10 && bankValue) {
       handlePhoneBlur();
     } else {
@@ -454,6 +446,41 @@ export default function ToBank() {
                       )}
                     </FormControl>
 
+                    {/* BANK SELECTION */}
+                    <FormControl isInvalid={Boolean(errors.bank)}>
+                      <FormControlLabel>
+                        <FormControlLabelText className="text-[12px] text-[#414651] mb-[6px]">
+                          Bank
+                        </FormControlLabelText>
+                      </FormControlLabel>
+
+                      <Controller
+                        control={control}
+                        name="bank"
+                        render={({ field: { onChange, value } }) => (
+                          <BankSelector
+                            value={value}
+                            onValueChange={onChange}
+                            banks={BANKS}
+                            placeholder="Select bank"
+                            error={Boolean(errors.bank)}
+                          />
+                        )}
+                      />
+
+                      {errors.bank && (
+                        <FormControlError>
+                          <FormControlErrorIcon
+                            className="text-red-500"
+                            as={AlertCircleIcon}
+                          />
+                          <FormControlErrorText className="text-red-500">
+                            {errors.bank?.message}
+                          </FormControlErrorText>
+                        </FormControlError>
+                      )}
+                    </FormControl>
+
                     {/* ACCOUNT NAME */}
                     {phoneVerified && accountName && (
                       <Animated.View entering={FadeIn.duration(300)}>
@@ -482,72 +509,6 @@ export default function ToBank() {
                         </FormControl>
                       </Animated.View>
                     )}
-
-                    {/* BANK SELECTION - Move before account number */}
-                    <FormControl isInvalid={Boolean(errors.bank)}>
-                      <FormControlLabel>
-                        <FormControlLabelText className="text-[12px] text-[#414651] mb-[6px]">
-                          Bank
-                        </FormControlLabelText>
-                      </FormControlLabel>
-
-                      <Controller
-                        control={control}
-                        name="bank"
-                        render={({ field: { onChange, value } }) => (
-                          <Select
-                            onValueChange={onChange}
-                            selectedValue={value}
-                          >
-                            <SelectTrigger
-                              variant="outline"
-                              size="xl"
-                              className={`w-full rounded-[99px] focus:border-2 focus:border-[#D0D5DD] min-h-[48px] ${
-                                errors.bank
-                                  ? "border-2 border-red-500"
-                                  : "border border-[#D0D5DD]"
-                              }`}
-                            >
-                              <SelectInput
-                                placeholder="Select bank"
-                                className="text-[14px] text-[#717680] flex-1"
-                              />
-                              <SelectIcon
-                                as={ChevronDownIcon}
-                                className="ml-auto mr-3"
-                              />
-                            </SelectTrigger>
-                            <SelectPortal>
-                              <SelectBackdrop />
-                              <SelectContent className="z-99">
-                                <SelectDragIndicatorWrapper>
-                                  <SelectDragIndicator />
-                                </SelectDragIndicatorWrapper>
-                                {BANKS.map((bank) => (
-                                  <SelectItem
-                                    key={bank.value}
-                                    label={bank.label}
-                                    value={bank.value}
-                                  />
-                                ))}
-                              </SelectContent>
-                            </SelectPortal>
-                          </Select>
-                        )}
-                      />
-
-                      {errors.bank && (
-                        <FormControlError>
-                          <FormControlErrorIcon
-                            className="text-red-500"
-                            as={AlertCircleIcon}
-                          />
-                          <FormControlErrorText className="text-red-500">
-                            {errors.bank?.message}
-                          </FormControlErrorText>
-                        </FormControlError>
-                      )}
-                    </FormControl>
                   </VStack>
                 </Animated.View>
               )}

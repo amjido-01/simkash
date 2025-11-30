@@ -88,7 +88,7 @@ export default function Login() {
                   <Input
                     variant="outline"
                     size="xl"
-                    className={`w-full p-2 rounded-[99px] focus:border-2 focus:border-[#D0D5DD] h-[48px] ${
+                    className={`w-full p-2 rounded-[99px] focus:border-2 focus:border-[#D0D5DD] min-h-[48px] ${
                       errors.email
                         ? "border-2 border-red-500"
                         : "border border-[#D0D5DD]"
@@ -135,7 +135,7 @@ export default function Login() {
                   <Input
                     variant="outline"
                     size="xl"
-                    className={`w-full p-2 rounded-[99px] h-[48px] focus:border-2 focus:border-[#D0D5DD] ${
+                    className={`w-full p-2 rounded-[99px] min-h-[48px] focus:border-2 focus:border-[#D0D5DD] ${
                       errors.password
                         ? "border-2 border-red-500"
                         : "border border-[#D0D5DD]"

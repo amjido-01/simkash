@@ -31,7 +31,7 @@ import {
   Gift,
   Wallet,
 } from "lucide-react-native";
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useRef, useState, useEffect } from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
   KeyboardAvoidingView,
@@ -114,7 +114,7 @@ export default function ToSimkash() {
   const narrationValue = watch("narration");
 
   // Cleanup on unmount
-  React.useEffect(() => {
+  useEffect(() => {
     return () => {
       if (verificationTimeoutRef.current) {
         clearTimeout(verificationTimeoutRef.current);
@@ -159,7 +159,7 @@ export default function ToSimkash() {
   }, [phoneValue]);
 
   // Re-verify when phone changes
-  React.useEffect(() => {
+  useEffect(() => {
     if (phoneValue && phoneValue.length === 10) {
       handlePhoneBlur();
     } else {
