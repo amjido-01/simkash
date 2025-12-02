@@ -22,34 +22,37 @@ import { HStack } from "@/components/ui/hstack";
 import { Input, InputField } from "@/components/ui/input";
 import { Text } from "@/components/ui/text";
 import { VStack } from "@/components/ui/vstack";
+import { ACCOUNT_VERIFICATION_DELAY, PIN_LENGTH } from "@/constants/menu";
 import { yupResolver } from "@hookform/resolvers/yup";
+import { Picker } from "@react-native-picker/picker";
+import { router } from "expo-router";
 import {
   AlertCircleIcon,
   CheckCircle,
+  ChevronDownIcon,
   ChevronLeft,
   Gift,
-  Wallet,
-  ChevronDownIcon,
   Search,
+  Wallet,
 } from "lucide-react-native";
-import React, { useRef, useState, useCallback, useEffect } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
+  ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   TouchableOpacity,
   View,
-  ActivityIndicator,
-  Alert,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { OtpInput } from "react-native-otp-entry";
-import * as yup from "yup";
-import { router } from "expo-router";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
-import { PIN_LENGTH, ACCOUNT_VERIFICATION_DELAY } from "@/constants/menu";
-import { Picker } from "@react-native-picker/picker";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
+import * as yup from "yup";
 
 // Mock electricity providers
 const ELECTRICITY_PROVIDERS = [
@@ -96,6 +99,7 @@ type Stage = "company" | "details";
 
 export default function Electricity() {
   // State management
+  const insets = useSafeAreaInsets();
   const [showProviderDrawer, setShowProviderDrawer] = useState(false);
   const [showConfirmDrawer, setShowConfirmDrawer] = useState(false);
   const [showPinDrawer, setShowPinDrawer] = useState(false);
@@ -109,7 +113,9 @@ export default function Electricity() {
   const [searchQuery, setSearchQuery] = useState("");
 
   const otpRef = useRef<any>(null);
-  const verificationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const verificationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
 
   // Form setup
   const {
@@ -510,7 +516,7 @@ export default function Electricity() {
                               style={{
                                 height: 48,
                                 width: "100%",
-                                marginLeft: Platform.OS === "android" ? -8 : 0,
+                                marginLeft: Platform.OS === "android" ? 10 : 0,
                               }}
                               itemStyle={{
                                 fontSize: 14,
@@ -594,7 +600,10 @@ export default function Electricity() {
                             />
                             {isVerifyingCustomer && (
                               <View className="absolute right-4 top-3">
-                                <ActivityIndicator size="small" color="#132939" />
+                                <ActivityIndicator
+                                  size="small"
+                                  color="#132939"
+                                />
                               </View>
                             )}
                           </Input>
@@ -664,7 +673,7 @@ export default function Electricity() {
                                 : "border border-[#D0D5DD]"
                             }`}
                           >
-                            <View className="absolute left-4 border-r pr-2 border-gray-200 h-full top-[12px] z-10">
+                            <View className="absolute left-4  border-r pr-2 border-gray-200 h-full top[12px] z-10">
                               <Text className="text-[14px] font-manropesemibold text-center mt-3 text-[#000000]">
                                 ₦
                               </Text>
@@ -705,7 +714,12 @@ export default function Electricity() {
         </ScrollView>
 
         {/* FIXED BOTTOM BUTTON */}
-        <View className="absolute bottom-4 left-0 right-0 bg-white px-4 py-4 border-t border-[#F3F4F6]">
+        <View
+          className="absolute bottom-0 left-0 right-0 bg-white px-4 pt-4 border-t border-[#F3F4F6]"
+          style={{
+            paddingBottom: Math.max(insets.bottom, 16),
+          }}
+        >
           <Button
             className="rounded-full bg-[#132939] h-[48px] w-full"
             size="xl"
@@ -739,35 +753,38 @@ export default function Electricity() {
             borderColor: "transparent",
             shadowOpacity: 0,
             elevation: 0,
-            paddingBottom: Platform.OS === "ios" ? 34 : 16,
+            // paddingBottom: Platform.OS === "ios" ? 34 : 16,
+            paddingBottom: insets.bottom || 16,
           }}
         >
-          <DrawerHeader className="border-b-0 pb-4 px-6">
-            <Heading className="font-manropesemibold text-center text-[18px] text-[#000000] mb-4">
-              Select Electricity Provider
-            </Heading>
-            
-            {/* Search Input */}
-            <Input
-              variant="outline"
-              size="md"
-              className="w-full rounded-[12px] border border-[#D0D5DD] mb-4"
-            >
-              <View className="pl-3">
-                <Search size={18} color="#717680" />
-              </View>
-              <InputField
-                placeholder="Search all company"
-                className="text-[14px] text-[#717680] px-2"
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-              />
-            </Input>
+          <DrawerHeader className="border-b-0 pb-4 px6">
+            <VStack className="w-full">
+              <Heading className="font-manropesemibold text-center text-[18px] text-[#000000] mb-4">
+                Select Electricity Provider
+              </Heading>
+
+              {/* Search Input */}
+              <Input
+                variant="outline"
+                size="md"
+                className="w-full rounded-[12px] border border-[#D0D5DD] mb-4"
+              >
+                <View className="pl-3">
+                  <Search size={18} color="#717680" />
+                </View>
+                <InputField
+                  placeholder="Search all company"
+                  className="text-[14px] text-[#717680] px-2"
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                />
+              </Input>
+            </VStack>
 
             <DrawerCloseButton />
           </DrawerHeader>
 
-          <DrawerBody className="px-4 pb-6">
+          <DrawerBody className="px4 pb-6">
             <ScrollView
               showsVerticalScrollIndicator={false}
               style={{ maxHeight: 400 }}
@@ -832,27 +849,28 @@ export default function Electricity() {
           }}
         />
         <DrawerContent
-          className="rounded-t-[30px] pt[39px] bg-[#FFFFFF]"
+          className="rounded-t-[30px] pt[28px] bg-[#FFFFFF]"
           style={{
             borderTopWidth: 0,
             borderColor: "transparent",
             shadowOpacity: 0,
             elevation: 0,
-            paddingBottom: Platform.OS === "ios" ? 34 : 16,
+            // paddingBottom: Platform.OS === "ios" ? 34 : 16,
+            paddingBottom: insets.bottom || 16,
           }}
         >
-          <DrawerHeader className="border-b-0 pb-2 px-6">
+          <DrawerHeader className="border-b-0 pb2 px-6">
             <VStack>
               <VStack>
-                <Heading className="font-manropesemibold text-center text-[18px] text-[#000000] mb-2">
+                <Heading className="font-manropesemibold text-center text-[18px] text-[#000000] mb2">
                   Confirm Transaction
                 </Heading>
-                <Text className="text-center text-[12px] font-manroperegular text-[#6B7280] px-4">
+                <Text className="text-center text-[12px] font-manroperegular text-[#6B7280] px-2">
                   Please review details carefully. Transactions are
                   irreversible.
                 </Text>
               </VStack>
-              <Heading className="text-[28px] font-medium text-center mt-[24px] font-manropebold text-[#000000]">
+              <Heading className="text-[28px] font-medium text-center mt-[18px] font-manropebold text-[#000000]">
                 ₦{formatAmount(amountValue)}
               </Heading>
             </VStack>
@@ -862,9 +880,9 @@ export default function Electricity() {
           <DrawerBody className="pt-2 px-1 pb-4">
             <VStack space="md">
               {/* Transaction Details */}
-              <View className="rounded-[20px] border-[#E5E7EF] border p-4">
+              <View className="rounded-[20px] border-[#E5E7EF] border px-4">
                 <VStack space="sm">
-                  <HStack className="justify-between items-center py-3">
+                  <HStack className="justify-between items-center py-2">
                     <Text className="text-[12px] font-manroperegular text-[#303237]">
                       Recipient
                     </Text>
@@ -875,7 +893,7 @@ export default function Electricity() {
 
                   <View className="h-[1px] bg-[#E5E7EB]" />
 
-                  <HStack className="justify-between items-center py-3">
+                  <HStack className="justify-between items-center py-2">
                     <Text className="text-[12px] font-manroperegular text-[#303237]">
                       Meter Number
                     </Text>
@@ -886,7 +904,7 @@ export default function Electricity() {
 
                   <View className="h-[1px] bg-[#E5E7EB]" />
 
-                  <HStack className="justify-between items-center py-3">
+                  <HStack className="justify-between items-center py-2">
                     <Text className="text-[12px] font-manroperegular text-[#303237]">
                       Company
                     </Text>
@@ -897,7 +915,7 @@ export default function Electricity() {
 
                   <View className="h-[1px] bg-[#E5E7EB]" />
 
-                  <HStack className="justify-between items-center py-3">
+                  <HStack className="justify-between items-center py-2">
                     <Text className="text-[12px] font-manroperegular text-[#303237]">
                       Amount
                     </Text>
@@ -908,7 +926,7 @@ export default function Electricity() {
 
                   <View className="h-[1px] bg-[#E5E7EB]" />
 
-                  <HStack className="justify-between items-center py-3">
+                  <HStack className="justify-between items-center py-2">
                     <Text className="text-[12px] font-manroperegular text-[#303237]">
                       Meter Type
                     </Text>
@@ -920,7 +938,7 @@ export default function Electricity() {
               </View>
 
               {/* Wallet & Cashback */}
-              <View className="p-4">
+              <View className="px-4">
                 <VStack space="sm">
                   <HStack className="justify-between items-center py-3">
                     <HStack space="sm" className="items-center">
@@ -952,7 +970,7 @@ export default function Electricity() {
             </VStack>
           </DrawerBody>
 
-          <DrawerFooter className="px-4 pt-4 pb-4">
+          <DrawerFooter className="px-4 pt4 pb4">
             <Button
               className="rounded-full bg-[#132939] h-[48px] w-full"
               size="xl"

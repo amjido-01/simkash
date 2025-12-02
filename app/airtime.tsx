@@ -41,7 +41,7 @@ import {
   ActivityIndicator,
   Alert,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { OtpInput } from "react-native-otp-entry";
 import * as yup from "yup";
 import { router } from "expo-router";
@@ -86,6 +86,7 @@ type FormData = yup.InferType<typeof schema>;
 
 export default function Airtime() {
   // State management
+  const insets = useSafeAreaInsets();
   const [showDrawer, setShowDrawer] = useState(false);
   const [showPinDrawer, setShowPinDrawer] = useState(false);
   const [pin, setPin] = useState("");
@@ -361,6 +362,7 @@ export default function Airtime() {
                                 </SelectDragIndicatorWrapper>
                                 {NETWORKS.map((network) => (
                                   <SelectItem
+                                  className="text-sm"
                                     key={network.value}
                                     label={`${network.icon} ${network.label}`}
                                     value={network.value}
@@ -490,7 +492,12 @@ export default function Airtime() {
         </ScrollView>
 
         {/* FIXED BOTTOM BUTTON */}
-        <View className="absolute bottom-2 left-0 right-0 bg-white px-4 py-4 border-t border-[#F3F4F6]">
+        <View className="absolute bottom-0 left-0 right-0 bg-white px-4 py-4 border-t border-[#F3F4F6]"
+         style={{ 
+          paddingBottom: Math.max(insets.bottom, 16),
+          paddingTop: 16
+        }}
+        >
           <Button
             className="rounded-full bg-[#132939] h-[48px] w-full"
             size="xl"
@@ -520,36 +527,37 @@ export default function Airtime() {
           }}
         />
         <DrawerContent
-          className="rounded-t-[30px] pt-[39px] bg-[#FFFFFF]"
+          className="rounded-t-[30px] pt-[28px] bg-[#FFFFFF]"
           style={{
             borderTopWidth: 0,
             borderColor: "transparent",
             shadowOpacity: 0,
             elevation: 0,
-            paddingBottom: Platform.OS === "ios" ? 34 : 16,
+            // paddingBottom: Platform.OS === "ios" ? 34 : 16,
+            paddingBottom: insets.bottom || 16,
           }}
         >
-          <DrawerHeader className="border-b-0 pb-2 px-6">
+          <DrawerHeader className="border-b-0 pb2 px-6">
             <VStack>
               <VStack>
                 <Heading className="font-manropesemibold text-center text-[18px] text-[#000000] mb-2">
                    Confirm Purchase
                 </Heading>
-                <Text className="text-center text-[12px] font-manroperegular text-[#6B7280] px-4">
+                <Text className="text-center text-[12px] font-manroperegular text-[#6B7280] px-2">
                  Please review details carefully. Transactions are irreversible.
                 </Text>
               </VStack>
-              <Heading className="text-[28px] font-medium text-center mt-[24px] font-manropebold text-[#000000]">
+              <Heading className="text-[28px] font-medium text-center mt-[20px] font-manropebold text-[#000000]">
                 ₦{formatAmount(amountValue)}
               </Heading>
             </VStack>
             <DrawerCloseButton />
           </DrawerHeader>
 
-          <DrawerBody className="pt-4 px-1 pb-6">
+          <DrawerBody className="pt-4 px-1 pb6">
             <VStack space="md">
               {/* Transaction Details */}
-              <View className="rounded-[20px] border-[#E5E7EF] border p-4">
+              <View className="rounded-[20px] border-[#E5E7EF] border px-4 py-2">
                 <VStack space="sm">
                   <HStack className="justify-between items-center py-3">
                     <Text className="text-[12px] font-manroperegular text-[#303237]">
@@ -617,7 +625,7 @@ export default function Airtime() {
             </VStack>
           </DrawerBody>
 
-          <DrawerFooter className="px-4 pt-4 pb-4">
+          <DrawerFooter className="px-4 pt-4 pb-0">
             <Button
               className="rounded-full bg-[#132939] h-[48px] w-full"
               size="xl"

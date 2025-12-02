@@ -41,7 +41,10 @@ import {
   ActivityIndicator,
   Alert,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { OtpInput } from "react-native-otp-entry";
 import * as yup from "yup";
 import { router } from "expo-router";
@@ -63,6 +66,7 @@ type FormData = yup.InferType<typeof schema>;
 
 export default function DataBundle() {
   // State management
+  const insets = useSafeAreaInsets();
   const [showNetworkDrawer, setShowNetworkDrawer] = useState(false);
   const [showConfirmDrawer, setShowConfirmDrawer] = useState(false);
   const [showPinDrawer, setShowPinDrawer] = useState(false);
@@ -119,11 +123,11 @@ export default function DataBundle() {
         const newPin = pin + num;
         setPin(newPin);
         setPinError("");
-        
+
         if (otpRef.current) {
           otpRef.current.setValue(newPin);
         }
-        
+
         if (newPin.length === PIN_LENGTH) {
           setTimeout(() => handlePinSubmit(newPin), 300);
         }
@@ -163,12 +167,12 @@ export default function DataBundle() {
       try {
         console.log("PIN entered:", finalPin);
         await new Promise((resolve) => setTimeout(resolve, 1500));
-        
+
         setShowPinDrawer(false);
         setShowConfirmDrawer(false);
         setPin("");
         reset();
-        
+
         router.push({
           pathname: "/transaction-success",
           params: {
@@ -413,7 +417,12 @@ export default function DataBundle() {
         </ScrollView>
 
         {/* FIXED BOTTOM BUTTON */}
-        <View className="absolute bottom-2 left-0 right-0 bg-white px-4 py-4 border-t border-[#F3F4F6]">
+        <View
+          className="absolute bottom-0 left-0 right-0 bg-white px-4 pt-4 border-t border-[#F3F4F6]"
+          style={{
+            paddingBottom: Math.max(insets.bottom, 16),
+          }}
+        >
           <Button
             className="rounded-full bg-[#132939] h-[48px] w-full"
             size="xl"
@@ -492,35 +501,37 @@ export default function DataBundle() {
           }}
         />
         <DrawerContent
-          className="rounded-t-[30px] pt-[39px] bg-[#FFFFFF]"
+          className="rounded-t-[30px] pt-[29px] bg-[#FFFFFF]"
           style={{
             borderTopWidth: 0,
             borderColor: "transparent",
             shadowOpacity: 0,
             elevation: 0,
-            paddingBottom: Platform.OS === "ios" ? 34 : 16,
+            // paddingBottom: Platform.OS === "ios" ? 34 : 16,
+            paddingBottom: insets.bottom || 16,
           }}
         >
           <DrawerHeader className="border-b-0 pb2 px-6">
             <VStack>
               <VStack>
-                <Heading className="font-manropesemibold text-center text-[18px] text-[#000000] mb-2">
+                <Heading className="font-manropesemibold text-center text-[18px] text-[#000000] mb2">
                   Confirm Transaction
                 </Heading>
-                <Text className="text-center text-[12px] font-manroperegular text-[#6B7280] px-4">
-                  Please review details carefully. Transactions are irreversible.
+                <Text className="text-center text-[12px] font-manroperegular text-[#6B7280] px-2">
+                  Please review details carefully. Transactions are
+                  irreversible.
                 </Text>
               </VStack>
-              <Heading className="text-[24px] font-medium text-center mt-[24px] font-manropebold text-[#000000]">
+              <Heading className="text-[24px] font-medium text-center mt-[18px] font-manropebold text-[#000000]">
                 {selectedBundle?.name}
               </Heading>
             </VStack>
             <DrawerCloseButton />
           </DrawerHeader>
-          <DrawerBody className="pt-4 px-1 pb-4">
+          <DrawerBody className="pt4 px-1 pb4">
             <VStack space="md">
               {/* Transaction Details */}
-              <View className="rounded-[20px] border-[#E5E7EF] border p-4">
+              <View className="rounded-[20px] border-[#E5E7EF] border px-4 py-2">
                 <VStack space="sm">
                   <HStack className="justify-between items-center py-2">
                     <Text className="text-[12px] font-manroperegular text-[#303237]">
@@ -570,7 +581,7 @@ export default function DataBundle() {
               </View>
 
               {/* Wallet & Cashback */}
-              <View className="p-4">
+              <View className="px-4 py-2">
                 <VStack space="sm">
                   <HStack className="justify-between items-center py-2">
                     <HStack space="sm" className="items-center">
@@ -599,7 +610,7 @@ export default function DataBundle() {
               </View>
             </VStack>
           </DrawerBody>
-          <DrawerFooter className="px-4 pt-2 pb-4">
+          <DrawerFooter className="px-4 pt-2 pb-0">
             <Button
               className="rounded-full bg-[#132939] h-[48px] w-full"
               size="xl"
