@@ -554,7 +554,7 @@ export default function ToSimkash() {
         </ScrollView>
 
         {/* FIXED BOTTOM BUTTON */}
-        <View className="absolute bottom-0 left-0 right-0 bg-white px-4 py-4 border-t border-[#F3F4F6]"
+        <View className="absolute bottom-0 left-0 right-0 bg-white px-4 py-4"
          style={{ 
           paddingBottom: Math.max(insets.bottom, 16),
           // paddingTop: 16

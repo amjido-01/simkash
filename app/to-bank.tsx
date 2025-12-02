@@ -632,7 +632,7 @@ export default function ToBank() {
 
         {/* FIXED BOTTOM BUTTON */}
         <View
-          className="absolute bottom-0 left-0 right-0 bg-white px-4 pt-4 border-t border-[#F3F4F6]"
+          className="absolute bottom-0 left-0 right-0 bg-white px-4 pt-4"
           style={{
             paddingBottom: Math.max(insets.bottom, 16),
           }}

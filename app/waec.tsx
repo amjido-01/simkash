@@ -25,8 +25,9 @@ import { VStack } from "@/components/ui/vstack";
 import { yupResolver } from "@hookform/resolvers/yup";
 import {
   AlertCircleIcon,
-  ChevronDownIcon,
   ChevronLeft,
+  ChevronRight,
+  ChevronDown,
   Gift,
   Wallet,
 } from "lucide-react-native";
@@ -48,31 +49,48 @@ import {
 import { OtpInput } from "react-native-otp-entry";
 import * as yup from "yup";
 import { router } from "expo-router";
-import { NETWORKS, PIN_LENGTH } from "@/constants/menu";
-import { DATA_BUNDLES } from "@/utils/mock";
+import { PIN_LENGTH } from "@/constants/menu";
+
+// Service types
+const SERVICE_TYPES = [
+  { id: "result_checker", name: "Result Checker PIN", price: "3400" },
+  { id: "registration", name: "Registration PIN", price: "5000" },
+  { id: "gce", name: "GCE PIN", price: "4200" },
+];
+
+// Quantities
+const QUANTITIES = [
+  { value: "1", label: "1" },
+  { value: "2", label: "2" },
+  { value: "3", label: "3" },
+  { value: "4", label: "4" },
+  { value: "5", label: "5" },
+];
 
 // Validation schema
 const schema = yup.object().shape({
+  serviceType: yup.string().required("Please select a service type"),
+  quantity: yup.string().required("Please select quantity"),
   phoneNumber: yup
     .string()
     .required("Phone number is required")
     .matches(/^[0-9]+$/, "Phone number must contain only digits")
     .length(11, "Phone number must be exactly 11 digits"),
-  network: yup.string().required("Please select a network"),
-  dataBundle: yup.string().required("Please select a data bundle"),
 });
 
 type FormData = yup.InferType<typeof schema>;
 
-export default function DataBundle() {
+export default function WaecPurchase() {
   // State management
   const insets = useSafeAreaInsets();
-  const [showNetworkDrawer, setShowNetworkDrawer] = useState(false);
+  const [showServiceDrawer, setShowServiceDrawer] = useState(false);
+  const [showQuantityDrawer, setShowQuantityDrawer] = useState(false);
   const [showConfirmDrawer, setShowConfirmDrawer] = useState(false);
   const [showPinDrawer, setShowPinDrawer] = useState(false);
   const [pin, setPin] = useState("");
   const [pinError, setPinError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
   const otpRef = useRef<any>(null);
 
   // Form setup
@@ -88,19 +106,27 @@ export default function DataBundle() {
     resolver: yupResolver(schema) as any,
     mode: "onChange",
     defaultValues: {
+      serviceType: "",
+      quantity: "",
       phoneNumber: "",
-      network: "",
-      dataBundle: "",
     },
   });
 
-  const phoneValue = watch("phoneNumber");
-  const networkValue = watch("network");
-  const dataBundleValue = watch("dataBundle");
+  const serviceTypeValue = watch("serviceType");
+  const quantityValue = watch("quantity");
+  const phoneNumberValue = watch("phoneNumber");
 
   // Get selected items
-  const selectedNetwork = NETWORKS.find((n) => n.value === networkValue);
-  const selectedBundle = DATA_BUNDLES.find((b) => b.id === dataBundleValue);
+  const selectedService = SERVICE_TYPES.find((s) => s.id === serviceTypeValue);
+  const selectedQuantity = QUANTITIES.find((q) => q.value === quantityValue);
+
+  // Calculate total amount
+  const totalAmount =
+    selectedService && selectedQuantity
+      ? (
+          parseInt(selectedService.price) * parseInt(selectedQuantity.value)
+        ).toString()
+      : "0";
 
   // Form submission
   const submitForm = useCallback((data: FormData) => {
@@ -142,6 +168,7 @@ export default function DataBundle() {
       const newPin = pin.slice(0, -1);
       setPin(newPin);
       setPinError("");
+
       if (otpRef.current) {
         otpRef.current.setValue(newPin);
       }
@@ -158,12 +185,14 @@ export default function DataBundle() {
   const handlePinSubmit = useCallback(
     async (pinToSubmit?: string) => {
       const finalPin = pinToSubmit || pin;
+
       if (finalPin.length !== PIN_LENGTH) {
         setPinError("Please enter your 4-digit PIN");
         return;
       }
 
       setIsSubmitting(true);
+
       try {
         console.log("PIN entered:", finalPin);
         await new Promise((resolve) => setTimeout(resolve, 1500));
@@ -176,12 +205,13 @@ export default function DataBundle() {
         router.push({
           pathname: "/transaction-success",
           params: {
-            amount: selectedBundle?.price,
-            recipient: phoneValue,
-            phoneNumber: phoneValue,
-            transactionType: "data",
-            network: networkValue,
-            dataBundle: selectedBundle?.name,
+            amount: totalAmount,
+            recipient: phoneNumberValue,
+            phoneNumber: phoneNumberValue,
+            transactionType: "waec",
+            serviceType: selectedService?.name,
+            quantity: quantityValue,
+            commission: "10",
           },
         });
       } catch (error) {
@@ -194,21 +224,23 @@ export default function DataBundle() {
         setIsSubmitting(false);
       }
     },
-    [pin, selectedBundle, phoneValue, networkValue, reset]
+    [pin, totalAmount, phoneNumberValue, selectedService, quantityValue, reset]
   );
 
   // Continue button handler
   const handleContinue = useCallback(async () => {
     const valid = await trigger();
+
     if (!valid) {
       return;
     }
+
     handleSubmit(submitForm)();
   }, [trigger, handleSubmit, submitForm]);
 
   // Back navigation handler
   const handleBack = useCallback(() => {
-    if (phoneValue || dataBundleValue) {
+    if (phoneNumberValue || serviceTypeValue) {
       Alert.alert(
         "Discard Changes?",
         "Are you sure you want to go back? All entered information will be lost.",
@@ -224,7 +256,7 @@ export default function DataBundle() {
     } else {
       router.push("/(tabs)");
     }
-  }, [phoneValue, dataBundleValue]);
+  }, [phoneNumberValue, serviceTypeValue]);
 
   // Format amount for display
   const formatAmount = useCallback((amount: string) => {
@@ -232,19 +264,20 @@ export default function DataBundle() {
     return parseInt(amount, 10).toLocaleString();
   }, []);
 
-  // Handle network selection
-  const handleNetworkSelect = useCallback(
-    (networkVal: string) => {
-      setValue("network", networkVal, { shouldValidate: true });
-      setShowNetworkDrawer(false);
+  // Handle service type selection
+  const handleServiceSelect = useCallback(
+    (serviceId: string) => {
+      setValue("serviceType", serviceId, { shouldValidate: true });
+      setShowServiceDrawer(false);
     },
     [setValue]
   );
 
-  // Handle bundle selection
-  const handleBundleSelect = useCallback(
-    (bundleId: string) => {
-      setValue("dataBundle", bundleId, { shouldValidate: true });
+  // Handle quantity selection
+  const handleQuantitySelect = useCallback(
+    (qty: string) => {
+      setValue("quantity", qty, { shouldValidate: true });
+      setShowQuantityDrawer(false);
     },
     [setValue]
   );
@@ -268,7 +301,7 @@ export default function DataBundle() {
             <ChevronLeft size={24} color="#000000" />
           </TouchableOpacity>
           <Text className="text-[16px] font-semibold font-manropesemibold text-[#000000]">
-            Data Bundle
+            WAEC
           </Text>
         </HStack>
 
@@ -280,45 +313,126 @@ export default function DataBundle() {
         >
           <Box className="bg-white px-4 pt-6 pb-24 flex-1">
             <VStack space="lg" className="flex-1">
-              {/* Phone Number with Network Selector */}
-              <FormControl
-                isInvalid={Boolean(errors.phoneNumber || errors.network)}
-              >
+              {/* SERVICE TYPE */}
+              <FormControl isInvalid={Boolean(errors.serviceType)}>
                 <FormControlLabel>
                   <FormControlLabelText className="text-[12px] text-[#414651] mb-[6px]">
-                    Phone Number
+                    Service Type
                   </FormControlLabelText>
                 </FormControlLabel>
 
-                <View
-                  className={`w-full rounded-[99px] border min-h-[48px] flex-row items-center overflow-hidden ${
-                    errors.phoneNumber || errors.network
-                      ? "border-2 border-red-500"
-                      : "border border-[#D0D5DD]"
-                  }`}
-                >
-                  {/* Network Selector */}
+                <Controller
+                  control={control}
+                  name="serviceType"
+                  render={({ field: { value } }) => (
+                    <TouchableOpacity
+                      onPress={() => setShowServiceDrawer(true)}
+                      className={`w-full rounded-[99px] min-h-[48px] flex-row items-center justify-between px-4 ${
+                        errors.serviceType
+                          ? "border-2 border-red-500"
+                          : "border border-[#D0D5DD]"
+                      }`}
+                    >
+                      <Text
+                        className={`text-[14px] ${
+                          value ? "text-[#000000]" : "text-[#717680]"
+                        }`}
+                      >
+                        {selectedService?.name || "Select service type"}
+                      </Text>
+                      <ChevronDown size={20} color="#717680" />
+                    </TouchableOpacity>
+                  )}
+                />
+
+                {errors.serviceType && (
+                  <FormControlError>
+                    <FormControlErrorIcon
+                      className="text-red-500"
+                      as={AlertCircleIcon}
+                    />
+                    <FormControlErrorText className="text-red-500">
+                      {errors.serviceType?.message}
+                    </FormControlErrorText>
+                  </FormControlError>
+                )}
+              </FormControl>
+
+              {/* QUANTITY */}
+              {serviceTypeValue && (
+                <VStack space="lg">
+                <FormControl isInvalid={Boolean(errors.quantity)}>
+                  <FormControlLabel>
+                    <FormControlLabelText className="text-[12px] text-[#414651] mb-[6px]">
+                      Quantity
+                    </FormControlLabelText>
+                  </FormControlLabel>
+
                   <Controller
                     control={control}
-                    name="network"
+                    name="quantity"
                     render={({ field: { value } }) => (
                       <TouchableOpacity
-                        onPress={() => setShowNetworkDrawer(true)}
-                        className="w-[70px] h-[48px] flex-row items-center justify-center px-2"
+                        onPress={() => setShowQuantityDrawer(true)}
+                        className={`w-full rounded-[99px] min-h-[48px] flex-row items-center justify-between px-4 ${
+                          errors.quantity
+                            ? "border-2 border-red-500"
+                            : "border border-[#D0D5DD]"
+                        }`}
                       >
-                        <Text className="text-[20px]">
-                          {selectedNetwork?.icon || "📱"}
+                        <Text
+                          className={`text-[14px] ${
+                            value ? "text-[#000000]" : "text-[#717680]"
+                          }`}
+                        >
+                          {value || "Select quantity"}
                         </Text>
-                        <ChevronDownIcon
-                          size={16}
-                          color="#717680"
-                          style={{ marginLeft: -4 }}
-                        />
+                        <ChevronDown size={20} color="#717680" />
                       </TouchableOpacity>
                     )}
                   />
 
-                  {/* Phone Number Input */}
+                  {errors.quantity && (
+                    <FormControlError>
+                      <FormControlErrorIcon
+                        className="text-red-500"
+                        as={AlertCircleIcon}
+                      />
+                      <FormControlErrorText className="text-red-500">
+                        {errors.quantity?.message}
+                      </FormControlErrorText>
+                    </FormControlError>
+                  )}
+                </FormControl>
+
+                   <FormControl>
+                  <FormControlLabel>
+                    <FormControlLabelText className="text-[12px] text-[#414651] mb-[6px]">
+                      Amount
+                    </FormControlLabelText>
+                  </FormControlLabel>
+
+                  <Input
+                    variant="outline"
+                    size="xl"
+                    isReadOnly={true}
+                    className="w-full rounded-[99px] min-h-[48px] border border-[#D0D5DD] bg-[#F9FAFB]"
+                  >
+                    <InputField
+                      value={`₦${formatAmount(totalAmount)}`}
+                      className="text-[14px] text-[#000000] font-manropesemibold px-4 py-3"
+                      editable={false}
+                    />
+                  </Input>
+                </FormControl>
+
+                  <FormControl isInvalid={Boolean(errors.phoneNumber)}>
+                  <FormControlLabel>
+                    <FormControlLabelText className="text-[12px] text-[#414651] mb-[6px]">
+                      Phone Number
+                    </FormControlLabelText>
+                  </FormControlLabel>
+
                   <Controller
                     control={control}
                     name="phoneNumber"
@@ -326,11 +440,15 @@ export default function DataBundle() {
                       <Input
                         variant="outline"
                         size="xl"
-                        className="flex-1 border-0 rounded-none"
+                        className={`w-full rounded-[99px] focus:border-2 focus:border-[#D0D5DD] min-h-[48px] ${
+                          errors.phoneNumber
+                            ? "border-2 border-red-500"
+                            : "border border-[#D0D5DD]"
+                        }`}
                       >
                         <InputField
-                          placeholder="Enter your phone number"
-                          className="text-[14px] text-[#717680] px-2 py-3"
+                          placeholder="Enter Meter Number"
+                          className="text-[14px] text-[#717680] px-4 py-3"
                           value={value}
                           maxLength={11}
                           keyboardType="number-pad"
@@ -339,84 +457,34 @@ export default function DataBundle() {
                             onChange(cleaned);
                           }}
                           onBlur={onBlur}
+                          autoCapitalize="none"
                         />
                       </Input>
                     )}
                   />
-                </View>
 
-                {(errors.phoneNumber || errors.network) && (
-                  <FormControlError>
-                    <FormControlErrorIcon
-                      className="text-red-500"
-                      as={AlertCircleIcon}
-                    />
-                    <FormControlErrorText className="text-red-500">
-                      {errors.phoneNumber?.message || errors.network?.message}
-                    </FormControlErrorText>
-                  </FormControlError>
-                )}
-              </FormControl>
-
-              {/* Data Bundle Selection */}
-              {networkValue && (
-                <FormControl isInvalid={Boolean(errors.dataBundle)}>
-                  <FormControlLabel>
-                    <FormControlLabelText className="text-[12px] text-[#414651] mb-[6px]">
-                      Popular Data Bundles
-                    </FormControlLabelText>
-                  </FormControlLabel>
-
-                  <Controller
-                    control={control}
-                    name="dataBundle"
-                    render={({ field: { value } }) => (
-                      <VStack space="sm">
-                        {DATA_BUNDLES.map((bundle) => (
-                          <TouchableOpacity
-                            key={bundle.id}
-                            onPress={() => handleBundleSelect(bundle.id)}
-                            className={`flex-row justify-between items-center p-4 rounded-[16px] ${
-                              value === bundle.id
-                                ? "border-[#132939] border bg-[#F9FAFB]"
-                                : "border[#E5E7EB] bg-white"
-                            }`}
-                          >
-                            <View>
-                              <Text className="text-[14px] font-medium font-manropesemibold text-[#000000] mb-1">
-                                {bundle.name}
-                              </Text>
-                              <Text className="text-[12px] font-manroperegular text-[#6B7280]">
-                                Validity: {bundle.validity}
-                              </Text>
-                            </View>
-                            <Text className="text-[16px] font-semibold font-manropebold text-[#132939]">
-                              ₦{bundle.price}
-                            </Text>
-                          </TouchableOpacity>
-                        ))}
-                      </VStack>
-                    )}
-                  />
-
-                  {errors.dataBundle && (
+                  {errors.phoneNumber && (
                     <FormControlError>
                       <FormControlErrorIcon
                         className="text-red-500"
                         as={AlertCircleIcon}
                       />
                       <FormControlErrorText className="text-red-500">
-                        {errors.dataBundle?.message}
+                        {errors.phoneNumber?.message}
                       </FormControlErrorText>
                     </FormControlError>
                   )}
                 </FormControl>
+                </VStack>
+
+                
+
               )}
             </VStack>
           </Box>
         </ScrollView>
 
-        {/* FIXED BOTTOM BUTTON */}
+        {/* TTOM BUTTON */}
         <View
           className="absolute bottom-0 left-0 right-0 bg-white px-4 pt-4"
           style={{
@@ -435,13 +503,13 @@ export default function DataBundle() {
         </View>
       </KeyboardAvoidingView>
 
-      {/* NETWORK SELECTION DRAWER */}
+      {/* SERVICE TYPE SELECTION DRAWER */}
       <Drawer
         className="border-t-0"
-        isOpen={showNetworkDrawer}
-        size="sm"
+        isOpen={showServiceDrawer}
+        size="md"
         anchor="bottom"
-        onClose={() => setShowNetworkDrawer(false)}
+        onClose={() => setShowServiceDrawer(false)}
       >
         <DrawerBackdrop
           style={{
@@ -450,34 +518,93 @@ export default function DataBundle() {
           }}
         />
         <DrawerContent
-          className="rounded-t-[30px] pt-[39px] bg-[#FFFFFF]"
+          className="rounded-t-[30px] pt-[29px] bg-[#FFFFFF]"
           style={{
             borderTopWidth: 0,
             borderColor: "transparent",
             shadowOpacity: 0,
             elevation: 0,
-            paddingBottom: Platform.OS === "ios" ? 34 : 16,
+            paddingBottom: insets.bottom || 16,
           }}
         >
-          <DrawerHeader className="border-b-0 pb-6 px-6">
-            <Heading className="font-manropesemibold text-center text-[18px] text-[#000000]">
-              Choose network Provider
+          <DrawerHeader className="border-b-0 pb-4 px-6">
+            <Heading className="font-manropesemibold text-center text-[18px] text-[#000000] mb2">
+              Select Service Type
             </Heading>
             <DrawerCloseButton />
           </DrawerHeader>
-          <DrawerBody className="px-6 pb-6">
-            <View className="flex-row justify-around">
-              {NETWORKS.map((network) => (
+
+          <DrawerBody className="px6 pb-8">
+            <VStack space="sm">
+              {SERVICE_TYPES.map((service) => (
                 <TouchableOpacity
-                  key={network.value}
-                  onPress={() => handleNetworkSelect(network.value)}
-                  className="items-center"
+                  key={service.id}
+                  onPress={() => handleServiceSelect(service.id)}
+                  className="flex-row justify-between items-center p-4 rounded-[16px] border-b border-[#E5E7EB] bg-white"
                 >
-                  <View className="w-[60px] h-[60px] rounded-full bg-[#F9FAFB] items-center justify-center mb-2">
-                    <Text className="text-[32px]">{network.icon}</Text>
-                  </View>
-                  <Text className="text-[12px] font-manropesemibold text-[#000000]">
-                    {network.label}
+                  <Text className="text-[14px] font-medium leading-[100%] font-manropesemibold text-[#141316]">
+                    {service.name}
+                  </Text>
+                  <ChevronRight size={20} color="#000000" />
+                </TouchableOpacity>
+              ))}
+            </VStack>
+          </DrawerBody>
+        </DrawerContent>
+      </Drawer>
+
+      {/* QUANTITY SELECTION DRAWER */}
+      <Drawer
+        className="border-t-0"
+        isOpen={showQuantityDrawer}
+        size="sm"
+        anchor="bottom"
+        onClose={() => setShowQuantityDrawer(false)}
+      >
+        <DrawerBackdrop
+          style={{
+            backgroundColor: "#24242440",
+            opacity: 1,
+          }}
+        />
+        <DrawerContent
+          className="rounded-t-[30px] pt[29px] bg-[#FFFFFF]"
+          style={{
+            borderTopWidth: 0,
+            borderColor: "transparent",
+            shadowOpacity: 0,
+            elevation: 0,
+            paddingBottom: insets.bottom || 16,
+          }}
+        >
+          <DrawerHeader className="border-b-0 pb4 px-6">
+            <Heading className="font-manropesemibold text-center text-[18px] text-[#000000]">
+              Select Quantity
+            </Heading>
+            <DrawerCloseButton />
+          </DrawerHeader>
+
+          <DrawerBody className="px-6 pb4">
+            <View className="flex-row flex-wrap justify-start">
+              {QUANTITIES.map((qty) => (
+                <TouchableOpacity
+                  key={qty.value}
+                  onPress={() => handleQuantitySelect(qty.value)}
+                  className={`w-[30%] mr-[3.33%] mb-2 px-4 py-3 rounded-[12px] items-center justify-center border ${
+                    quantityValue === qty.value
+                      ? "border-[#132939] bg-[#F9FAFB]"
+                      : "border-[#E5E7EB] bg-white"
+                  }`}
+                  style={{ marginRight: "3.33%" }}
+                >
+                  <Text
+                    className={`text-[16px] font-semibold font-manropebold ${
+                      quantityValue === qty.value
+                        ? "text-[#132939]"
+                        : "text-[#000000]"
+                    }`}
+                  >
+                    {qty.label}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -507,7 +634,6 @@ export default function DataBundle() {
             borderColor: "transparent",
             shadowOpacity: 0,
             elevation: 0,
-            // paddingBottom: Platform.OS === "ios" ? 34 : 16,
             paddingBottom: insets.bottom || 16,
           }}
         >
@@ -522,59 +648,57 @@ export default function DataBundle() {
                   irreversible.
                 </Text>
               </VStack>
-              <Heading className="text-[24px] font-medium text-center mt-[18px] font-manropebold text-[#000000]">
-                {selectedBundle?.name}
+              <Heading className="text-[28px] font-medium text-center mt-[18px] font-manropebold text-[#000000]">
+                ₦{formatAmount(totalAmount)}
               </Heading>
             </VStack>
             <DrawerCloseButton />
           </DrawerHeader>
-          <DrawerBody className="pt4 px-1 pb4">
+
+          <DrawerBody className="pt-2 px-1 pb2">
             <VStack space="md">
               {/* Transaction Details */}
-              <View className="rounded-[20px] border-[#E5E7EF] border px-4 py-2">
+              <View className="rounded-[20px] border-[#E5E7EF] border px-4 py2">
                 <VStack space="sm">
-                  <HStack className="justify-between items-center py-2">
+                  <HStack className="justify-between items-center py-3">
+                    <Text className="text-[12px] font-manroperegular text-[#303237]">
+                      Service Type
+                    </Text>
+                    <Text className="text-[12px] font-medium leading-[100%] font-manropesemibold text-[#141316]">
+                      {selectedService?.name}
+                    </Text>
+                  </HStack>
+
+                  <View className="h-[1px] bg-[#E5E7EB]" />
+
+                  <HStack className="justify-between items-center py-3">
                     <Text className="text-[12px] font-manroperegular text-[#303237]">
                       Phone Number
                     </Text>
                     <Text className="text-[12px] font-medium leading-[100%] font-manropesemibold text-[#141316]">
-                      {phoneValue}
+                      {phoneNumberValue}
                     </Text>
                   </HStack>
+
                   <View className="h-[1px] bg-[#E5E7EB]" />
-                  <HStack className="justify-between items-center py-2">
+
+                  <HStack className="justify-between items-center py-3">
                     <Text className="text-[12px] font-manroperegular text-[#303237]">
-                      Network
+                      Quantity
                     </Text>
                     <Text className="text-[12px] font-medium leading-[100%] font-manropesemibold text-[#141316]">
-                      {selectedNetwork?.label}
+                      {quantityValue}
                     </Text>
                   </HStack>
+
                   <View className="h-[1px] bg-[#E5E7EB]" />
-                  <HStack className="justify-between items-center py-2">
-                    <Text className="text-[12px] font-manroperegular text-[#303237]">
-                      Data Plan
-                    </Text>
-                    <Text className="text-[12px] font-medium leading-[100%] font-manropesemibold text-[#141316]">
-                      {selectedBundle?.name}
-                    </Text>
-                  </HStack>
-                  <View className="h-[1px] bg-[#E5E7EB]" />
-                  <HStack className="justify-between items-center py-2">
-                    <Text className="text-[12px] font-manroperegular text-[#303237]">
-                      Validity
-                    </Text>
-                    <Text className="text-[12px] font-medium leading-[100%] font-manropesemibold text-[#141316]">
-                      {selectedBundle?.validity}
-                    </Text>
-                  </HStack>
-                  <View className="h-[1px] bg-[#E5E7EB]" />
-                  <HStack className="justify-between items-center py-2">
+
+                  <HStack className="justify-between items-center py-3">
                     <Text className="text-[12px] font-manroperegular text-[#303237]">
                       Amount
                     </Text>
                     <Text className="text-[12px] font-medium leading-[100%] font-manropesemibold text-[#141316]">
-                      ₦{formatAmount(selectedBundle?.price || "0")}
+                      ₦{formatAmount(totalAmount)}
                     </Text>
                   </HStack>
                 </VStack>
@@ -583,7 +707,7 @@ export default function DataBundle() {
               {/* Wallet & Cashback */}
               <View className="px-4 py-2">
                 <VStack space="sm">
-                  <HStack className="justify-between items-center py-2">
+                  <HStack className="justify-between items-center py-3">
                     <HStack space="sm" className="items-center">
                       <Wallet size={16} color="#FF8D28" />
                       <Text className="text-[12px] font-manroperegular text-[#303237]">
@@ -594,8 +718,10 @@ export default function DataBundle() {
                       ₦50,000
                     </Text>
                   </HStack>
+
                   <View className="h-[1px] bg-[#E5E7EB]" />
-                  <HStack className="justify-between items-center py-2">
+
+                  <HStack className="justify-between items-center py-3">
                     <HStack space="sm" className="items-center">
                       <Gift size={16} color="#CB30E0" />
                       <Text className="text-[12px] font-manroperegular text-[#303237]">
@@ -610,6 +736,7 @@ export default function DataBundle() {
               </View>
             </VStack>
           </DrawerBody>
+
           <DrawerFooter className="px-4 pt-2 pb-0">
             <Button
               className="rounded-full bg-[#132939] h-[48px] w-full"
@@ -617,7 +744,7 @@ export default function DataBundle() {
               onPress={handleContinueToPin}
             >
               <ButtonText className="text-white text-[16px] font-medium leading-[24px]">
-                Continue
+                Confirm
               </ButtonText>
             </Button>
           </DrawerFooter>
@@ -651,16 +778,17 @@ export default function DataBundle() {
             borderColor: "transparent",
             shadowOpacity: 0,
             elevation: 0,
-            paddingBottom: Platform.OS === "ios" ? 34 : 16,
+            paddingBottom: insets.bottom || 16,
           }}
         >
-          <DrawerHeader className="border-b-0 pb-6 px-4">
+          <DrawerHeader className="border-b-0 pb-4 px-4">
             <Heading className="font-manropesemibold w-full text-center text-[18px] text-[#000000] mb-2">
               Enter PIN
             </Heading>
             {!isSubmitting && <DrawerCloseButton />}
           </DrawerHeader>
-          <DrawerBody className="pt-2 px-2 pb-8">
+
+          <DrawerBody className="pt-2 px-2 pb-4">
             <VStack space="lg" className="items-center">
               {/* OTP Input */}
               <View className="mb-6">
