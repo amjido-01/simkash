@@ -1,4 +1,5 @@
 import Header from "@/components/header";
+import TopUpWalletDrawer from "@/components/topup-wallet-drawer";
 import {
   Drawer,
   DrawerBackdrop,
@@ -8,11 +9,19 @@ import {
   // DrawerFooter,
   DrawerHeader,
 } from "@/components/ui/drawer";
-import { Pressable } from "@/components/ui/pressable";
 import { Heading } from "@/components/ui/heading";
 import { HStack } from "@/components/ui/hstack";
+import { Pressable } from "@/components/ui/pressable";
 import { VStack } from "@/components/ui/vstack";
-import { Eye, ChevronRight } from "lucide-react-native";
+import {
+  MenuOption,
+  moreServices,
+  paymentOptions,
+  quickActions,
+} from "@/constants/menu";
+import { transactions, transferOptions } from "@/utils/mock";
+import { router } from "expo-router";
+import { ChevronRight, Eye } from "lucide-react-native";
 import { useState } from "react";
 import {
   Platform,
@@ -21,15 +30,15 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { quickActions, paymentOptions, moreServices, MenuOption } from "@/constants/menu";
-import { transactions, transferOptions } from "@/utils/mock";
 
 export default function HomeScreen() {
   const [showDrawer, setShowDrawer] = useState(false);
   const [showQuickActionDrawer, setShowQuickActionDrawer] = useState(false);
   const [selectedQuickAction, setSelectedQuickAction] = useState<any>(null);
+
+  const [showTopUpDrawer, setShowTopUpDrawer] = useState(false);
+  const [hasCompletedKYC, setHasCompletedKYC] = useState(false); // or true 
 
   const handlePaymentOptionPress = (option: MenuOption | any) => {
     if (option.label === "More") {
@@ -44,19 +53,26 @@ export default function HomeScreen() {
     }
   };
 
+  // FIXED HANDLER
   const handleQuickActionPress = (action: any) => {
-    console.log("hello quick action");
+    if (action.label === "Top Up") {
+      // open only the real top up drawer
+      setShowTopUpDrawer(true);
+      return;
+    }
+
+    // For SEND
     setSelectedQuickAction(action);
     setShowQuickActionDrawer(true);
   };
 
   const handleTransferOptionPress = (option: any) => {
-    if (option === 'toSimkash') {
-       setShowQuickActionDrawer(false);
-      router.push("/to-simkash")
-    }else {
+    if (option === "toSimkash") {
       setShowQuickActionDrawer(false);
-      router.push("/to-bank")
+      router.push("/to-simkash");
+    } else {
+      setShowQuickActionDrawer(false);
+      router.push("/to-bank");
     }
   };
 
@@ -151,11 +167,11 @@ export default function HomeScreen() {
               {transactions.map((transaction) => (
                 <TouchableOpacity
                   key={transaction.id}
-                  className="flex-row items-center justify-between p-4 bg-[#F9FAFB] rounded-full"
+                  className="flex-row items-center justify-between p-4"
                   activeOpacity={0.7}
                 >
                   <HStack className="items-center gap-3 flex-1">
-                    <View className="w-12 h-12 bg-[#EFF9FF] items-center justify-center rounded-[99%]">
+                    <View className="w-12 h-12 bg-[#EFF9FF] items-center justify-center rounded-[99px]">
                       <transaction.icon size={20} color="#022742" />
                     </View>
                     <VStack className="flex-1">
@@ -246,7 +262,7 @@ export default function HomeScreen() {
         </DrawerContent>
       </Drawer>
 
-      {/* Quick Action Drawer (Top Up / Send) */}
+      {/* Quick Action Drawer ( Send) */}
       <Drawer
         className="border-t-0"
         isOpen={showQuickActionDrawer}
@@ -283,9 +299,6 @@ export default function HomeScreen() {
           </DrawerHeader>
 
           <DrawerBody className="pt-4">
-             <DrawerBody className="pt-4 px-2">
-            {selectedQuickAction?.label === "Send" ? (
-              // Render transfer options for Send
               <VStack className="gap-[18px]">
                 {transferOptions.map((option) => (
                   <TouchableOpacity
@@ -311,16 +324,18 @@ export default function HomeScreen() {
                   </TouchableOpacity>
                 ))}
               </VStack>
-            ) : selectedQuickAction?.label === "Top Up" ? (
-              // Render top up form
-              <Text className="font-manroperegular text-[14px] text-[#6B7280]">
-                Top Up form content will go here
-              </Text>
-            ) : null}
-          </DrawerBody>
           </DrawerBody>
         </DrawerContent>
       </Drawer>
+
+      <TopUpWalletDrawer
+        isOpen={showTopUpDrawer}
+        onClose={() => setShowTopUpDrawer(false)}
+        hasCompletedKYC={hasCompletedKYC}
+        accountNumber="9325678767"
+        accountName="SIMKASH/ADAM BABA YUSUF"
+        bankName="WEMA BANK"
+      />
     </SafeAreaView>
   );
 }
