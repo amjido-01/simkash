@@ -76,7 +76,7 @@ export const moreServices: MenuOption[] = [
     icon: PhoneMissed,
     label: "Airtime2Cash",
     iconColor: "#D257E5",
-    route: "/airtime2cash",
+    route: "/airtime-to-cash",
   },
   {
     id: 1,

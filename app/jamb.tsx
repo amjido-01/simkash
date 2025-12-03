@@ -272,7 +272,7 @@ export default function JambPurchase() {
         keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
       >
         {/* Header */}
-        <HStack className="px-4 mb-[40px] mt-2 py-3 items-center justify-center border-b border-[#F3F4F6]">
+        <HStack className="px-4 mb-[40px] mt-2 py-3 items-center justify-center">
           <TouchableOpacity
             className="absolute left-4"
             onPress={handleBack}

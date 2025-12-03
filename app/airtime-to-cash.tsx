@@ -25,11 +25,13 @@ import { VStack } from "@/components/ui/vstack";
 import { yupResolver } from "@hookform/resolvers/yup";
 import {
   AlertCircleIcon,
+  CheckCircle,
   ChevronDownIcon,
   ChevronLeft,
   Gift,
   Wallet,
 } from "lucide-react-native";
+import Animated, { FadeIn } from "react-native-reanimated";
 import React, { useCallback, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
@@ -41,7 +43,10 @@ import {
   ActivityIndicator,
   Alert,
 } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { OtpInput } from "react-native-otp-entry";
 import * as yup from "yup";
 import { router } from "expo-router";
@@ -65,7 +70,7 @@ const schema = yup.object().shape({
     .string()
     .required("Phone number is required")
     .matches(/^[0-9]+$/, "Phone number must contain only digits")
-    .length(11, "Phone number must be exactly 10 digits"),
+    .length(11, "Phone number must be exactly 11 digits"),
   network: yup.string().required("Please select a network"),
   amount: yup
     .string()
@@ -79,22 +84,32 @@ const schema = yup.object().shape({
       if (!value) return false;
       return parseInt(value, 10) <= 500000;
     }),
+  sharePin: yup
+    .string()
+    .required("Share PIN is required")
+    .matches(/^[0-9]+$/, "Share PIN must contain only digits"),
 });
 
 type FormData = yup.InferType<typeof schema>;
 
+const OTP_LENGTH = 6;
 
-export default function Airtime() {
+export default function AirtimeToCash() {
   // State management
   const insets = useSafeAreaInsets();
-  const [showDrawer, setShowDrawer] = useState(false);
+  const [showOtpDrawer, setShowOtpDrawer] = useState(false);
+  const [showConfirmDrawer, setShowConfirmDrawer] = useState(false);
   const [showPinDrawer, setShowPinDrawer] = useState(false);
+  const [otp, setOtp] = useState("");
+  const [otpError, setOtpError] = useState("");
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
   const [pin, setPin] = useState("");
   const [pinError, setPinError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedAmount, setSelectedAmount] = useState("");
 
-  const otpRef = useRef<any>(null);
+  const otpInputRef = useRef<any>(null);
+  const pinRef = useRef<any>(null);
 
   // Form setup
   const {
@@ -112,22 +127,67 @@ export default function Airtime() {
       phoneNumber: "",
       network: "",
       amount: "",
+      sharePin: "",
     },
   });
 
   const phoneValue = watch("phoneNumber");
   const networkValue = watch("network");
   const amountValue = watch("amount");
+  const sharePinValue = watch("sharePin");
 
-  // Form submission
+  // Calculate amount to receive (90% conversion rate for demo)
+  const calculateReceiveAmount = useCallback((amount: string) => {
+    if (!amount) return "";
+    const numAmount = parseInt(amount, 10);
+    const receiveAmount = Math.floor(numAmount * 0.9);
+    return receiveAmount.toString();
+  }, []);
+
+  const amountToReceive = calculateReceiveAmount(amountValue);
+
+  // Form submission - goes to OTP
   const submitForm = useCallback((data: FormData) => {
     console.log("✔ Valid form:", data);
-    setShowDrawer(true);
+    setShowOtpDrawer(true);
   }, []);
+
+  // OTP verification
+  const handleVerifyOtp = useCallback(async () => {
+    if (otp.length !== OTP_LENGTH) {
+      setOtpError("Please enter the complete 6-digit OTP");
+      return;
+    }
+
+    setIsVerifyingOtp(true);
+    setOtpError("");
+
+    try {
+      console.log("OTP entered:", otp);
+
+      // Simulate OTP verification
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+
+      // Success - move to confirmation
+      setShowOtpDrawer(false);
+      setOtp("");
+      setTimeout(() => {
+        setShowConfirmDrawer(true);
+      }, 300);
+    } catch (error) {
+      setOtpError("Invalid OTP. Please try again.");
+      setOtp("");
+      if (otpInputRef.current) {
+        otpInputRef.current.clear();
+      }
+    } finally {
+      setIsVerifyingOtp(false);
+    }
+  }, [otp]);
 
   // Continue to PIN entry
   const handleContinueToPin = useCallback(() => {
-    setShowDrawer(true);
+    setShowConfirmDrawer(true);
     // Small delay for smooth transition
     setTimeout(() => {
       setShowPinDrawer(true);
@@ -143,8 +203,8 @@ export default function Airtime() {
         setPinError("");
 
         // Update OTP input
-        if (otpRef.current) {
-          otpRef.current.setValue(newPin);
+        if (pinRef.current) {
+          pinRef.current.setValue(newPin);
         }
 
         // Auto-submit when complete
@@ -163,8 +223,8 @@ export default function Airtime() {
       setPin(newPin);
       setPinError("");
 
-      if (otpRef.current) {
-        otpRef.current.setValue(newPin);
+      if (pinRef.current) {
+        pinRef.current.setValue(newPin);
       }
     }
   }, [pin]);
@@ -175,6 +235,17 @@ export default function Airtime() {
     setPinError("");
   }, []);
 
+ const handleOtpChange = useCallback((text: string) => {
+    setOtp(text);
+    setOtpError("");
+
+    // Auto-verify when complete
+    if (text.length === OTP_LENGTH) {
+      setTimeout(() => {
+        handleVerifyOtpWithText(text);
+      }, 300);
+    }
+  }, []);
   // PIN submission
   const handlePinSubmit = useCallback(
     async (pinToSubmit?: string) => {
@@ -195,31 +266,31 @@ export default function Airtime() {
 
         // Success - close drawers and navigate
         setShowPinDrawer(false);
-        setShowDrawer(false);
+        setShowConfirmDrawer(false);
         setPin("");
         reset();
 
         router.push({
           pathname: "/transaction-success",
           params: {
-            amount: amountValue,
+            amount: amountToReceive,
             recipient: phoneValue,
             phoneNumber: phoneValue,
-            transactionType: "airtime",
+            transactionType: "airtime-to-cash",
             network: networkValue,
           },
         });
       } catch (error) {
         setPinError("Invalid PIN. Please try again.");
         setPin("");
-        if (otpRef.current) {
-          otpRef.current.clear();
+        if (pinRef.current) {
+          pinRef.current.clear();
         }
       } finally {
         setIsSubmitting(false);
       }
     },
-    [pin, amountValue, phoneValue, networkValue, reset]
+    [pin, amountToReceive, phoneValue, networkValue, reset]
   );
 
   // Continue button handler
@@ -233,10 +304,41 @@ export default function Airtime() {
     handleSubmit(submitForm)();
   }, [trigger, handleSubmit, submitForm]);
 
+  const handleVerifyOtpWithText = useCallback(async (otpText: string) => {
+    if (otpText.length !== OTP_LENGTH) {
+      return;
+    }
+
+    setIsVerifyingOtp(true);
+    setOtpError("");
+
+    try {
+      console.log("OTP entered:", otpText);
+
+      // Simulate OTP verification
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+
+      // Success - move to confirmation
+      setShowOtpDrawer(false);
+      setOtp("");
+      setTimeout(() => {
+        setShowConfirmDrawer(true);
+      }, 300);
+    } catch (error) {
+      setOtpError("Invalid OTP. Please try again.");
+      setOtp("");
+      if (otpInputRef.current) {
+        otpInputRef.current.clear();
+      }
+    } finally {
+      setIsVerifyingOtp(false);
+    }
+  }, []);
+
   // Back navigation handler
   const handleBack = useCallback(() => {
     // Confirm before leaving if form has data
-    if (phoneValue || amountValue) {
+    if (phoneValue || amountValue || networkValue || sharePinValue) {
       Alert.alert(
         "Discard Changes?",
         "Are you sure you want to go back? All entered information will be lost.",
@@ -252,7 +354,7 @@ export default function Airtime() {
     } else {
       router.push("/(tabs)");
     }
-  }, [phoneValue, amountValue]);
+  }, [phoneValue, amountValue, networkValue, sharePinValue]);
 
   // Handle quick amount selection
   const handleQuickAmountSelect = useCallback(
@@ -291,7 +393,7 @@ export default function Airtime() {
             <ChevronLeft size={24} color="#000000" />
           </TouchableOpacity>
           <Text className="text-[16px] font-semibold font-manropesemibold text-[#000000]">
-            Buy Airtime
+            Airtime to Cash
           </Text>
         </HStack>
 
@@ -302,7 +404,7 @@ export default function Airtime() {
           showsVerticalScrollIndicator={false}
         >
           <Box className="bg-white px-4 pt-6 pb-24 flex-1">
-            <VStack space="lg" className="flex-1">
+            <VStack space="xl" className="flex-1">
               {/* Phone Number with Network Selector */}
               <FormControl
                 isInvalid={Boolean(errors.phoneNumber || errors.network)}
@@ -361,7 +463,7 @@ export default function Airtime() {
                                 </SelectDragIndicatorWrapper>
                                 {NETWORKS.map((network) => (
                                   <SelectItem
-                                  className="text-sm"
+                                    className="text-sm"
                                     key={network.value}
                                     label={`${network.icon} ${network.label}`}
                                     value={network.value}
@@ -424,7 +526,7 @@ export default function Airtime() {
                           : "border border-[#D0D5DD]"
                       }`}
                     >
-                      <View className="absolute left-4  border-r pr-2 border-gray-200 h-full top[12px] z-10">
+                      <View className="absolute left-4 border-r pr-2 border-gray-200 h-full top[12px] z-10">
                         <Text className="text-[14px] font-manropesemibold text-center mt-3 text-[#000000]">
                           ₦
                         </Text>
@@ -459,7 +561,7 @@ export default function Airtime() {
                 )}
               </FormControl>
 
-                {/* Quick Amount Selection */}
+              {/* Quick Amount Selection */}
               <View className="mt-4">
                 <View className="flex-row flex-wrap -mx-2">
                   {QUICK_AMOUNTS.map((quickAmount) => (
@@ -467,7 +569,8 @@ export default function Airtime() {
                       key={quickAmount.value}
                       onPress={() => handleQuickAmountSelect(quickAmount.value)}
                       className={`w-1/4 px-1 mb-6 h-[40px] rounded-[12px] items-center justify-center ${
-                        selectedAmount === quickAmount.value || amountValue === quickAmount.value
+                        selectedAmount === quickAmount.value ||
+                        amountValue === quickAmount.value
                           ? "bg-[#132939] border-[#132939]"
                           : "bg-white border-[#E5E7EB]"
                       }`}
@@ -475,7 +578,8 @@ export default function Airtime() {
                     >
                       <Text
                         className={`text-[14px] font-medium font-manropesemibold ${
-                          selectedAmount === quickAmount.value || amountValue === quickAmount.value
+                          selectedAmount === quickAmount.value ||
+                          amountValue === quickAmount.value
                             ? "text-white"
                             : "text-[#717680]"
                         }`}
@@ -486,16 +590,97 @@ export default function Airtime() {
                   ))}
                 </View>
               </View>
+
+              {/* Amount You'll Receive */}
+              {amountValue && phoneValue && (
+                <Animated.View entering={FadeIn.duration(300)}>
+                  <FormControl>
+                    <FormControlLabel>
+                      <FormControlLabelText className="text-[12px] text-[#414651] mb-[6px]">
+                        Amount you&apos;ll receive
+                      </FormControlLabelText>
+                    </FormControlLabel>
+
+                    <Input
+                      variant="outline"
+                      size="xl"
+                      isReadOnly={true}
+                      className="w-full rounded-[16px] min-h-[48px] border border-[#D0D5DD]"
+                    >
+                      <InputField
+                        value={formatAmount(amountToReceive)}
+                        className="text-[14px] text-[#000000] font-manropesemibold px-4 py-3"
+                        editable={false}
+                      />
+                      <View className="absolute right-4 top-3">
+                        <CheckCircle size={20} color="#10B981" />
+                      </View>
+                    </Input>
+                  </FormControl>
+                </Animated.View>
+              )}
+
+              {/* Share PIN */}
+              <FormControl isInvalid={Boolean(errors.sharePin)}>
+                <FormControlLabel>
+                  <FormControlLabelText className="text-[12px] text-[#414651] mb-[6px]">
+                    Share Pin
+                  </FormControlLabelText>
+                </FormControlLabel>
+
+                <Controller
+                  control={control}
+                  name="sharePin"
+                  render={({ field: { onChange, onBlur, value } }) => (
+                    <Input
+                      variant="outline"
+                      size="xl"
+                      className={`w-full rounded-[99px] focus:border-2 focus:border-[#D0D5DD] min-h-[48px] ${
+                        errors.sharePin
+                          ? "border-2 border-red-500"
+                          : "border border-[#D0D5DD]"
+                      }`}
+                    >
+                      <InputField
+                        placeholder="Enter Number share PIN"
+                        className="text-[14px] text-[#717680] px-4 py-3"
+                        value={value}
+                        onChangeText={(text) => {
+                          const cleaned = text.replace(/[^0-9]/g, "");
+                          onChange(cleaned);
+                        }}
+                        onBlur={onBlur}
+                        keyboardType="numeric"
+                        autoCapitalize="none"
+                        maxLength={6}
+                      />
+                    </Input>
+                  )}
+                />
+
+                {errors.sharePin && (
+                  <FormControlError>
+                    <FormControlErrorIcon
+                      className="text-red-500"
+                      as={AlertCircleIcon}
+                    />
+                    <FormControlErrorText className="text-red-500">
+                      {errors.sharePin?.message}
+                    </FormControlErrorText>
+                  </FormControlError>
+                )}
+              </FormControl>
             </VStack>
           </Box>
         </ScrollView>
 
         {/* FIXED BOTTOM BUTTON */}
-        <View className="absolute bottom-0 left-0 right-0 bg-white px-4 py-4"
-         style={{ 
-          paddingBottom: Math.max(insets.bottom, 16),
-          paddingTop: 16
-        }}
+        <View
+          className="absolute bottom-0 left-0 right-0 bg-white px-4 py-4"
+          style={{
+            paddingBottom: Math.max(insets.bottom, 16),
+            paddingTop: 16,
+          }}
         >
           <Button
             className="rounded-full bg-[#132939] h-[48px] w-full"
@@ -507,17 +692,21 @@ export default function Airtime() {
             </ButtonText>
           </Button>
         </View>
-
-        
       </KeyboardAvoidingView>
 
-      {/* CONFIRMATION DRAWER */}
+      {/* OTP VERIFICATION DRAWER */}
       <Drawer
         className="border-t-0"
-        isOpen={showDrawer}
-        size="lg"
+        isOpen={showOtpDrawer}
+        size="full"
         anchor="bottom"
-        onClose={() => setShowDrawer(false)}
+        onClose={() => {
+          if (!isVerifyingOtp) {
+            setShowOtpDrawer(false);
+            setOtp("");
+            setOtpError("");
+          }
+        }}
       >
         <DrawerBackdrop
           style={{
@@ -532,60 +721,157 @@ export default function Airtime() {
             borderColor: "transparent",
             shadowOpacity: 0,
             elevation: 0,
-            // paddingBottom: Platform.OS === "ios" ? 34 : 16,
+            paddingBottom: insets.bottom || 16,
+          }}
+        >
+          <DrawerHeader className="border-b-0 mt-[100px] pb-6 px-4">
+            <VStack>
+              <Heading className="font-manropesemibold w-full text-center text-[18px] text-[#000000] mb-2">
+                OTP Verification
+              </Heading>
+              <Text className="text-center text-[12px] font-manroperegular text-[#6B7280] px-2">
+                We&apos;ve sent a 6-digit code to {phoneValue}. Please enter it
+                to proceed.
+              </Text>
+            </VStack>
+            {!isVerifyingOtp && <DrawerCloseButton />}
+          </DrawerHeader>
+
+          <DrawerBody className="pt-2 px-2 pb-8">
+            <VStack space="lg" className="items-center">
+              {/* OTP Input */}
+              <View className="mb-6">
+                <OtpInput
+                  ref={otpInputRef}
+                  numberOfDigits={OTP_LENGTH}
+                  focusColor="transparent"
+                  type="numeric"
+                  disabled={isVerifyingOtp}
+                  autoFocus={true}
+                  onTextChange={handleOtpChange}
+                  theme={{
+                    containerStyle: {
+                      width: "auto",
+                      alignSelf: "center",
+                    },
+                    pinCodeContainerStyle: {
+                      width: 49,
+                      height: 49,
+                      borderRadius: 12,
+                      borderWidth: 1.5,
+                      borderColor: otpError ? "#EF4444" : "#E5E7EB",
+                      backgroundColor: "#FFFFFF",
+                      marginHorizontal: 4,
+                      justifyContent: "center",
+                      alignItems: "center",
+                    },
+                    focusedPinCodeContainerStyle: {
+                      borderColor: otpError ? "#EF4444" : "#132939",
+                    },
+                    pinCodeTextStyle: {
+                      color: "#000000",
+                      fontSize: 24,
+                      fontWeight: "600",
+                    },
+                    filledPinCodeContainerStyle: {
+                      borderColor: otpError ? "#EF4444" : "#10B981",
+                    },
+                  }}
+                />
+              </View>
+
+              {/* Error or Loading */}
+              {otpError && !isVerifyingOtp && (
+                <Text className="text-red-500 text-[12px] font-manroperegular text-center mb-2">
+                  {otpError}
+                </Text>
+              )}
+
+              {isVerifyingOtp && (
+                <View className="mb-4">
+                  <ActivityIndicator size="small" color="#132939" />
+                  <Text className="text-[12px] font-manroperegular text-[#6B7280] text-center mt-2">
+                    Verifying OTP...
+                  </Text>
+                </View>
+              )}
+
+              {/* Resend Code */}
+              {!isVerifyingOtp && (
+                <Text className="text-[12px] font-manroperegular text-[#6B7280] text-center">
+                  Resend code in 32s
+                </Text>
+              )}
+            </VStack>
+          </DrawerBody>
+
+        </DrawerContent>
+      </Drawer>
+
+      {/* CONFIRMATION DRAWER */}
+      <Drawer
+        className="border-t-0"
+        isOpen={showConfirmDrawer}
+        size="md"
+        anchor="bottom"
+        onClose={() => setShowConfirmDrawer(false)}
+      >
+        <DrawerBackdrop
+          style={{
+            backgroundColor: "#24242440",
+            opacity: 1,
+          }}
+        />
+        <DrawerContent
+          className="rounded-t-[30px] pt[28px] bg-[#FFFFFF]"
+          style={{
+            borderTopWidth: 0,
+            borderColor: "transparent",
+            shadowOpacity: 0,
+            elevation: 0,
             paddingBottom: insets.bottom || 16,
           }}
         >
           <DrawerHeader className="border-b-0 pb2 px-6">
             <VStack>
               <VStack>
-                <Heading className="font-manropesemibold text-center text-[18px] text-[#000000] mb-2">
-                   Confirm Purchase
+                <Heading className="font-manropesemibold text-center text-[18px] text-[#000000] mb2">
+                  Confirm Transaction
                 </Heading>
                 <Text className="text-center text-[12px] font-manroperegular text-[#6B7280] px-2">
-                 Please review details carefully. Transactions are irreversible.
+                  Please review details carefully. Transactions are
+                  irreversible.
                 </Text>
               </VStack>
-              <Heading className="text-[28px] font-medium text-center mt-[20px] font-manropebold text-[#000000]">
-                ₦{formatAmount(amountValue)}
+              <Heading className="text-[28px] font-medium text-center mt-[10px] font-manropebold text-[#000000]">
+                ₦{formatAmount(amountToReceive)}
               </Heading>
             </VStack>
             <DrawerCloseButton />
           </DrawerHeader>
 
-          <DrawerBody className="pt-4 px-1 pb6">
+          <DrawerBody className="pt4 px-1 pb6">
             <VStack space="md">
               {/* Transaction Details */}
               <View className="rounded-[20px] border-[#E5E7EF] border px-4 py-2">
                 <VStack space="sm">
                   <HStack className="justify-between items-center py-3">
                     <Text className="text-[12px] font-manroperegular text-[#303237]">
-                      Phone Number
-                    </Text>
-                    <Text className="text-[12px] font-medium leading-[100%] font-manropesemibold text-[#141316]">
-                      {phoneValue}
-                    </Text>
-                  </HStack>
-
-                  <View className="h-[1px] bg-[#E5E7EB]" />
-
-                  <HStack className="justify-between items-center py-3">
-                    <Text className="text-[12px] font-manroperegular text-[#303237]">
-                      Network
-                    </Text>
-                    <Text className="text-[12px] font-medium leading-[100%] font-manropesemibold text-[#141316]">
-                      {selectedNetwork?.label}
-                    </Text>
-                  </HStack>
-
-                  <View className="h-[1px] bg-[#E5E7EB]" />
-
-                  <HStack className="justify-between items-center py-3">
-                    <Text className="text-[12px] font-manroperegular text-[#303237]">
-                      Amount
+                      Airtime Amount
                     </Text>
                     <Text className="text-[12px] font-medium leading-[100%] font-manropesemibold text-[#141316]">
                       ₦{formatAmount(amountValue)}
+                    </Text>
+                  </HStack>
+
+                  <View className="h-[1px] bg-[#E5E7EB]" />
+
+                  <HStack className="justify-between items-center py-2">
+                    <Text className="text-[12px] font-manroperegular text-[#303237]">
+                      Amount you&apos;ll Receive
+                    </Text>
+                    <Text className="text-[12px] font-medium leading-[100%] font-manropesemibold text-[#141316]">
+                      ₦{formatAmount(amountToReceive)}
                     </Text>
                   </HStack>
                 </VStack>
@@ -594,7 +880,7 @@ export default function Airtime() {
               {/* Wallet & Cashback */}
               <View className="p-4">
                 <VStack space="sm">
-                  <HStack className="justify-between items-center py-3">
+                  <HStack className="justify-between items-center py-2">
                     <HStack space="sm" className="items-center">
                       <Wallet size={16} color="#FF8D28" />
                       <Text className="text-[12px] font-manroperegular text-[#303237]">
@@ -608,7 +894,7 @@ export default function Airtime() {
 
                   <View className="h-[1px] bg-[#E5E7EB]" />
 
-                  <HStack className="justify-between items-center py-3">
+                  <HStack className="justify-between items-center py-2">
                     <HStack space="sm" className="items-center">
                       <Gift size={16} color="#CB30E0" />
                       <Text className="text-[12px] font-manroperegular text-[#303237]">
@@ -624,7 +910,7 @@ export default function Airtime() {
             </VStack>
           </DrawerBody>
 
-          <DrawerFooter className="px-4 pt-4 pb-0">
+          <DrawerFooter className="px-4 pt4 pb-0">
             <Button
               className="rounded-full bg-[#132939] h-[48px] w-full"
               size="xl"
@@ -680,7 +966,7 @@ export default function Airtime() {
               {/* OTP Input */}
               <View className="mb-6">
                 <OtpInput
-                  ref={otpRef}
+                  ref={pinRef}
                   numberOfDigits={PIN_LENGTH}
                   focusColor="transparent"
                   type="numeric"
