@@ -48,6 +48,7 @@ import * as yup from "yup";
 import { router } from "expo-router";
 import Animated, { FadeIn } from "react-native-reanimated";
 import { PIN_LENGTH, ACCOUNT_VERIFICATION_DELAY } from "@/constants/menu";
+import { useTransfer } from "@/hooks/use-transfer";
 
 // Validation schema
 const schema = yup.object().shape({
@@ -79,6 +80,7 @@ type FormData = yup.InferType<typeof schema>;
 export default function ToSimkash() {
   // State management
   const insets = useSafeAreaInsets();
+  const { transfer, data, isLoading: isTransferring } = useTransfer();
   const [showDrawer, setShowDrawer] = useState(false);
   const [showPinDrawer, setShowPinDrawer] = useState(false);
   const [accountName, setAccountName] = useState("");
@@ -227,55 +229,58 @@ export default function ToSimkash() {
   }, []);
 
   // PIN submission
-  const handlePinSubmit = useCallback(
-    async (pinToSubmit?: string) => {
-      const finalPin = pinToSubmit || pin;
+ const handlePinSubmit = useCallback(
+  async (pinToSubmit?: string) => {
+    const finalPin = pinToSubmit || pin;
 
-      if (finalPin.length !== PIN_LENGTH) {
-        setPinError("Please enter your 4-digit PIN");
-        return;
-      }
+    if (finalPin.length !== PIN_LENGTH) {
+      setPinError("Please enter your 4-digit PIN");
+      return;
+    }
 
-      setIsSubmitting(true);
+    setIsSubmitting(true);
 
-      try {
-        // In production, validate PIN with backend
-        // const isValid = await validatePin(finalPin);
-        // if (!isValid) throw new Error("Invalid PIN");
+    try {
+      const payload = {
+        account: phoneValue,
+        amount: Number(amountValue),
+        pin: finalPin,
+        narration: narrationValue || undefined,
+      };
 
-        console.log("PIN entered:", finalPin);
+      const result = await transfer(payload);
 
-        // Simulate network delay
-        await new Promise((resolve) => setTimeout(resolve, 500));
+      console.log("Transfer Success => ", result);
 
-        // Success - close drawers and navigate
-        setShowPinDrawer(false);
-        setShowDrawer(false);
-        setPin("");
-        reset();
+      // Close drawers and navigate
+      setShowPinDrawer(false);
+      setShowDrawer(false);
+      setPin("");
+      reset();
 
-        router.push({
-          pathname: "/transaction-success",
-          params: {
-            amount: amountValue,
-            recipient: accountName,
-            phoneNumber: phoneValue,
-            narration: narrationValue || "",
-            commission: "10",
-          },
-        });
-      } catch (error) {
-        setPinError("Invalid PIN. Please try again.");
-        setPin("");
-        if (otpRef.current) {
-          otpRef.current.clear();
-        }
-      } finally {
-        setIsSubmitting(false);
-      }
-    },
-    [pin, amountValue, accountName, phoneValue, narrationValue, reset]
-  );
+      router.push({
+        pathname: "/transaction-success",
+        params: {
+          amount: amountValue,
+          recipient: accountName,
+          phoneNumber: phoneValue,
+          narration: narrationValue || "",
+          commission: "10",
+        },
+      });
+
+    } catch (error) {
+      console.log("❌ Transfer Error:", error);
+      setPinError("Transfer failed. Check your PIN and try again.");
+      setPin("");
+      otpRef.current?.clear();
+    } finally {
+      setIsSubmitting(false);
+    }
+  },
+  [pin, phoneValue, amountValue, narrationValue, transfer, reset, accountName]
+);
+
 
   // Continue button handler
   const handleContinue = useCallback(async () => {

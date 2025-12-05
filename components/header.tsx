@@ -8,8 +8,16 @@ import { Button, ButtonIcon } from "@/components/ui/button";
 import React from "react";
 import { Box } from "@/components/ui/box";
 import { Search, Bell, Menu } from "lucide-react-native";
+import { authEndpoints } from "@/app/api/endpoints";
+import { router } from "expo-router";
 
 export default function Header() {
+
+   const handleLogout = async () => {
+    console.log('Search icon pressed - triggering logout');
+    await authEndpoints.logout();
+    router.replace('/(auth)/signin');
+  };
   return (
     <Box className={"border-b-2 border-[#E9EAEB] px-4 py-4"}>
       <HStack className={"items-center justify-between"}>
@@ -24,7 +32,9 @@ export default function Header() {
           </Avatar>
         </HStack>
         <HStack space="lg">
-          <Button action={"default"} className={"mr2 p-0"}>
+          <Button action={"default"} className={"mr2 p-0"}
+          onPress={handleLogout}
+          >
             <ButtonIcon
               className={"text-gray-300"}
               as={() => {

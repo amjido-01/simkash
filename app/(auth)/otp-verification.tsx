@@ -4,11 +4,10 @@ import { Heading } from "@/components/ui/heading";
 import { HStack } from "@/components/ui/hstack";
 import { Text } from "@/components/ui/text";
 import { VStack } from "@/components/ui/vstack";
-import { router } from "expo-router";
-import React, { useState } from "react";
+import { router, useLocalSearchParams } from "expo-router";
+import React, { useState, useEffect, useRef } from "react";
 import { OtpInput } from "react-native-otp-entry";
 import {
-  Alert,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
@@ -17,58 +16,182 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { authEndpoints } from "../api/endpoints";
+import { CustomAlert } from "@/components/custom-alert";
+import { Icon } from "@/components/ui/icon";
+import { Loader2 } from "lucide-react-native";
+
+const OTP_EXPIRY_TIME = 180; // 3 minutes in seconds
 
 export default function OtpVerification() {
+  const params = useLocalSearchParams();
+  const email = params.email as string;
+
   const [otp, setOtp] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
   const [isResending, setIsResending] = useState(false);
-  const { height } = useWindowDimensions();
+  const [countdown, setCountdown] = useState(OTP_EXPIRY_TIME);
+  const [canResend, setCanResend] = useState(false);
+  const [alert, setAlert] = useState<{
+    show: boolean;
+    type: "success" | "error" | "warning" | "info";
+    message: string;
+  }>({ show: false, type: "info", message: "" });
 
-  const verifyOtp = async () => {
-    if (otp.length !== 6) {
-      Alert.alert("Invalid OTP", "Please enter a 6-digit code.", [
-        { text: "OK" },
-      ]);
+  const { height } = useWindowDimensions();
+  const hasAutoSubmitted = useRef(false); // Prevent double submission
+
+  // Countdown timer
+  useEffect(() => {
+    if (countdown > 0) {
+      const timer = setInterval(() => {
+        setCountdown((prev) => {
+          if (prev <= 1) {
+            setCanResend(true);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+
+      return () => clearInterval(timer);
+    }
+  }, [countdown]);
+
+  // Format time as MM:SS
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
+
+  const verifyOtp = async (otpValue?: string) => {
+    const otpToVerify = otpValue || otp;
+
+    if (otpToVerify.length !== 6) {
+      setAlert({
+        show: true,
+        type: "error",
+        message: "Please enter a 6-digit code.",
+      });
       return;
     }
 
+    if (!email) {
+      setAlert({
+        show: true,
+        type: "error",
+        message: "Email not found. Please go back and register again.",
+      });
+      return;
+    }
+
+    if (isVerifying) return;
+
     try {
       setIsVerifying(true);
-      console.log("OTP:", otp);
 
-      // TODO: Add your API call here to verify OTP
-      // await verifyOtpWithBackend(otp);
+      const response = await authEndpoints.verifyOtp({
+        email,
+        otp: otpToVerify,
+      });
 
-      // Navigate to next step
-      router.push("/profile-setup");
-    } catch (error) {
-      console.error("Error verifying OTP:", error);
-      Alert.alert("Error", "Failed to verify OTP. Please try again.", [
-        { text: "OK" },
-      ]);
+      console.log("OTP verified successfully:", response);
+
+      setAlert({
+        show: true,
+        type: "success",
+        message: "OTP verified successfully!",
+      });
+
+      setOtp("");
+
+     // In otp-verification.tsx
+setTimeout(() => {
+  setAlert({ show: false, type: "info", message: "" });
+  
+  // ✅ Add small delay to ensure token storage completes
+  setTimeout(() => {
+    router.replace({
+      pathname: "/(profile)/basic-info",
+      params: { email: email },
+    });
+  }, 300); // Give token storage time to complete
+  
+}, 1500);
+
+    } catch (error: any) {
+      console.error("OTP verification failed:", error);
+
+      setAlert({
+        show: true,
+        type: "error",
+        message: error.message || "Failed to verify OTP. Please try again.",
+      });
+
+      setOtp("");
+      hasAutoSubmitted.current = false;
     } finally {
       setIsVerifying(false);
     }
   };
 
   const resendOtp = async () => {
+    if (!canResend) return;
+
+    if (!email) {
+      setAlert({
+        show: true,
+        type: "error",
+        message: "Email not found. Please go back and register again.",
+      });
+      return;
+    }
+
     try {
       setIsResending(true);
+      console.log("Resending OTP to:", email);
 
-      // TODO: Add your API call here to resend OTP
-      // await resendOtpToEmail();
+      const message = await authEndpoints.resendOtp({ email });
 
-      Alert.alert("Success", "A new code has been sent to your email.", [
-        { text: "OK" },
-      ]);
-      setOtp(""); // Clear the OTP input
-    } catch (error) {
-      console.error("Error resending OTP:", error);
-      Alert.alert("Error", "Failed to resend code. Please try again.", [
-        { text: "OK" },
-      ]);
+      console.log("✅ OTP resent successfully");
+
+      setAlert({
+        show: true,
+        type: "success",
+        message: message || "A new code has been sent to your email.",
+      });
+
+      // Reset UI states
+      setOtp("");
+      setCountdown(OTP_EXPIRY_TIME);
+      setCanResend(false);
+      hasAutoSubmitted.current = false;
+    } catch (error: any) {
+      console.error("Failed to resend OTP:", error);
+
+      setAlert({
+        show: true,
+        type: "error",
+        message: error.message || "Failed to resend code. Please try again.",
+      });
     } finally {
       setIsResending(false);
+    }
+  };
+
+  // Handle OTP filled - auto submit
+  const handleOtpFilled = (text: string) => {
+    console.log("OTP Filled:", text);
+    setOtp(text);
+
+    // Auto-submit only once
+    if (!hasAutoSubmitted.current && text.length === 6) {
+      hasAutoSubmitted.current = true;
+      // Small delay to allow state update
+      setTimeout(() => {
+        verifyOtp(text);
+      }, 100);
     }
   };
 
@@ -88,7 +211,6 @@ export default function OtpVerification() {
               contentContainerStyle={{
                 flexGrow: 1,
                 paddingHorizontal: 30,
-                // paddingTop: 64,
                 paddingBottom: 24,
                 minHeight: height - 100,
               }}
@@ -102,25 +224,40 @@ export default function OtpVerification() {
                   OTP Verification
                 </Heading>
                 <Text className="text-[#303237] mb-[41px] font-medium text-[14px] leading-[100%]">
-                  Weve sent a 6-digit code to yusuf@gmail.com. Please enter it
-                  to proceed.
+                  We&apos;ve sent a 6-digit code to {email || "your email"}.
+                  Please enter it to proceed.
                 </Text>
               </VStack>
 
               {/* OTP Component */}
               <VStack space="xl" className="flex-1 justify-center">
+                {/* Alert */}
+                {alert.show && (
+                  <CustomAlert
+                    type={alert.type}
+                    message={alert.message}
+                    onClose={() =>
+                      setAlert((prev) => ({ ...prev, show: false }))
+                    }
+                  />
+                )}
+
                 <OtpInput
                   numberOfDigits={6}
                   autoFocus={true}
                   focusColor="#132939"
                   placeholder="000000"
                   type="numeric"
-                  secureTextEntry={true}
-                  onTextChange={(text) => setOtp(text)}
-                  onFilled={(text) => {
+                  secureTextEntry={false} // Changed to false to allow copy-paste visibility
+                  disabled={isVerifying} // Disable input while verifying
+                  onTextChange={(text) => {
                     setOtp(text);
-                    console.log("Filled OTP:", text);
+                    // Reset auto-submit flag when user types
+                    if (text.length < 6) {
+                      hasAutoSubmitted.current = false;
+                    }
                   }}
+                  onFilled={handleOtpFilled} // Auto-submit when filled
                   theme={{
                     containerStyle: {
                       width: "auto",
@@ -155,41 +292,50 @@ export default function OtpVerification() {
                   }}
                 />
 
-                <HStack
-                  space="sm"
-                  className="items-center justify-center text-[14px] leading-[24px]"
-                >
-                  <Text className="text-[#717680] text-[14px]">
-                    Didnt receive code?
-                  </Text>
-                  <Button
-                    onPress={resendOtp}
-                    variant="link"
-                    className="ml-1"
-                    isDisabled={isResending}
-                  >
-                    <ButtonText className="text-[14px]">
-                      {isResending ? "Resending..." : "Resend"}
-                    </ButtonText>
-                  </Button>
-                </HStack>
+                {/* Show verifying indicator */}
+                {isVerifying && (
+                  <HStack className="items-center justify-center mt-4">
+                    <Icon
+                      as={Loader2}
+                      className="text-[#132939] mr-2 animate-spin"
+                      size="sm"
+                    />
+                    <Text className="text-[#132939] text-[14px]">
+                      Verifying your code...
+                    </Text>
+                  </HStack>
+                )}
+
+                {/* Timer and Resend */}
+                <VStack space="sm" className="items-center mt-4">
+                  {!canResend ? (
+                    <Text className="text-[#717680] text-[14px]">
+                      Code expires in {formatTime(countdown)}
+                    </Text>
+                  ) : (
+                    <HStack
+                      space="sm"
+                      className="items-center justify-center text-[14px] leading-[24px]"
+                    >
+                      <Text className="text-[#717680] text-[14px]">
+                        Didn&apos;t receive code?
+                      </Text>
+                      <Button
+                        onPress={resendOtp}
+                        variant="link"
+                        className="ml-1"
+                        isDisabled={isResending}
+                      >
+                        <ButtonText className="text-[14px]">
+                          {isResending ? "Resending..." : "Resend"}
+                        </ButtonText>
+                      </Button>
+                    </HStack>
+                  )}
+                </VStack>
 
                 {/* Spacer to push button to bottom */}
                 <Box className="flex-1 min-h-[24px]" />
-              </VStack>
-
-              {/* Verify Button */}
-              <VStack space="sm" className="mt-auto pt-6">
-                <Button
-                  className="rounded-full bg-[#132939] h-[48px]"
-                  size="xl"
-                  onPress={verifyOtp}
-                  isDisabled={otp.length !== 6 || isVerifying}
-                >
-                  <ButtonText className="text-white text-[16px] font-medium leading-[24px]">
-                    {isVerifying ? "Verifying..." : "Verify"}
-                  </ButtonText>
-                </Button>
               </VStack>
             </ScrollView>
           </Box>

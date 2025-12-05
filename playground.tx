@@ -30,11 +30,11 @@ const schema = yup.object().shape({
     .string()
     .email("Invalid email address. Try again.")
     .required("Email is required"),
-   password: yup
+  password: yup
     .string()
-    .required("Password is required")
-    
-
+    .required("PIN is required")
+    .matches(/^\d{6}$/, "PIN must be exactly 6 digits")
+    .length(6, "PIN must be exactly 6 digits"),
 });
 
 export default function Login() {
@@ -258,11 +258,17 @@ export default function Login() {
                       placeholder="Enter 6-Digit Password"
                       className="text-[14px] text-[#717680]"
                       value={value}
-                        onChangeText={onChange}
+                        onChangeText={(text) => {
+                            // Only allow numbers and max 6 digits
+                            const numericValue = text
+                              .replace(/[^0-9]/g, "")
+                              .slice(0, 10);
+                            onChange(numericValue);
+                          }}
                       onBlur={onBlur}
                       autoCapitalize="none"
                        keyboardType="number-pad"
-                          maxLength={10}
+                          maxLength={6}
                     />
                     <InputSlot
                       className="pr-3"

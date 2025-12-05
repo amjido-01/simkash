@@ -1,36 +1,60 @@
 // app/(tabs)/_layout.tsx
-import { useEffect } from "react";
-import { Tabs } from "expo-router";
-import { Home, User, WalletMinimal, Gift, Bold } from "lucide-react-native";
-// import { tokenStorage } from "@/utils/tokenStorage"; // If you have this
+import { useEffect, useState } from "react";
+import { Tabs, router } from "expo-router";
+import { Home, User, WalletMinimal, Gift } from "lucide-react-native";
+import { tokenStorage } from "@/utils/tokenStorage";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
+import SimpleLoader from "@/components/simple-loader";
+
 export default function TabsLayout() {
-  // Optional: Check authentication
+  const [isAuthChecked, setIsAuthChecked] = useState(false);
+
   useEffect(() => {
     const checkAuth = async () => {
-      // Uncomment when you have tokenStorage set up
-      // const token = await tokenStorage.getAccessToken();
-      // if (!token) {
-      //   router.replace("/(auth)/signin");
-      // }
+      try {
+        // ✅ Add delay to allow token storage to complete
+        // This prevents race condition when navigating from onboarding
+        await new Promise((resolve) => setTimeout(resolve, 800));
+
+        const token = await tokenStorage.getAccessToken();
+        
+        console.log("🔍 Auth check - Token exists:", !!token);
+
+        if (!token) {
+          console.log("❌ No token found, redirecting to sign in");
+          router.replace("/(auth)/signin");
+        } else {
+          console.log("✅ Token found, user authenticated");
+          setIsAuthChecked(true);
+        }
+      } catch (error) {
+        console.error("❌ Auth check error:", error);
+        // On error, redirect to sign in
+        router.replace("/(auth)/signin");
+      }
     };
 
     checkAuth();
   }, []);
 
+  // Optional: Show nothing while checking (prevents flash)
+  // You can also show a loading spinner here
+  if (!isAuthChecked) {
+    return (
+        <SimpleLoader />
+    );
+  }
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        // Active tab color
-        tabBarActiveTintColor: "#244155", // Your brand color
-        // Inactive tab color
-        tabBarInactiveTintColor: "#9CA3AF", // Gray color
-
+        tabBarActiveTintColor: "#244155",
+        tabBarInactiveTintColor: "#9CA3AF",
         tabBarLabelStyle: {
           fontSize: 12,
-          fontWeight: 700,
-          fontFamily: "ManropeMedium", // Use your custom font
+          fontWeight: "700",
+          fontFamily: "ManropeMedium",
           marginTop: 4,
         },
       }}

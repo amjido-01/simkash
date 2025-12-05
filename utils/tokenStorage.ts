@@ -15,16 +15,18 @@ export const tokenStorage = {
     }
   },
 
-  // Set access token (replaces: Cookies.set("accessToken", token))
   async setAccessToken(token: string): Promise<void> {
     try {
+      if (!token || typeof token !== 'string') {
+        throw new Error('Access token must be a non-empty string');
+      }
       await SecureStore.setItemAsync(TOKEN_KEYS.ACCESS_TOKEN, token);
     } catch (error) {
       console.error('Error setting access token:', error);
+      throw error;
     }
   },
 
-  // Get refresh token
   async getRefreshToken(): Promise<string | null> {
     try {
       return await SecureStore.getItemAsync(TOKEN_KEYS.REFRESH_TOKEN);
@@ -34,27 +36,38 @@ export const tokenStorage = {
     }
   },
 
-  // Set refresh token
   async setRefreshToken(token: string): Promise<void> {
     try {
+      if (!token || typeof token !== 'string') {
+        throw new Error('Refresh token must be a non-empty string');
+      }
       await SecureStore.setItemAsync(TOKEN_KEYS.REFRESH_TOKEN, token);
     } catch (error) {
       console.error('Error setting refresh token:', error);
+      throw error;
     }
   },
 
-  // Remove all tokens (replaces: Cookies.remove())
   async clearTokens(): Promise<void> {
     try {
-      await SecureStore.deleteItemAsync(TOKEN_KEYS.ACCESS_TOKEN);
-      await SecureStore.deleteItemAsync(TOKEN_KEYS.REFRESH_TOKEN);
+      await Promise.all([
+        SecureStore.deleteItemAsync(TOKEN_KEYS.ACCESS_TOKEN),
+        SecureStore.deleteItemAsync(TOKEN_KEYS.REFRESH_TOKEN),
+      ]);
     } catch (error) {
       console.error('Error clearing tokens:', error);
     }
   },
 
-  // Set both tokens at once (useful after login)
   async setTokens(accessToken: string, refreshToken: string): Promise<void> {
+    // Validate both tokens before attempting to store
+    if (!accessToken || typeof accessToken !== 'string') {
+      throw new Error('Access token must be a non-empty string');
+    }
+    if (!refreshToken || typeof refreshToken !== 'string') {
+      throw new Error('Refresh token must be a non-empty string');
+    }
+
     await Promise.all([
       this.setAccessToken(accessToken),
       this.setRefreshToken(refreshToken),

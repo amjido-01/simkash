@@ -21,7 +21,7 @@ import {
 } from "@/constants/menu";
 import { transactions, transferOptions } from "@/utils/mock";
 import { router } from "expo-router";
-import { ChevronRight, Eye } from "lucide-react-native";
+import { ChevronRight, Eye, EyeOff } from "lucide-react-native";
 import { useState } from "react";
 import {
   Platform,
@@ -31,14 +31,34 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useDashboard } from "@/hooks/use-dashboard";
+import DashboardSkeleton from "@/components/dashboard-skeleton";
+import { formatAmount } from "@/utils/formatAmount.helper";
+import { formatDate } from "@/utils/formatDate.helper";
+import { useAccountDetail } from "@/hooks/use-account";
 
 export default function HomeScreen() {
+ const {
+  wallet,              // Wallet balance data
+  parsedTransactions,  // Transactions with parsed metadata
+  userProfile,         // User profile info
+  dashboard,           // Full dashboard data
+  isLoading,          // Initial loading state
+  isFetching,         // Refetching state
+  isError,            // Error state
+  error,              // Error object
+  refetch,            // Manual refetch function
+} = useDashboard();
+  const { accountDetail, isFetchingAccountDetail, isAccountDetailError, accountDetailError } = useAccountDetail();
   const [showDrawer, setShowDrawer] = useState(false);
   const [showQuickActionDrawer, setShowQuickActionDrawer] = useState(false);
   const [selectedQuickAction, setSelectedQuickAction] = useState<any>(null);
-
+  const [showBalance, setShowBalance] = useState(true);
   const [showTopUpDrawer, setShowTopUpDrawer] = useState(false);
   const [hasCompletedKYC, setHasCompletedKYC] = useState(false); // or true 
+  // console.log("Dashboard Data:", dashboard);
+  console.log("Wallet Data:", accountDetail);
+
 
   const handlePaymentOptionPress = (option: MenuOption | any) => {
     if (option.label === "More") {
@@ -76,6 +96,15 @@ export default function HomeScreen() {
     }
   };
 
+  if (isLoading || isFetching) {
+    return (
+      <SafeAreaView className="flex-1 bg-white">
+        <Header />
+        <DashboardSkeleton />
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView className="flex-1 bg-white">
       <Header />
@@ -88,11 +117,27 @@ export default function HomeScreen() {
               Wallet Balance
             </Text>
             <HStack className="items-center gap-3">
-              <Heading className="text-[#141316] font-manropesemibold text-[38px]">
-                ₦50,000<Text className="text-[#9CA3AF]">.00</Text>
-              </Heading>
-              <TouchableOpacity className="p-2">
-                <Eye size={24} color="#6B7280" />
+               {showBalance ? (
+                <Heading className="text-[#141316] font-manropesemibold text-[38px]">
+                  ₦ {parseFloat(wallet?.balance || "0").toLocaleString()}
+                </Heading>
+              ) : (
+                <Heading className="text-[#141316] font-manropesemibold text-[38px]">
+                  ₦ ••••••
+                </Heading>
+              )}
+              {/* <Heading className="text-[#141316] font-manropesemibold text-[38px]">
+               
+              </Heading> */}
+               <TouchableOpacity
+                className="p-2"
+                onPress={() => setShowBalance(!showBalance)}
+              >
+                {showBalance ? (
+                  <Eye size={24} color="#6B7280" />
+                ) : (
+                  <EyeOff size={24} color="#6B7280" />
+                )}
               </TouchableOpacity>
             </HStack>
           </VStack>
@@ -163,31 +208,99 @@ export default function HomeScreen() {
             </HStack>
 
             {/* Transaction List */}
-            <VStack className="gap-3">
-              {transactions.map((transaction) => (
-                <TouchableOpacity
-                  key={transaction.id}
-                  className="flex-row items-center justify-between p-4"
-                  activeOpacity={0.7}
-                >
-                  <HStack className="items-center gap-3 flex-1">
-                    <View className="w-12 h-12 bg-[#EFF9FF] items-center justify-center rounded-[99px]">
-                      <transaction.icon size={20} color="#022742" />
-                    </View>
-                    <VStack className="flex-1">
-                      <Text className="font-manropesemibold font-medium text-[14px] text-[#000000]">
-                        {transaction.type}
-                      </Text>
-                      <Text className="font-manroperegular font-medium text-[12px] text-[#5A5A5A]">
-                        {transaction.date}
-                      </Text>
-                    </VStack>
-                  </HStack>
-                  <Text className="font-manropesemibold text-[16px] text-[#141316]">
-                    {transaction.amount}
+             <VStack className="gap-3">
+              {parsedTransactions && parsedTransactions.length > 0 ? (
+                parsedTransactions.slice(0, 5).map((transaction) => {
+                  const isCommission = transaction.transaction_type
+                    .toLowerCase()
+                    .includes("commission");
+                  const metadata = transaction.metadata;
+
+                  return (
+                    <TouchableOpacity
+                      key={transaction.id}
+                      className="flex-row items-center justify-between p-4 bg-[#F9FAFB] rounded-[12px]"
+                      activeOpacity={0.7}
+                      onPress={() => {
+                        // Navigate to transaction details if you have that screen
+                        console.log("Transaction:", transaction.id);
+                      }}
+                    >
+                      <HStack className="items-center gap-3 flex-1">
+                        <View
+                          className="w-12 h-12 items-center justify-center rounded-[99px]"
+                          style={{
+                            backgroundColor: isCommission
+                              ? "#D1FAE5"
+                              : "#EFF9FF",
+                          }}
+                        >
+                          <Text
+                            className="font-manropesemibold text-[16px]"
+                            style={{
+                              color: isCommission ? "#022742" : "#022742",
+                            }}
+                          >
+                            {transaction.transaction_type
+                              .charAt(0)
+                              .toUpperCase()}
+                          </Text>
+                        </View>
+                        <VStack className="flex-1">
+                          <Text className="font-manropesemibold font-medium text-[14px] text-[#000000]">
+                            {transaction.transaction_type}
+                          </Text>
+                          <Text className="font-manroperegular font-medium text-[12px] text-[#5A5A5A]">
+                            {formatDate(transaction.processed_at)}
+                          </Text>
+                          {metadata?.network && (
+                            <Text className="font-manroperegular text-[11px] text-[#6B7280]">
+                              {metadata.network}
+                            </Text>
+                          )}
+                        </VStack>
+                      </HStack>
+                      <VStack className="items-end">
+                        <Text
+                          className="font-manropesemibold text-[16px]"
+                          style={{
+                            color: isCommission ? "#10B981" : "#141316",
+                          }}
+                        >
+                          {formatAmount(transaction.amount, isCommission)}
+                        </Text>
+                        <View
+                          className="mt-1 px-2 py-1 rounded-[4px]"
+                          style={{
+                            backgroundColor:
+                              transaction.status === "success"
+                                ? "#D1FAE5"
+                                : "#FEE2E2",
+                          }}
+                        >
+                          <Text
+                            className="font-manroperegular text-[10px]"
+                            style={{
+                              color:
+                                transaction.status === "success"
+                                  ? "#10B981"
+                                  : "#DC2626",
+                            }}
+                          >
+                            {transaction.status.toUpperCase()}
+                          </Text>
+                        </View>
+                      </VStack>
+                    </TouchableOpacity>
+                  );
+                })
+              ) : (
+                <View className="items-center justify-center py-8">
+                  <Text className="font-manroperegular text-[14px] text-[#6B7280]">
+                    No transactions yet
                   </Text>
-                </TouchableOpacity>
-              ))}
+                </View>
+              )}
             </VStack>
           </View>
         </View>
@@ -331,10 +444,10 @@ export default function HomeScreen() {
       <TopUpWalletDrawer
         isOpen={showTopUpDrawer}
         onClose={() => setShowTopUpDrawer(false)}
-        hasCompletedKYC={hasCompletedKYC}
-        accountNumber="9325678767"
-        accountName="SIMKASH/ADAM BABA YUSUF"
-        bankName="WEMA BANK"
+        hasCompletedKYC={true}
+        accountNumber={accountDetail?.account_number || ""}
+        accountName={accountDetail?.account_name || ""}
+        bankName={accountDetail?.bank_name || "" }
       />
     </SafeAreaView>
   );

@@ -16,6 +16,10 @@ import { Platform, TouchableOpacity, View, Alert } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BlurView } from "expo-blur";
+import { useState } from "react";
+import * as Clipboard from 'expo-clipboard';
+import { useToast, Toast, ToastTitle, ToastDescription } from '@/components/ui/toast';
+
 
 interface TopUpWalletDrawerProps {
   isOpen: boolean;
@@ -34,21 +38,64 @@ export default function TopUpWalletDrawer({
   accountName = "SIMKASH/ADAM BABA YUSUF",
   bankName = "WEMA BANK",
 }: TopUpWalletDrawerProps) {
+  const toast = useToast();
+const [toastId, setToastId] = useState<string | null>(null);
+
+
   const insets = useSafeAreaInsets();
 
-  const handleCopyAccountNumber = () => {
-    // In a real app, you'd use Clipboard API
-    Alert.alert("Copied!", "Account number copied to clipboard");
-  };
+const handleCopyAccountNumber = async () => {
+  // Ensure accountNumber is a string
+  await Clipboard.setStringAsync(accountNumber.toString());
+
+  // Show toast
+  if (!toastId || !toast.isActive(toastId)) {
+    const newId = Math.random().toString();
+    setToastId(newId);
+    toast.show({
+      id: newId,
+      placement: 'bottom',
+      duration: 3000,
+      render: ({ id }) => (
+        <Toast nativeID={'toast-' + id} variant="solid" action="muted">
+          <ToastTitle>Copied!</ToastTitle>
+          <ToastDescription>Account number copied to clipboard</ToastDescription>
+        </Toast>
+      ),
+    });
+  }
+};
+
 
   const handleUnlockAccount = () => {
     onClose();
     router.push("/kyc");
   };
 
-  const handleSecurePayment = () => {
-    Alert.alert("Secure Payment", "Top up using cards, USSD and more");
-  };
+const handleSecurePayment = async () => {
+  onClose();
+
+  // Example: Call your backend to create Paystack authorization URL
+  const response = await fetch("https://your-backend.com/api/paystack/initiate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      amount: 5000, // your amount
+      userId: "123",
+    }),
+  });
+
+  const data = await response.json();
+
+  // Example response.data = { authorization_url: "https://checkout.paystack.com/xyz..." }
+  const url = data.authorization_url;
+
+  router.push({
+    pathname: "/paystack",
+    params: { url },
+  });
+};
+
 
   return (
     <Drawer

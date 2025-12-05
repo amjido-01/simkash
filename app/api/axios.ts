@@ -2,9 +2,8 @@ import axios, { AxiosError } from 'axios';
 import { tokenStorage } from '@/utils/tokenStorage';
 import { ApiResponse, ApiError } from '@/types';
 import { router } from 'expo-router';
-
+import { BASE_URL } from '@/constants/api';
 // Get base URL from environment variables
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://api.example.com';
 
 export const api = axios.create({
   baseURL: BASE_URL,
@@ -21,6 +20,7 @@ api.interceptors.request.use(
     
     // Get token from secure storage (async operation)
     const accessToken = await tokenStorage.getAccessToken();
+    console.log('Access token retrieved:', accessToken);
     
     if (accessToken) {
       config.headers.Authorization = `Bearer ${accessToken}`;
@@ -34,11 +34,6 @@ api.interceptors.request.use(
 /**
  * RESPONSE INTERCEPTOR
  * Handle token refresh and errors
- * 
- * SIMILAR TO NEXT.JS but with key differences:
- * - Uses tokenStorage instead of Cookies
- * - Uses expo-router instead of window.location
- * - Handles your custom responseSuccessful pattern
  */
 api.interceptors.response.use(
   (response) => {

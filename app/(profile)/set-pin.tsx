@@ -1,3 +1,4 @@
+// app/(onboarding)/set-pin.tsx
 import { Box } from "@/components/ui/box";
 import { Button, ButtonText } from "@/components/ui/button";
 import {
@@ -33,15 +34,13 @@ import {
   DrawerContent,
   DrawerHeader,
 } from "@/components/ui/drawer";
-import { router } from "expo-router";
-import { StepIndicator } from "./step-indicator";
+import { router, useLocalSearchParams } from "expo-router";
+import { StepIndicator } from "@/components/step-indicator";
 import * as yup from "yup";
-import { StepProps } from "@/types";
 import { authEndpoints } from "@/app/api/endpoints";
-import { Icon } from "./ui/icon";
+import { Icon } from "@/components/ui/icon";
 import { useCountries } from "@/hooks/use-countries";
-import { HStack } from "./ui/hstack";
-import { CustomAlert } from "./custom-alert";
+import { CustomAlert } from "@/components/custom-alert";
 
 // Validation schema
 const pinSchema = yup.object({
@@ -73,21 +72,24 @@ interface AlertState {
   message: string;
 }
 
-export default function SetPin({
-  onNext,
-  onBack,
-  initialData,
-}: StepProps<PinFormData>) {
+export default function SetPin() {
+  const params = useLocalSearchParams();
+
+  // Get all data from previous screen
+  const profileData = {
+    email: params.email as string,
+    fullName: params.fullName as string,
+    phoneNumber: params.phoneNumber as string,
+    gender: params.gender as string,
+    dateOfBirth: params.dateOfBirth as string,
+    country: params.country as string,
+  };
+
+  console.log("🟢 SetPin - Received data:", JSON.stringify(profileData));
 
   const isSubmittingRef = useRef(false);
-const isNavigatingRef = useRef(false);
-const isMountedRef = useRef(true);
-
-useEffect(() => {
-  return () => {
-    isMountedRef.current = false;
-  };
-}, []);
+  const isNavigatingRef = useRef(false);
+  const isMountedRef = useRef(true);
 
   const { countriesForPicker } = useCountries();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -99,16 +101,21 @@ useEffect(() => {
   });
   const { height } = useWindowDimensions();
 
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
   const {
     control,
     handleSubmit,
     formState: { errors, isValid },
     trigger,
-    reset,
     watch,
   } = useForm<PinFormData>({
     resolver: yupResolver(pinSchema),
-    defaultValues: initialData || {
+    defaultValues: {
       newPin: "",
       confirmPin: "",
     },
@@ -117,159 +124,144 @@ useEffect(() => {
 
   const newPinValue = watch("newPin");
 
-// 2. Fix the onSubmit function
-const onSubmit = async (formData: PinFormData) => {
-  // Prevent duplicate submissions
-  if (isSubmittingRef.current) {
-    console.log('⚠️ Already submitting, ignoring duplicate call');
-    return;
-  }
-
-  isSubmittingRef.current = true;
-
-  try {
-    setIsSubmitting(true);
-    console.log("Submitting profile setup with PIN");
-
-    // Validate required data
-    if (
-      !initialData?.fullName ||
-      !initialData?.phoneNumber ||
-      !initialData?.gender ||
-      !initialData?.country
-    ) {
-      throw new Error(
-        "Missing required profile information. Please go back and complete all fields."
-      );
-    }
-
-    // Clean phone number
-    const cleanPhone = initialData.phoneNumber.replace(/-/g, "");
-
-    // Get country label
-    const countryObj = countriesForPicker.find(
-      (c) => c.value === initialData.country
-    );
-
-    const countryLabel = countryObj?.label || "";
-    const cleanCountry = countryLabel
-      .replace(/[\p{Emoji_Presentation}\p{Emoji}\uFE0F]/gu, "")
-      .trim();
-
-    // Prepare payload
-    const payload: ProfileSetupPayload = {
-      fullname: initialData.fullName,
-      phone: cleanPhone,
-      gender: initialData.gender as Gender,
-      country: cleanCountry,
-      pin: formData.newPin,
-    };
-
-    console.log("Payload being sent:", payload);
-
-    // Call API
-    const message = await authEndpoints.profileSetup(payload);
-
-    if (!isMountedRef.current) {
-      console.log('⚠️ Component unmounted, stopping');
+  const onSubmit = async (formData: PinFormData) => {
+    // Prevent duplicate submissions
+    if (isSubmittingRef.current) {
+      console.log("⚠️ Already submitting, ignoring duplicate call");
       return;
     }
 
-    console.log("✅ Profile setup successful:", message);
+    isSubmittingRef.current = true;
 
-    // Save user info
-    await userStorage.saveUserInfo(
-      initialData?.email || '',
-      initialData.fullName,
-      cleanPhone
-    );
+    try {
+      setIsSubmitting(true);
+      console.log("Submitting profile setup with PIN");
 
-    // Show success drawer
-    setShowDrawer(true);
+      // Validate required data
+      if (
+        !profileData.fullName ||
+        !profileData.phoneNumber ||
+        !profileData.gender ||
+        !profileData.country
+      ) {
+        throw new Error(
+          "Missing required profile information. Please go back and complete all fields."
+        );
+      }
 
-    // Proceed to next step if available
-    if (onNext) {
-      onNext(formData);
+      // Clean phone number
+      const cleanPhone = profileData.phoneNumber.replace(/-/g, "");
+
+      // Get country label
+      const countryObj = countriesForPicker.find(
+        (c) => c.value === profileData.country
+      );
+
+      const countryLabel = countryObj?.label || "";
+      const cleanCountry = countryLabel
+        .replace(/[\p{Emoji_Presentation}\p{Emoji}\uFE0F]/gu, "")
+        .trim();
+
+      // Prepare payload
+      const payload: ProfileSetupPayload = {
+        fullname: profileData.fullName,
+        phone: cleanPhone,
+        gender: profileData.gender as Gender,
+        country: cleanCountry,
+        pin: formData.newPin,
+      };
+
+      console.log("Payload being sent:", payload);
+
+      // Call API
+      const message = await authEndpoints.profileSetup(payload);
+
+      if (!isMountedRef.current) {
+        console.log("⚠️ Component unmounted, stopping");
+        return;
+      }
+
+      console.log("✅ Profile setup successful:", message);
+
+      // Save user info
+      await userStorage.saveUserInfo(
+        profileData.email || "",
+        profileData.fullName,
+        cleanPhone
+      );
+
+      // Show success drawer
+      setShowDrawer(true);
+    } catch (error: any) {
+      if (!isMountedRef.current) return;
+
+      console.error("❌ Profile setup failed:", error);
+
+      let errorMessage = "Failed to set up profile. Please try again.";
+
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (typeof error === "string") {
+        errorMessage = error;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      } else if (error?.responseMessage) {
+        errorMessage = error.responseMessage;
+      }
+
+      setAlert({
+        show: true,
+        type: "error",
+        message: errorMessage,
+      });
+    } finally {
+      if (isMountedRef.current) {
+        setIsSubmitting(false);
+      }
+      // Reset after delay
+      setTimeout(() => {
+        isSubmittingRef.current = false;
+      }, 1000);
     }
-  } catch (error: any) {
-    if (!isMountedRef.current) return;
+  };
 
-    console.error("❌ Profile setup failed:", error);
-
-    let errorMessage = "Failed to set up profile. Please try again.";
-
-    if (error instanceof Error) {
-      errorMessage = error.message;
-    } else if (typeof error === "string") {
-      errorMessage = error;
-    } else if (error?.message) {
-      errorMessage = error.message;
-    } else if (error?.responseMessage) {
-      errorMessage = error.responseMessage;
-    }
-
-    setAlert({
-      show: true,
-      type: "error",
-      message: errorMessage,
-    });
-  } finally {
-    if (isMountedRef.current) {
-      setIsSubmitting(false);
-    }
-    // Reset after delay
-    setTimeout(() => {
-      isSubmittingRef.current = false;
-    }, 1000);
-  }
-};
-
-// 3. Fix the handleGetStarted function
-const handleGetStarted = async () => {
-  // Prevent duplicate navigation
+ const handleGetStarted = () => {
   if (isNavigatingRef.current) {
-    console.log('⚠️ Already navigating, ignoring duplicate call');
+    console.log("⚠️ Already navigating");
     return;
   }
 
   isNavigatingRef.current = true;
+  console.log("🟢 Get Started clicked");
 
-  try {
-    console.log('🟢 Get Started clicked');
-    
-    // Close drawer first
-    setShowDrawer(false);
-    
-    // Wait for drawer animation
-    await new Promise(resolve => setTimeout(resolve, 400));
-    
+  setShowDrawer(false);
+
+  // Wait for drawer animation to complete
+  setTimeout(() => {
     if (!isMountedRef.current) {
-      console.log('⚠️ Component unmounted during navigation');
+      console.log("⚠️ Component unmounted");
       return;
     }
-    
-    console.log('🟢 Navigating to tabs...');
-    
-    // Use replace to prevent going back
-    router.replace('/(tabs)');
-  } catch (error) {
-    console.error('❌ Navigation error:', error);
-    
-    // Fallback navigation with safety check
-    if (isMountedRef.current) {
-      try {
-        router.replace('/');
-      } catch (fallbackError) {
-        console.error('❌ Fallback navigation failed:', fallbackError);
-      }
+
+    try {
+      console.log("🟢 Navigating to tabs...");
+      router.replace("/(tabs)");
+    } catch (error) {
+      console.error("❌ Navigation error:", error);
+      // Fallback
+      router.replace("/");
+    } finally {
+      setTimeout(() => {
+        isNavigatingRef.current = false;
+      }, 500);
     }
-  } finally {
-    // Reset after delay
-    setTimeout(() => {
-      isNavigatingRef.current = false;
-    }, 1000);
-  }
+  }, 400);
 };
+
+  const handleBack = () => {
+    console.log("🔙 Going back to basic info");
+    router.back();
+  };
 
   return (
     <SafeAreaView style={{ flex: 1 }}>
@@ -291,12 +283,11 @@ const handleGetStarted = async () => {
               bounces={false}
               showsVerticalScrollIndicator={false}
             >
-              {/* Title */}
-              {/* Back Button - positioned absolutely relative to screen */}
+              {/* Back Button */}
               <Button
                 variant="link"
                 className="absolute left-6 top-6 z-20 flex-row items-center"
-                onPress={onBack}
+                onPress={handleBack}
               >
                 <Icon
                   as={ArrowLeft}
@@ -481,7 +472,7 @@ const handleGetStarted = async () => {
                   )}
                 </FormControl>
 
-                {/* Spacer to push button to bottom */}
+                {/* Spacer */}
                 <Box className="flex-1 min-h-[24px]" />
               </VStack>
 
@@ -491,7 +482,7 @@ const handleGetStarted = async () => {
                   className="rounded-full bg-[#132939] h-[48px]"
                   size="xl"
                   onPress={handleSubmit(onSubmit)}
-                  isDisabled={isSubmitting}
+                  isDisabled={isSubmitting || !isValid}
                   accessibilityLabel="Continue to next step"
                 >
                   {isSubmitting ? (
@@ -572,8 +563,8 @@ const handleGetStarted = async () => {
               <VStack space="xs" className="items-center mt-2">
                 <Heading className="text-[18px] leading-[24px] font-semibold font-manropesemibold text-center">
                   Welcome on Board
-                  {initialData?.fullName
-                    ? `, ${initialData.fullName.split(" ")[0]}`
+                  {profileData.fullName
+                    ? `, ${profileData.fullName.split(" ")[0]}`
                     : ""}
                   !
                 </Heading>
