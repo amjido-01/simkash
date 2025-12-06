@@ -49,6 +49,7 @@ import { router } from "expo-router";
 import Animated, { FadeIn } from "react-native-reanimated";
 import { PIN_LENGTH, ACCOUNT_VERIFICATION_DELAY } from "@/constants/menu";
 import { useTransfer } from "@/hooks/use-transfer";
+import { useVerifySimkashAccount } from "@/hooks/use-verify-simkash-account";
 
 // Validation schema
 const schema = yup.object().shape({
@@ -80,12 +81,14 @@ type FormData = yup.InferType<typeof schema>;
 export default function ToSimkash() {
   // State management
   const insets = useSafeAreaInsets();
+  const { mutateAsync: verifySimkashAccount, isPending: isVerifyingAccount } = 
+    useVerifySimkashAccount();
   const { transfer, data, isLoading: isTransferring } = useTransfer();
   const [showDrawer, setShowDrawer] = useState(false);
   const [showPinDrawer, setShowPinDrawer] = useState(false);
   const [accountName, setAccountName] = useState("");
   const [phoneVerified, setPhoneVerified] = useState(false);
-  const [isVerifyingAccount, setIsVerifyingAccount] = useState(false);
+  // const [isVerifyingAccount, setIsVerifyingAccount] = useState(false);
   const [pin, setPin] = useState("");
   const [pinError, setPinError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -127,40 +130,37 @@ export default function ToSimkash() {
   }, []);
 
   // Account verification with debouncing
-  const handlePhoneBlur = useCallback(() => {
-    // Clear previous timeout
+
+  const handlePhoneBlur = useCallback(async () => {
     if (verificationTimeoutRef.current) {
       clearTimeout(verificationTimeoutRef.current);
     }
 
-    // Reset verification state
     setAccountName("");
     setPhoneVerified(false);
 
     if (phoneValue && phoneValue.length === 10) {
-      setIsVerifyingAccount(true);
-
-      // Simulate API call with timeout
-      verificationTimeoutRef.current = setTimeout(() => {
-        // In production, replace with actual API call
-        // Example: const response = await verifySimkashAccount(phoneValue);
-
+      verificationTimeoutRef.current = setTimeout(async () => {
         try {
-          // Simulated successful verification
-          setAccountName("Abdullatif Abdulkarim");
+          const response = await verifySimkashAccount({
+            account: phoneValue,
+          });
+
+          setAccountName(response.name);
           setPhoneVerified(true);
-        } catch (error) {
-          // Handle verification failure
+        } catch (error: any) {
+          console.error("Account verification error:", error);
+          
           Alert.alert(
             "Verification Failed",
-            "Unable to verify Simkash account. Please check the phone number and try again."
+            error?.message || "Unable to verify Simkash account. Please check the account number and try again."
           );
-        } finally {
-          setIsVerifyingAccount(false);
+          setAccountName("");
+          setPhoneVerified(false);
         }
       }, ACCOUNT_VERIFICATION_DELAY);
     }
-  }, [phoneValue]);
+  }, [phoneValue, verifySimkashAccount]);
 
   // Re-verify when phone changes
   useEffect(() => {
@@ -269,11 +269,23 @@ export default function ToSimkash() {
         },
       });
 
-    } catch (error) {
-      console.log("❌ Transfer Error:", error);
-      setPinError("Transfer failed. Check your PIN and try again.");
+    } catch (error: any) {
+        console.error("Transfer error:", error);
+      
+      // Handle specific error messages
+      let errorMessage = "Transaction failed. Please try again.";
+      
+      if (error?.message) {
+        errorMessage = error.message;
+      } else if (error?.responseMessage) {
+        errorMessage = error.responseMessage;
+      }
+      
+      setPinError(errorMessage);
       setPin("");
-      otpRef.current?.clear();
+      if (otpRef.current) {
+        otpRef.current.clear();
+      }
     } finally {
       setIsSubmitting(false);
     }
