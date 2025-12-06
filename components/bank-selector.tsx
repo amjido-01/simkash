@@ -2,19 +2,14 @@ import React, { useState, useMemo } from "react";
 import {
   Modal,
   TouchableOpacity,
-  ScrollView,
   View,
   Text,
   TextInput,
-  Platform,
+  FlatList,
 } from "react-native";
 import { ChevronDownIcon, Search, X } from "lucide-react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-
-interface Bank {
-  value: string;
-  label: string;
-}
+import { Bank } from "@/types";
 
 interface BankSelectorProps {
   value: string;
@@ -34,18 +29,17 @@ const BankSelector = ({
   const [showModal, setShowModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const selectedBank = banks.find((bank) => bank.value === value);
+  const selectedBank = banks.find((bank) => bank.code === value);
 
   // Filter banks based on search query
   const filteredBanks = useMemo(() => {
     if (!searchQuery.trim()) return banks;
-
     const query = searchQuery.toLowerCase();
-    return banks.filter((bank) => bank.label.toLowerCase().includes(query));
+    return banks.filter((bank) => bank.name.toLowerCase().includes(query));
   }, [banks, searchQuery]);
 
-  const handleSelectBank = (bankValue: string) => {
-    onValueChange(bankValue);
+  const handleSelectBank = (bankCode: string) => {
+    onValueChange(bankCode);
     setShowModal(false);
     setSearchQuery("");
   };
@@ -54,6 +48,40 @@ const BankSelector = ({
     setShowModal(false);
     setSearchQuery("");
   };
+
+  const renderBankItem = ({ item }: { item: Bank }) => (
+    <TouchableOpacity
+      onPress={() => handleSelectBank(item.code)}
+      className={`px-4 py-4 flex-row items-center justify-between border-b border-[#F3F4F6] ${
+        value === item.code ? "bg-[#F0FDF4]" : "bg-white"
+      }`}
+      activeOpacity={0.7}
+    >
+      <View className="flex-row items-center flex-1">
+        {/* Bank Icon Placeholder */}
+        <View className="w-10 h-10 rounded-full bg-[#4F46E5] items-center justify-center mr-3">
+          <Text className="text-white text-[16px] font-semibold">
+            {item.name.charAt(0)}
+          </Text>
+        </View>
+
+        <Text
+          className={`text-[14px] flex-1 ${
+            value === item.code ? "font-semibold text-[#059669]" : "text-[#000000]"
+          }`}
+          numberOfLines={1}
+        >
+          {item.name}
+        </Text>
+      </View>
+
+      {value === item.code && (
+        <View className="w-5 h-5 rounded-full bg-[#10B981] items-center justify-center">
+          <Text className="text-white text-[12px]">✓</Text>
+        </View>
+      )}
+    </TouchableOpacity>
+  );
 
   return (
     <>
@@ -71,7 +99,7 @@ const BankSelector = ({
           }`}
           numberOfLines={1}
         >
-          {selectedBank ? selectedBank.label : placeholder}
+          {selectedBank ? selectedBank.name : placeholder}
         </Text>
         <ChevronDownIcon size={20} color="#717680" />
       </TouchableOpacity>
@@ -133,57 +161,21 @@ const BankSelector = ({
               </Text>
             </View>
 
-            {/* Banks List */}
-            <ScrollView
-              className="flex-1"
-              showsVerticalScrollIndicator={false}
+            {/* Banks List using FlatList */}
+            <FlatList
+              data={filteredBanks}
+              renderItem={renderBankItem}
+              keyExtractor={(item) => item.code} // unique key
               keyboardShouldPersistTaps="handled"
-            >
-              {filteredBanks.length > 0 ? (
-                filteredBanks.map((bank, index) => (
-                  <TouchableOpacity
-                    key={bank.value}
-                    onPress={() => handleSelectBank(bank.value)}
-                    className={`px-4 py-4 flex-row items-center justify-between border-b border-[#F3F4F6] ${
-                      value === bank.value ? "bg-[#F0FDF4]" : "bg-white"
-                    }`}
-                    activeOpacity={0.7}
-                  >
-                    <View className="flex-row items-center flex-1">
-                      {/* Bank Icon Placeholder */}
-                      <View className="w-10 h-10 rounded-full bg-[#4F46E5] items-center justify-center mr-3">
-                        <Text className="text-white text-[16px] font-semibold">
-                          {bank.label.charAt(0)}
-                        </Text>
-                      </View>
+            />
 
-                      <Text
-                        className={`text-[14px] flex-1 ${
-                          value === bank.value
-                            ? "font-semibold text-[#059669]"
-                            : "text-[#000000]"
-                        }`}
-                        numberOfLines={1}
-                      >
-                        {bank.label}
-                      </Text>
-                    </View>
-
-                    {value === bank.value && (
-                      <View className="w-5 h-5 rounded-full bg-[#10B981] items-center justify-center">
-                        <Text className="text-white text-[12px]">✓</Text>
-                      </View>
-                    )}
-                  </TouchableOpacity>
-                ))
-              ) : (
-                <View className="py-20 items-center justify-center">
-                  <Text className="text-[14px] text-[#9CA3AF] text-center">
-                    No banks found matching {searchQuery}
-                  </Text>
-                </View>
-              )}
-            </ScrollView>
+            {filteredBanks.length === 0 && (
+              <View className="py-20 items-center justify-center">
+                <Text className="text-[14px] text-[#9CA3AF] text-center">
+                  No banks found matching {searchQuery}
+                </Text>
+              </View>
+            )}
           </View>
         </SafeAreaView>
       </Modal>

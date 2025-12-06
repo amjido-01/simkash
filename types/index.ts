@@ -225,3 +225,49 @@ export interface AccountDetail {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface TransferPayload {
+  account: string;
+  amount: number;
+  pin: string;
+  narration?: string;
+}
+
+export interface TransferResponseBody {
+  amount: number;
+  send_to: string;
+  reference: string;
+  date: string;
+}
+
+export interface TransferResponse {
+  responseSuccessful: boolean;
+  responseMessage: string;
+  responseBody: TransferResponseBody;
+}
+
+
+export interface Bank {
+  id: number;
+  name: string;
+  slug: string;
+  code: string;
+  longcode: string;
+  gateway: string | null;
+  pay_with_bank: boolean;
+  supports_transfer: boolean;
+  available_for_direct_debit: boolean;
+  active: boolean;
+  country: string;
+  currency: string;
+  type: string;
+  is_deleted: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BanksResponse {
+  responseSuccessful: boolean;
+  responseMessage: string;
+  responseBody: Bank[];
+}

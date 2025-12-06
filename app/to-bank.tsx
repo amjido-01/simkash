@@ -55,7 +55,10 @@ import {
   ACCOUNT_VERIFICATION_DELAY,
   PIN_LENGTH,
 } from "@/constants/menu";
+import { useGetBanks } from "@/hooks/use-banks";
 import BankSelector from "@/components/bank-selector";
+import { useVerifyAccount } from "@/hooks/use-verify-account";
+import { useSendMoney } from "@/hooks/use-send-money";
 // Validation schema
 const schema = yup.object().shape({
   phone: yup
@@ -89,11 +92,14 @@ type Stage = "account" | "amount";
 export default function ToBank() {
   // State management
   const insets = useSafeAreaInsets();
+  const { banks, isLoading } = useGetBanks();
+  const { sendMoney, isLoading: isSendingMoney } = useSendMoney();
+    const { mutateAsync: verifyAccount, isPending: isVerifyingAccount } = useVerifyAccount();
   const [showDrawer, setShowDrawer] = useState(false);
   const [showPinDrawer, setShowPinDrawer] = useState(false);
   const [accountName, setAccountName] = useState("");
   const [phoneVerified, setPhoneVerified] = useState(false);
-  const [isVerifyingAccount, setIsVerifyingAccount] = useState(false);
+  // const [isVerifyingAccount, setIsVerifyingAccount] = useState(false);
   const [pin, setPin] = useState("");
   const [pinError, setPinError] = useState("");
   const [stage, setStage] = useState<Stage>("account");
@@ -148,30 +154,31 @@ export default function ToBank() {
     setAccountName("");
     setPhoneVerified(false);
 
-    if (phoneValue && phoneValue.length === 10 && bankValue) {
-      setIsVerifyingAccount(true);
-
-      // Simulate API call with timeout
-      verificationTimeoutRef.current = setTimeout(() => {
-        // In production, replace with actual API call
-        // Example: const response = await verifyAccount(phoneValue, bankValue);
-
+  if (phoneValue && phoneValue.length === 10 && bankValue) {
+      // Debounce the API call
+      verificationTimeoutRef.current = setTimeout(async () => {
         try {
-          // Simulated successful verification
-          setAccountName("Abdullatif Abdulkarim");
+          const response = await verifyAccount({
+            account_number: phoneValue,
+            bank_code: bankValue,
+          });
+
+          setAccountName(response.account_name);
           setPhoneVerified(true);
-        } catch (error) {
-          // Handle verification failure
+        } catch (error: any) {
+          console.error("Account verification error:", error);
+          
           Alert.alert(
             "Verification Failed",
-            "Unable to verify account. Please check the account number and try again."
+            error?.message || "Unable to verify account. Please check the account number and try again."
           );
-        } finally {
-          setIsVerifyingAccount(false);
+          setAccountName("");
+          setPhoneVerified(false);
         }
       }, ACCOUNT_VERIFICATION_DELAY);
     }
-  }, [phoneValue, bankValue]);
+  }, [phoneValue, bankValue, verifyAccount]);
+
 
   // Re-verify when bank changes
   useEffect(() => {
@@ -240,55 +247,74 @@ export default function ToBank() {
   }, []);
 
   // PIN submission
-  const handlePinSubmit = useCallback(
-    async (pinToSubmit?: string) => {
-      const finalPin = pinToSubmit || pin;
+const handlePinSubmit = useCallback(
+  async (pinToSubmit?: string) => {
+    const finalPin = pinToSubmit || pin;
 
-      if (finalPin.length !== PIN_LENGTH) {
-        setPinError("Please enter your 4-digit PIN");
-        return;
+    if (finalPin.length !== PIN_LENGTH) {
+      setPinError("Please enter your 4-digit PIN");
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      // Call the API to send money
+      const response = await sendMoney({
+        amount: parseInt(amountValue, 10),
+        account_number: phoneValue,
+        bank_code: bankValue,
+        pin: parseInt(finalPin, 10),
+        narration: narrationValue || undefined,
+      });
+
+      console.log("Transfer successful:", response);
+
+      // Success - close drawers and navigate
+      setShowPinDrawer(false);
+      setShowDrawer(false);
+      setPin("");
+      reset();
+
+      router.push({
+        pathname: "/transaction-success",
+        params: {
+          amount: amountValue,
+          recipient: accountName,
+          phoneNumber: phoneValue,
+          narration: narrationValue || "",
+          // Add response data
+          reference: response.data.data.reference,
+          transferCode: response.data.data.transfer_code,
+          status: response.data.data.status,
+          updatedBalance: response.updatedBalance.toString(),
+          message: response.data.message,
+        },
+      });
+    } catch (error: any) {
+      console.error("Transfer error:", error);
+      
+      // Handle specific error messages
+      let errorMessage = "Transaction failed. Please try again.";
+      
+      if (error?.message) {
+        errorMessage = error.message;
+      } else if (error?.responseMessage) {
+        errorMessage = error.responseMessage;
       }
-
-      setIsSubmitting(true);
-
-      try {
-        // In production, validate PIN with backend
-        // const isValid = await validatePin(finalPin);
-        // if (!isValid) throw new Error("Invalid PIN");
-
-        console.log("PIN entered:", finalPin);
-
-        // Simulate network delay
-        await new Promise((resolve) => setTimeout(resolve, 500));
-
-        // Success - close drawers and navigate
-        setShowPinDrawer(false);
-        setShowDrawer(false);
-        setPin("");
-        reset();
-
-        router.push({
-          pathname: "/transaction-success",
-          params: {
-            amount: amountValue,
-            recipient: accountName,
-            phoneNumber: phoneValue,
-            narration: narrationValue || "",
-            commission: "10",
-          },
-        });
-      } catch (error) {
-        setPinError("Invalid PIN. Please try again.");
-        setPin("");
-        if (otpRef.current) {
-          otpRef.current.clear();
-        }
-      } finally {
-        setIsSubmitting(false);
+      
+      setPinError(errorMessage);
+      setPin("");
+      if (otpRef.current) {
+        otpRef.current.clear();
       }
-    },
-    [pin, amountValue, accountName, phoneValue, narrationValue, reset]
-  );
+    } finally {
+      setIsSubmitting(false);
+    }
+  },
+  [pin, amountValue, accountName, phoneValue, narrationValue, bankValue, reset, sendMoney]
+);
+
 
   // Continue button handler
   const handleContinue = useCallback(async () => {
@@ -346,6 +372,8 @@ export default function ToBank() {
     if (!amount) return "";
     return parseInt(amount, 10).toLocaleString();
   }, []);
+
+  const selectedBankName = banks.find((b) => b.code === bankValue)?.name || bankValue;
 
   return (
     <SafeAreaView className="flex-1 bg-white" edges={["top"]}>
@@ -465,7 +493,7 @@ export default function ToBank() {
                           <BankSelector
                             value={value}
                             onValueChange={onChange}
-                            banks={BANKS}
+                            banks={banks}
                             placeholder="Select bank"
                             error={Boolean(errors.bank)}
                           />
@@ -640,6 +668,7 @@ export default function ToBank() {
           <Button
             className="rounded-full bg-[#132939] h-[48px] w-full"
             size="xl"
+            // disabled={isVerifyingAccount || (stage === "account" ? !phoneVerified || !isValid : !isValid)}
             onPress={handleContinue}
           >
             <ButtonText className="text-white text-[16px] font-medium leading-[24px]">
@@ -724,8 +753,7 @@ export default function ToBank() {
                       Bank
                     </Text>
                     <Text className="text-[12px] font-medium leading-[100%] font-manropesemibold text-[#141316]">
-                      {BANKS.find((b) => b.value === bankValue)?.label ||
-                        bankValue}
+                      {selectedBankName}
                     </Text>
                   </HStack>
 
