@@ -29,7 +29,6 @@ export const useTransfer = () => {
 
   return {
     transfer: transferMutation.mutateAsync,
-
     isLoading: transferMutation.isPending,
     isError: transferMutation.isError,
     error: transferMutation.error,

@@ -1,14 +1,15 @@
+// KEY CHANGES SUMMARY:
+// 1. Removed DATA_BUNDLES import
+// 2. Added useGetDataPlans hook
+// 3. Updated bundle ID from 'id' to 'variation_code'
+// 4. Updated bundle price from 'price' to 'variation_amount'
+// 5. Removed 'validity' field (not in API response)
+// 6. Added loading and error states for data plans
+// 7. Only shows 5 popular plans (filtered in hook)
+
 import { Box } from "@/components/ui/box";
 import { Button, ButtonText } from "@/components/ui/button";
-import {
-  Drawer,
-  DrawerBackdrop,
-  DrawerBody,
-  DrawerCloseButton,
-  DrawerContent,
-  DrawerFooter,
-  DrawerHeader,
-} from "@/components/ui/drawer";
+import { Image } from "@/components/ui/image";
 import {
   FormControl,
   FormControlError,
@@ -17,8 +18,6 @@ import {
   FormControlLabel,
   FormControlLabelText,
 } from "@/components/ui/form-control";
-import { Heading } from "@/components/ui/heading";
-import { HStack } from "@/components/ui/hstack";
 import { Input, InputField } from "@/components/ui/input";
 import { Text } from "@/components/ui/text";
 import { VStack } from "@/components/ui/vstack";
@@ -26,11 +25,13 @@ import { yupResolver } from "@hookform/resolvers/yup";
 import {
   AlertCircleIcon,
   ChevronDownIcon,
-  ChevronLeft,
   Gift,
   Wallet,
 } from "lucide-react-native";
-import React, { useCallback, useRef, useState } from "react";
+import { useGetNetworks } from "@/hooks/use-networks";
+import { useGetDataPlans } from "@/hooks/use-getdata-plans";
+import { PinDrawer } from "@/components/pin-drawer";
+import React, { useCallback, useRef, useState, useEffect } from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
   KeyboardAvoidingView,
@@ -45,11 +46,13 @@ import {
   SafeAreaView,
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
-import { OtpInput } from "react-native-otp-entry";
 import * as yup from "yup";
 import { router } from "expo-router";
-import { NETWORKS, PIN_LENGTH } from "@/constants/menu";
-import { DATA_BUNDLES } from "@/utils/mock";
+import { NetworkSelectionDrawer } from "@/components/network-selection-drawer";
+import { useVerifyPhone } from "@/hooks/use-verify-phone";
+import { PageHeader } from "@/components/page-header";
+import { ConfirmationDrawer } from "@/components/confirmation-drawer";
+import { usePurchaseData } from "@/hooks/use-purchase-data";
 
 // Validation schema
 const schema = yup.object().shape({
@@ -65,17 +68,18 @@ const schema = yup.object().shape({
 type FormData = yup.InferType<typeof schema>;
 
 export default function DataBundle() {
-  // State management
   const insets = useSafeAreaInsets();
+  const { networks, isLoading, isError } = useGetNetworks();
+  const verifyPhoneMutation = useVerifyPhone();
+  const { purchaseData, isLoading: isPurchasingData } = usePurchaseData();
   const [showNetworkDrawer, setShowNetworkDrawer] = useState(false);
   const [showConfirmDrawer, setShowConfirmDrawer] = useState(false);
   const [showPinDrawer, setShowPinDrawer] = useState(false);
-  const [pin, setPin] = useState("");
-  const [pinError, setPinError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const otpRef = useRef<any>(null);
+  const [isVerifyingPhone, setIsVerifyingPhone] = useState(false);
+  const [hasSetDefaultNetwork, setHasSetDefaultNetwork] = useState(false);
+  const lastVerifiedPhone = useRef<string>("");
 
-  // Form setup
   const {
     control,
     handleSubmit,
@@ -98,17 +102,100 @@ export default function DataBundle() {
   const networkValue = watch("network");
   const dataBundleValue = watch("dataBundle");
 
-  // Get selected items
-  const selectedNetwork = NETWORKS.find((n) => n.value === networkValue);
-  const selectedBundle = DATA_BUNDLES.find((b) => b.id === dataBundleValue);
+  // NEW: Fetch data plans hook
+  const {
+    popularPlans,
+    isLoading: isLoadingPlans,
+    isError: isPlansError,
+  } = useGetDataPlans(networkValue, !!networkValue);
 
-  // Form submission
+  // Set MTN as default
+  useEffect(() => {
+    if (!isLoading && networks.length > 0 && !hasSetDefaultNetwork) {
+      const mtnNetwork = networks.find(
+        (network) =>
+          network.serviceID?.toLowerCase() === "mtn" ||
+          network.name?.toLowerCase() === "mtn"
+      );
+
+      if (mtnNetwork) {
+        setValue("network", mtnNetwork.serviceID, { shouldValidate: false });
+      } else {
+        setValue("network", networks[0].serviceID, { shouldValidate: false });
+      }
+      
+      setHasSetDefaultNetwork(true);
+    }
+  }, [isLoading, networks, hasSetDefaultNetwork, setValue]);
+
+  // Verify phone and auto-detect network
+  const verifyAndSetNetwork = useCallback(
+    async (phone: string) => {
+      if (phone.length !== 11 || phone === lastVerifiedPhone.current) {
+        return;
+      }
+
+      lastVerifiedPhone.current = phone;
+      setIsVerifyingPhone(true);
+
+      try {
+        const response = await verifyPhoneMutation.mutateAsync({ phone });
+        const networkData = Array.isArray(response) ? response[0] : response;
+        
+        if (!networkData) return;
+
+        const detectedNetwork = networks.find((network) => {
+          const apiId = networkData.id?.toLowerCase();
+          const serviceId = network.serviceID?.toLowerCase();
+          
+          if (serviceId === apiId) return true;
+          if (apiId === "9mobile" && serviceId === "etisalat") return true;
+          if (apiId === "etisalat" && serviceId === "etisalat") return true;
+          
+          return (
+            serviceId?.includes(apiId) ||
+            network.name?.toLowerCase().includes(apiId)
+          );
+        });
+
+        if (detectedNetwork) {
+          setValue("network", detectedNetwork.serviceID, { shouldValidate: true });
+        }
+      } catch (error) {
+        lastVerifiedPhone.current = "";
+      } finally {
+        setIsVerifyingPhone(false);
+      }
+    },
+    [networks, setValue, verifyPhoneMutation]
+  );
+
+  useEffect(() => {
+    if (
+      phoneValue &&
+      phoneValue.length === 11 &&
+      phoneValue !== lastVerifiedPhone.current
+    ) {
+      const timeoutId = setTimeout(() => {
+        verifyAndSetNetwork(phoneValue);
+      }, 800);
+
+      return () => clearTimeout(timeoutId);
+    }
+    
+    if (phoneValue.length < 11) {
+      lastVerifiedPhone.current = "";
+    }
+  }, [phoneValue, verifyAndSetNetwork]);
+
+  const selectedNetwork = networks.find((n) => n.serviceID === networkValue);
+  const selectedBundle = popularPlans.find((b) => b.variation_code === dataBundleValue);
+  console.log("Selected Bundle:", selectedBundle);
+
   const submitForm = useCallback((data: FormData) => {
-    console.log("✔ Valid form:", data);
     setShowConfirmDrawer(true);
   }, []);
 
-  // Continue to PIN entry
   const handleContinueToPin = useCallback(() => {
     setShowConfirmDrawer(true);
     setTimeout(() => {
@@ -116,97 +203,106 @@ export default function DataBundle() {
     }, 300);
   }, []);
 
-  // PIN pad number press
-  const handleNumberPress = useCallback(
-    (num: string) => {
-      if (pin.length < PIN_LENGTH) {
-        const newPin = pin + num;
-        setPin(newPin);
-        setPinError("");
+ const handlePinSubmit = useCallback(
+  async (pin: string) => {
+    setIsSubmitting(true);
 
-        if (otpRef.current) {
-          otpRef.current.setValue(newPin);
-        }
+    try {
+      console.log("🔐 PIN entered, processing data purchase...");
 
-        if (newPin.length === PIN_LENGTH) {
-          setTimeout(() => handlePinSubmit(newPin), 300);
-        }
+      // Validate that we have all required data
+      if (!selectedBundle) {
+        throw new Error("No data bundle selected. Please select a bundle.");
       }
-    },
-    [pin]
-  );
 
-  // Backspace handler
-  const handleBackspace = useCallback(() => {
-    if (pin.length > 0) {
-      const newPin = pin.slice(0, -1);
-      setPin(newPin);
-      setPinError("");
-      if (otpRef.current) {
-        otpRef.current.setValue(newPin);
+      if (!selectedNetwork) {
+        throw new Error("Network not found. Please select a network.");
       }
+
+      // Prepare the payload
+      const payload = {
+        serviceID: networkValue, // e.g., "mtn-data", "glo-data"
+        billersCode: phoneValue, // Phone number as string
+        variation_code: selectedBundle.variation_code, // e.g., "glo-50"
+        amount: Number(selectedBundle.variation_amount), // Amount as number
+        phone: phoneValue, // Phone number
+        pin: pin, // Transaction PIN
+      };
+
+
+      // Call the purchase data API
+      const result = await purchaseData(payload);
+
+      console.log("Data Purchase Success => ", result);
+
+      // Success - close drawers and navigate
+      setShowPinDrawer(false);
+      setShowConfirmDrawer(false);
+      reset();
+
+      // Reset tracking
+      setHasSetDefaultNetwork(false);
+      lastVerifiedPhone.current = "";
+
+      router.push({
+        pathname: "/transaction-success",
+        params: {
+          amount: selectedBundle.variation_amount,
+          recipient: phoneValue,
+          phoneNumber: phoneValue,
+          transactionType: "data",
+          network: selectedNetwork.name,
+          dataBundle: selectedBundle.name,
+          transactionId: result.responseBody?.transactionId || "",
+          reference: result.responseBody?.reference || "",
+          message: result.responseMessage || "Data purchased successfully",
+        },
+      });
+    } catch (error: any) {
+      console.error("Data purchase error:", error);
+
+      // Handle specific error messages
+      let errorMessage = "Transaction failed. Please try again.";
+
+      if (error?.message) {
+        errorMessage = error.message;
+      } else if (error?.responseMessage) {
+        errorMessage = error.responseMessage;
+      }
+
+      // Show user-friendly error messages based on content
+      if (errorMessage.toLowerCase().includes("pin")) {
+        errorMessage = "Invalid PIN. Please try again.";
+      } else if (errorMessage.toLowerCase().includes("insufficient")) {
+        errorMessage = "Insufficient balance. Please fund your wallet.";
+      } else if (errorMessage.toLowerCase().includes("network")) {
+        errorMessage = "Network error. Please check your connection.";
+      } else if (errorMessage.toLowerCase().includes("invalid phone")) {
+        errorMessage = "Invalid phone number. Please check and try again.";
+      }
+
+      // Throw error to be caught by PinDrawer component
+      throw new Error(errorMessage);
+    } finally {
+      setIsSubmitting(false);
     }
-  }, [pin]);
+  },
+  [
+    phoneValue,
+    networkValue,
+    selectedBundle,
+    selectedNetwork,
+    purchaseData,
+    reset,
+  ]
+);
 
-  // PIN change handler
-  const handlePinChange = useCallback((text: string) => {
-    setPin(text);
-    setPinError("");
-  }, []);
-
-  // PIN submission
-  const handlePinSubmit = useCallback(
-    async (pinToSubmit?: string) => {
-      const finalPin = pinToSubmit || pin;
-      if (finalPin.length !== PIN_LENGTH) {
-        setPinError("Please enter your 4-digit PIN");
-        return;
-      }
-
-      setIsSubmitting(true);
-      try {
-        console.log("PIN entered:", finalPin);
-        await new Promise((resolve) => setTimeout(resolve, 1500));
-
-        setShowPinDrawer(false);
-        setShowConfirmDrawer(false);
-        setPin("");
-        reset();
-
-        router.push({
-          pathname: "/transaction-success",
-          params: {
-            amount: selectedBundle?.price,
-            recipient: phoneValue,
-            phoneNumber: phoneValue,
-            transactionType: "data",
-            network: networkValue,
-            dataBundle: selectedBundle?.name,
-          },
-        });
-      } catch (error) {
-        setPinError("Invalid PIN. Please try again.");
-        setPin("");
-        if (otpRef.current) {
-          otpRef.current.clear();
-        }
-      } finally {
-        setIsSubmitting(false);
-      }
-    },
-    [pin, selectedBundle, phoneValue, networkValue, reset]
-  );
-
-  // Continue button handler
   const handleContinue = useCallback(async () => {
     const valid = await trigger();
-    if (!valid) {
-      return;
-    }
+    if (!valid) return;
     handleSubmit(submitForm)();
   }, [trigger, handleSubmit, submitForm]);
 
-  // Back navigation handler
   const handleBack = useCallback(() => {
     if (phoneValue || dataBundleValue) {
       Alert.alert(
@@ -226,25 +322,23 @@ export default function DataBundle() {
     }
   }, [phoneValue, dataBundleValue]);
 
-  // Format amount for display
   const formatAmount = useCallback((amount: string) => {
     if (!amount) return "";
     return parseInt(amount, 10).toLocaleString();
   }, []);
 
-  // Handle network selection
   const handleNetworkSelect = useCallback(
     (networkVal: string) => {
       setValue("network", networkVal, { shouldValidate: true });
-      setShowNetworkDrawer(false);
+      // Clear selected bundle when network changes
+      setValue("dataBundle", "", { shouldValidate: false });
     },
     [setValue]
   );
 
-  // Handle bundle selection
   const handleBundleSelect = useCallback(
-    (bundleId: string) => {
-      setValue("dataBundle", bundleId, { shouldValidate: true });
+    (bundleCode: string) => {
+      setValue("dataBundle", bundleCode, { shouldValidate: true });
     },
     [setValue]
   );
@@ -254,23 +348,8 @@ export default function DataBundle() {
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
       >
-        {/* Header */}
-        <HStack className="px-4 mb-[40px] mt-2 py-3 items-center justify-center border-b border-[#F3F4F6]">
-          <TouchableOpacity
-            className="absolute left-4"
-            onPress={handleBack}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            accessibilityLabel="Go back"
-            accessibilityRole="button"
-          >
-            <ChevronLeft size={24} color="#000000" />
-          </TouchableOpacity>
-          <Text className="text-[16px] font-semibold font-manropesemibold text-[#000000]">
-            Data Bundle
-          </Text>
-        </HStack>
+        <PageHeader title="Buy Data" onBack={handleBack} showBackButton={true} />
 
         <ScrollView
           contentContainerStyle={{ flexGrow: 1 }}
@@ -280,89 +359,84 @@ export default function DataBundle() {
         >
           <Box className="bg-white px-4 pt-6 pb-24 flex-1">
             <VStack space="lg" className="flex-1">
-              {/* Phone Number with Network Selector */}
-              <FormControl
-                isInvalid={Boolean(errors.phoneNumber || errors.network)}
-              >
+              <FormControl isInvalid={Boolean(errors.phoneNumber || errors.network)}>
                 <FormControlLabel>
                   <FormControlLabelText className="text-[12px] text-[#414651] mb-[6px]">
                     Phone Number
                   </FormControlLabelText>
                 </FormControlLabel>
 
-                <View
-                  className={`w-full rounded-[99px] border min-h-[48px] flex-row items-center overflow-hidden ${
-                    errors.phoneNumber || errors.network
-                      ? "border-2 border-red-500"
-                      : "border border-[#D0D5DD]"
-                  }`}
-                >
-                  {/* Network Selector */}
-                  <Controller
-                    control={control}
-                    name="network"
-                    render={({ field: { value } }) => (
+                <Controller
+                  control={control}
+                  name="phoneNumber"
+                  render={({ field: { onChange, onBlur, value } }) => (
+                    <Input
+                      variant="outline"
+                      size="xl"
+                      className={`w-full rounded-[99px] focus:border-2 focus:border-[#D0D5DD] min-h-[48px] ${
+                        errors.phoneNumber || errors.network
+                          ? "border-2 border-red-500"
+                          : "border border-[#D0D5DD]"
+                      }`}
+                    >
                       <TouchableOpacity
                         onPress={() => setShowNetworkDrawer(true)}
-                        className="w-[70px] h-[48px] flex-row items-center justify-center px-2"
+                        className="w-[70px] h-full items-center justify-center flex-row"
+                        disabled={isLoading || isVerifyingPhone}
                       >
-                        <Text className="text-[20px]">
-                          {selectedNetwork?.icon || "📱"}
-                        </Text>
-                        <ChevronDownIcon
-                          size={16}
-                          color="#717680"
-                          style={{ marginLeft: -4 }}
-                        />
+                        {isLoading || isVerifyingPhone ? (
+                          <ActivityIndicator size="small" color="#132939" />
+                        ) : selectedNetwork?.image ? (
+                          <Image
+                            source={{ uri: selectedNetwork.image }}
+                            alt="network"
+                            className="h-8 w-8 rounded-full"
+                            resizeMode="contain"
+                          />
+                        ) : (
+                          <Text className="text-[20px]">📱</Text>
+                        )}
+                        <ChevronDownIcon size={16} color="#6B7280" />
                       </TouchableOpacity>
-                    )}
-                  />
 
-                  {/* Phone Number Input */}
-                  <Controller
-                    control={control}
-                    name="phoneNumber"
-                    render={({ field: { onChange, onBlur, value } }) => (
-                      <Input
-                        variant="outline"
-                        size="xl"
-                        className="flex-1 border-0 rounded-none"
-                      >
-                        <InputField
-                          placeholder="Enter your phone number"
-                          className="text-[14px] text-[#717680] px-2 py-3"
-                          value={value}
-                          maxLength={11}
-                          keyboardType="number-pad"
-                          onChangeText={(text) => {
-                            const cleaned = text.replace(/[^0-9]/g, "");
-                            onChange(cleaned);
-                          }}
-                          onBlur={onBlur}
-                        />
-                      </Input>
-                    )}
-                  />
-                </View>
+                      <InputField
+                        placeholder="Enter your phone number"
+                        className="text-[14px] text-[#717680] px-2 py-3 flex-1"
+                        value={value}
+                        maxLength={11}
+                        keyboardType="number-pad"
+                        onChangeText={(text) => {
+                          const cleaned = text.replace(/[^0-9]/g, "");
+                          onChange(cleaned);
+                        }}
+                        onBlur={onBlur}
+                        editable={!isVerifyingPhone}
+                      />
+                    </Input>
+                  )}
+                />
 
                 {(errors.phoneNumber || errors.network) && (
                   <FormControlError>
-                    <FormControlErrorIcon
-                      className="text-red-500"
-                      as={AlertCircleIcon}
-                    />
+                    <FormControlErrorIcon className="text-red-500" as={AlertCircleIcon} />
                     <FormControlErrorText className="text-red-500">
                       {errors.phoneNumber?.message || errors.network?.message}
                     </FormControlErrorText>
                   </FormControlError>
                 )}
+
+                {isVerifyingPhone && (
+                  <Text className="text-[11px] text-[#6B7280] mt-1 ml-2">
+                    Verifying number...
+                  </Text>
+                )}
               </FormControl>
 
-              {/* Data Bundle Selection */}
+              {/* Data Bundle Selection - NEW VERSION */}
               {networkValue && (
-                <FormControl isInvalid={Boolean(errors.dataBundle)}>
+                <FormControl className="mt-[32px]" isInvalid={Boolean(errors.dataBundle)}>
                   <FormControlLabel>
-                    <FormControlLabelText className="text-[12px] text-[#414651] mb-[6px]">
+                    <FormControlLabelText className="text-[14px] text-[#414651] mb-[6px]">
                       Popular Data Bundles
                     </FormControlLabelText>
                   </FormControlLabel>
@@ -372,39 +446,58 @@ export default function DataBundle() {
                     name="dataBundle"
                     render={({ field: { value } }) => (
                       <VStack space="sm">
-                        {DATA_BUNDLES.map((bundle) => (
+                        {isLoadingPlans && (
+                          <View className="py-8 items-center">
+                            <ActivityIndicator size="large" color="#132939" />
+                            <Text className="text-[14px] text-[#6B7280] mt-4">
+                              Loading data plans...
+                            </Text>
+                          </View>
+                        )}
+
+                        {isPlansError && !isLoadingPlans && (
+                          <View className="py-4 px-4 bg-red-50 rounded-[16px]">
+                            <Text className="text-[14px] text-red-500 text-center">
+                              Failed to load data plans. Please try again.
+                            </Text>
+                          </View>
+                        )}
+
+                        {!isLoadingPlans && !isPlansError && popularPlans.map((bundle) => (
                           <TouchableOpacity
-                            key={bundle.id}
-                            onPress={() => handleBundleSelect(bundle.id)}
-                            className={`flex-row justify-between items-center p-4 rounded-[16px] ${
-                              value === bundle.id
-                                ? "border-[#132939] border bg-[#F9FAFB]"
-                                : "border[#E5E7EB] bg-white"
+                            key={bundle.variation_code}
+                            onPress={() => handleBundleSelect(bundle.variation_code)}
+                            className={`flex-row justify-between items-center p-4 rounded-[16px] border ${
+                              value === bundle.variation_code
+                                ? "border-[#132939] bg-[#F9FAFB]"
+                                : "border-[#E5E7EB] bg-white"
                             }`}
                           >
-                            <View>
-                              <Text className="text-[14px] font-medium font-manropesemibold text-[#000000] mb-1">
+                            <View className="flex-1 pr-4">
+                              <Text className="text-[14px] font-medium font-manropesemibold text-[#000000]">
                                 {bundle.name}
-                              </Text>
-                              <Text className="text-[12px] font-manroperegular text-[#6B7280]">
-                                Validity: {bundle.validity}
                               </Text>
                             </View>
                             <Text className="text-[16px] font-semibold font-manropebold text-[#132939]">
-                              ₦{bundle.price}
+                              ₦{formatAmount(bundle.variation_amount)}
                             </Text>
                           </TouchableOpacity>
                         ))}
+
+                        {!isLoadingPlans && !isPlansError && popularPlans.length === 0 && (
+                          <View className="py-8 px-4">
+                            <Text className="text-[14px] text-[#6B7280] text-center">
+                              No data plans available for this network.
+                            </Text>
+                          </View>
+                        )}
                       </VStack>
                     )}
                   />
 
                   {errors.dataBundle && (
                     <FormControlError>
-                      <FormControlErrorIcon
-                        className="text-red-500"
-                        as={AlertCircleIcon}
-                      />
+                      <FormControlErrorIcon className="text-red-500" as={AlertCircleIcon} />
                       <FormControlErrorText className="text-red-500">
                         {errors.dataBundle?.message}
                       </FormControlErrorText>
@@ -416,17 +509,15 @@ export default function DataBundle() {
           </Box>
         </ScrollView>
 
-        {/* FIXED BOTTOM BUTTON */}
         <View
           className="absolute bottom-0 left-0 right-0 bg-white px-4 pt-4"
-          style={{
-            paddingBottom: Math.max(insets.bottom, 16),
-          }}
+          style={{ paddingBottom: Math.max(insets.bottom, 16) }}
         >
           <Button
             className="rounded-full bg-[#132939] h-[48px] w-full"
             size="xl"
             onPress={handleContinue}
+            disabled={isSubmitting || isPurchasingData || isVerifyingPhone || isLoadingPlans}
           >
             <ButtonText className="text-white text-[16px] font-medium leading-[24px]">
               Continue
@@ -435,384 +526,67 @@ export default function DataBundle() {
         </View>
       </KeyboardAvoidingView>
 
-      {/* NETWORK SELECTION DRAWER */}
-      <Drawer
-        className="border-t-0"
+      <NetworkSelectionDrawer
         isOpen={showNetworkDrawer}
-        size="sm"
-        anchor="bottom"
         onClose={() => setShowNetworkDrawer(false)}
-      >
-        <DrawerBackdrop
-          style={{
-            backgroundColor: "#24242440",
-            opacity: 1,
-          }}
-        />
-        <DrawerContent
-          className="rounded-t-[30px] pt-[39px] bg-[#FFFFFF]"
-          style={{
-            borderTopWidth: 0,
-            borderColor: "transparent",
-            shadowOpacity: 0,
-            elevation: 0,
-            paddingBottom: Platform.OS === "ios" ? 34 : 16,
-          }}
-        >
-          <DrawerHeader className="border-b-0 pb-6 px-6">
-            <Heading className="font-manropesemibold text-center text-[18px] text-[#000000]">
-              Choose network Provider
-            </Heading>
-            <DrawerCloseButton />
-          </DrawerHeader>
-          <DrawerBody className="px-6 pb-6">
-            <View className="flex-row justify-around">
-              {NETWORKS.map((network) => (
-                <TouchableOpacity
-                  key={network.value}
-                  onPress={() => handleNetworkSelect(network.value)}
-                  className="items-center"
-                >
-                  <View className="w-[60px] h-[60px] rounded-full bg-[#F9FAFB] items-center justify-center mb-2">
-                    <Text className="text-[32px]">{network.icon}</Text>
-                  </View>
-                  <Text className="text-[12px] font-manropesemibold text-[#000000]">
-                    {network.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </DrawerBody>
-        </DrawerContent>
-      </Drawer>
+        networks={networks}
+        selectedNetworkId={networkValue}
+        onSelectNetwork={handleNetworkSelect}
+        isLoading={isLoading}
+        isError={isError}
+        title="Choose network Provider"
+      />
 
-      {/* CONFIRMATION DRAWER */}
-      <Drawer
-        className="border-t-0"
+      <ConfirmationDrawer
         isOpen={showConfirmDrawer}
-        size="lg"
-        anchor="bottom"
         onClose={() => setShowConfirmDrawer(false)}
-      >
-        <DrawerBackdrop
-          style={{
-            backgroundColor: "#24242440",
-            opacity: 1,
-          }}
-        />
-        <DrawerContent
-          className="rounded-t-[30px] pt-[29px] bg-[#FFFFFF]"
-          style={{
-            borderTopWidth: 0,
-            borderColor: "transparent",
-            shadowOpacity: 0,
-            elevation: 0,
-            // paddingBottom: Platform.OS === "ios" ? 34 : 16,
-            paddingBottom: insets.bottom || 16,
-          }}
-        >
-          <DrawerHeader className="border-b-0 pb2 px-6">
-            <VStack>
-              <VStack>
-                <Heading className="font-manropesemibold text-center text-[18px] text-[#000000] mb2">
-                  Confirm Transaction
-                </Heading>
-                <Text className="text-center text-[12px] font-manroperegular text-[#6B7280] px-2">
-                  Please review details carefully. Transactions are
-                  irreversible.
-                </Text>
-              </VStack>
-              <Heading className="text-[24px] font-medium text-center mt-[18px] font-manropebold text-[#000000]">
-                {selectedBundle?.name}
-              </Heading>
-            </VStack>
-            <DrawerCloseButton />
-          </DrawerHeader>
-          <DrawerBody className="pt4 px-1 pb4">
-            <VStack space="md">
-              {/* Transaction Details */}
-              <View className="rounded-[20px] border-[#E5E7EF] border px-4 py-2">
-                <VStack space="sm">
-                  <HStack className="justify-between items-center py-2">
-                    <Text className="text-[12px] font-manroperegular text-[#303237]">
-                      Phone Number
-                    </Text>
-                    <Text className="text-[12px] font-medium leading-[100%] font-manropesemibold text-[#141316]">
-                      {phoneValue}
-                    </Text>
-                  </HStack>
-                  <View className="h-[1px] bg-[#E5E7EB]" />
-                  <HStack className="justify-between items-center py-2">
-                    <Text className="text-[12px] font-manroperegular text-[#303237]">
-                      Network
-                    </Text>
-                    <Text className="text-[12px] font-medium leading-[100%] font-manropesemibold text-[#141316]">
-                      {selectedNetwork?.label}
-                    </Text>
-                  </HStack>
-                  <View className="h-[1px] bg-[#E5E7EB]" />
-                  <HStack className="justify-between items-center py-2">
-                    <Text className="text-[12px] font-manroperegular text-[#303237]">
-                      Data Plan
-                    </Text>
-                    <Text className="text-[12px] font-medium leading-[100%] font-manropesemibold text-[#141316]">
-                      {selectedBundle?.name}
-                    </Text>
-                  </HStack>
-                  <View className="h-[1px] bg-[#E5E7EB]" />
-                  <HStack className="justify-between items-center py-2">
-                    <Text className="text-[12px] font-manroperegular text-[#303237]">
-                      Validity
-                    </Text>
-                    <Text className="text-[12px] font-medium leading-[100%] font-manropesemibold text-[#141316]">
-                      {selectedBundle?.validity}
-                    </Text>
-                  </HStack>
-                  <View className="h-[1px] bg-[#E5E7EB]" />
-                  <HStack className="justify-between items-center py-2">
-                    <Text className="text-[12px] font-manroperegular text-[#303237]">
-                      Amount
-                    </Text>
-                    <Text className="text-[12px] font-medium leading-[100%] font-manropesemibold text-[#141316]">
-                      ₦{formatAmount(selectedBundle?.price || "0")}
-                    </Text>
-                  </HStack>
-                </VStack>
-              </View>
+        onConfirm={handleContinueToPin}
+        title="Confirm Transaction"
+        subtitle="Please review details carefully. Transactions are irreversible."
+        amount={selectedBundle?.variation_amount}
+        showAmount={true}
+        amountClassName="text-[24px] font-medium text-center mt-[18px] font-manropebold text-[#000000]"
+        sections={[
+          {
+            containerClassName: "rounded-[20px] border-[#E5E7EF] border px-4 py-2",
+            details: [
+              { label: "Phone Number", value: phoneValue },
+              { label: "Network", value: selectedNetwork?.name || "" },
+              { label: "Data Plan", value: selectedBundle?.name || "" },
+              {
+                label: "Amount",
+                value: `₦${formatAmount(selectedBundle?.variation_amount || "0")}`,
+              },
+            ],
+          },
+          {
+            containerClassName: "px-4 py-2",
+            details: [
+              {
+                label: "Wallet Balance",
+                value: "₦50,000",
+                icon: <Wallet size={16} color="#FF8D28" />,
+              },
+              {
+                label: "Cashback",
+                value: "+₦500",
+                icon: <Gift size={16} color="#CB30E0" />,
+                valueClassName:
+                  "text-[12px] font-medium leading-[100%] font-manropesemibold text-[#10B981]",
+              },
+            ],
+          },
+        ]}
+      />
 
-              {/* Wallet & Cashback */}
-              <View className="px-4 py-2">
-                <VStack space="sm">
-                  <HStack className="justify-between items-center py-2">
-                    <HStack space="sm" className="items-center">
-                      <Wallet size={16} color="#FF8D28" />
-                      <Text className="text-[12px] font-manroperegular text-[#303237]">
-                        Wallet Balance
-                      </Text>
-                    </HStack>
-                    <Text className="text-[12px] font-medium leading-[100%] font-manropesemibold text-[#141316]">
-                      ₦50,000
-                    </Text>
-                  </HStack>
-                  <View className="h-[1px] bg-[#E5E7EB]" />
-                  <HStack className="justify-between items-center py-2">
-                    <HStack space="sm" className="items-center">
-                      <Gift size={16} color="#CB30E0" />
-                      <Text className="text-[12px] font-manroperegular text-[#303237]">
-                        Cashback
-                      </Text>
-                    </HStack>
-                    <Text className="text-[12px] font-medium leading-[100%] font-manropesemibold text-[#10B981]">
-                      +₦500
-                    </Text>
-                  </HStack>
-                </VStack>
-              </View>
-            </VStack>
-          </DrawerBody>
-          <DrawerFooter className="px-4 pt-2 pb-0">
-            <Button
-              className="rounded-full bg-[#132939] h-[48px] w-full"
-              size="xl"
-              onPress={handleContinueToPin}
-            >
-              <ButtonText className="text-white text-[16px] font-medium leading-[24px]">
-                Continue
-              </ButtonText>
-            </Button>
-          </DrawerFooter>
-        </DrawerContent>
-      </Drawer>
-
-      {/* PIN DRAWER */}
-      <Drawer
-        className="border-t-0"
+      <PinDrawer
         isOpen={showPinDrawer}
-        size="lg"
-        anchor="bottom"
-        onClose={() => {
-          if (!isSubmitting) {
-            setShowPinDrawer(false);
-            setPin("");
-            setPinError("");
-          }
-        }}
-      >
-        <DrawerBackdrop
-          style={{
-            backgroundColor: "#24242440",
-            opacity: 1,
-          }}
-        />
-        <DrawerContent
-          className="rounded-t-[30px] pt-[39px] bg-[#FFFFFF]"
-          style={{
-            borderTopWidth: 0,
-            borderColor: "transparent",
-            shadowOpacity: 0,
-            elevation: 0,
-            paddingBottom: Platform.OS === "ios" ? 34 : 16,
-          }}
-        >
-          <DrawerHeader className="border-b-0 pb-6 px-4">
-            <Heading className="font-manropesemibold w-full text-center text-[18px] text-[#000000] mb-2">
-              Enter PIN
-            </Heading>
-            {!isSubmitting && <DrawerCloseButton />}
-          </DrawerHeader>
-          <DrawerBody className="pt-2 px-2 pb-8">
-            <VStack space="lg" className="items-center">
-              {/* OTP Input */}
-              <View className="mb-6">
-                <OtpInput
-                  ref={otpRef}
-                  numberOfDigits={PIN_LENGTH}
-                  focusColor="transparent"
-                  type="numeric"
-                  secureTextEntry={true}
-                  disabled={isSubmitting}
-                  autoFocus={false}
-                  onTextChange={handlePinChange}
-                  theme={{
-                    containerStyle: {
-                      width: "auto",
-                      alignSelf: "center",
-                    },
-                    pinCodeContainerStyle: {
-                      width: 49,
-                      height: 49,
-                      borderRadius: 12,
-                      borderWidth: 1.5,
-                      borderColor: pinError ? "#EF4444" : "#E5E7EB",
-                      backgroundColor: "#FFFFFF",
-                      marginHorizontal: 4,
-                      justifyContent: "center",
-                      alignItems: "center",
-                    },
-                    focusedPinCodeContainerStyle: {
-                      borderColor: pinError ? "#EF4444" : "#132939",
-                    },
-                    pinCodeTextStyle: {
-                      color: "#000000",
-                      fontSize: 32,
-                      fontWeight: "600",
-                    },
-                    filledPinCodeContainerStyle: {
-                      borderColor: pinError ? "#EF4444" : "#10B981",
-                    },
-                  }}
-                />
-              </View>
-
-              {/* Error or Loading */}
-              {pinError && !isSubmitting && (
-                <Text className="text-red-500 text-[12px] font-manroperegular text-center mb-2">
-                  {pinError}
-                </Text>
-              )}
-
-              {isSubmitting && (
-                <View className="mb-4">
-                  <ActivityIndicator size="small" color="#132939" />
-                  <Text className="text-[12px] font-manroperegular text-[#6B7280] text-center mt-2">
-                    Processing transaction...
-                  </Text>
-                </View>
-              )}
-
-              {/* Number Keypad */}
-              {!isSubmitting && (
-                <View className="w-full max-w-[320px]">
-                  <VStack space="lg">
-                    {/* Row 1-3: Numbers 1-9 */}
-                    {[
-                      [1, 2, 3],
-                      [4, 5, 6],
-                      [7, 8, 9],
-                    ].map((row, rowIndex) => (
-                      <HStack key={rowIndex} className="justify-between px-4">
-                        {row.map((num) => (
-                          <TouchableOpacity
-                            key={num}
-                            onPress={() => handleNumberPress(num.toString())}
-                            className="w-[70px] h-[60px] items-center justify-center"
-                            activeOpacity={0.6}
-                            disabled={pin.length >= PIN_LENGTH}
-                          >
-                            <Text className="text-[28px] font-manropesemibold text-[#000000]">
-                              {num}
-                            </Text>
-                          </TouchableOpacity>
-                        ))}
-                      </HStack>
-                    ))}
-
-                    {/* Row 4: Biometric, 0, Backspace */}
-                    <HStack className="justify-between px-4">
-                      {/* Biometric placeholder */}
-                      <TouchableOpacity
-                        onPress={() => {
-                          console.log("Biometric auth");
-                        }}
-                        className="w-[70px] h-[60px] items-center justify-center"
-                        activeOpacity={0.6}
-                      >
-                        <Text className="text-[28px]">👆</Text>
-                      </TouchableOpacity>
-
-                      {/* Zero */}
-                      <TouchableOpacity
-                        onPress={() => handleNumberPress("0")}
-                        className="w-[70px] h-[60px] items-center justify-center"
-                        activeOpacity={0.6}
-                        disabled={pin.length >= PIN_LENGTH}
-                      >
-                        <Text className="text-[28px] font-manropesemibold text-[#000000]">
-                          0
-                        </Text>
-                      </TouchableOpacity>
-
-                      {/* Backspace */}
-                      <TouchableOpacity
-                        onPress={handleBackspace}
-                        className="w-[70px] h-[60px] items-center justify-center"
-                        activeOpacity={0.6}
-                        disabled={pin.length === 0}
-                      >
-                        <Text
-                          className={`text-[24px] ${
-                            pin.length === 0 ? "opacity-30" : ""
-                          }`}
-                        >
-                          ⌫
-                        </Text>
-                      </TouchableOpacity>
-                    </HStack>
-                  </VStack>
-                </View>
-              )}
-
-              {/* Forgot PIN */}
-              {!isSubmitting && (
-                <TouchableOpacity
-                  onPress={() => {
-                    Alert.alert(
-                      "Forgot PIN",
-                      "Please contact support to reset your PIN.",
-                      [{ text: "OK" }]
-                    );
-                  }}
-                  className="mt-6"
-                >
-                  <Text className="text-[14px] font-manropesemibold text-[#132939]">
-                    Forgot PIN?
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </VStack>
-          </DrawerBody>
-        </DrawerContent>
-      </Drawer>
+        onClose={() => setShowPinDrawer(false)}
+        onSubmit={handlePinSubmit}
+        title="Enter PIN"
+         isSubmitting={isSubmitting || isPurchasingData}
+        loadingText="Processing transaction..."
+      />
     </SafeAreaView>
   );
 }

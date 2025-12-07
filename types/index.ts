@@ -271,3 +271,11 @@ export interface BanksResponse {
   responseMessage: string;
   responseBody: Bank[];
 }
+
+export interface Network {
+  id: string;
+  name: string;
+  note: string;
+  image: string;
+  serviceID: string;
+}

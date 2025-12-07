@@ -60,6 +60,7 @@ export default function HomeScreen() {
   console.log("Wallet Data:", accountDetail);
 
 
+
   const handlePaymentOptionPress = (option: MenuOption | any) => {
     if (option.label === "More") {
       setShowDrawer(true);
