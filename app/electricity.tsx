@@ -1,3 +1,5 @@
+import { ConfirmationDrawer } from "@/components/confirmation-drawer";
+import { PinDrawer } from "@/components/pin-drawer";
 import { Box } from "@/components/ui/box";
 import { Button, ButtonText } from "@/components/ui/button";
 import {
@@ -9,6 +11,7 @@ import {
   DrawerFooter,
   DrawerHeader,
 } from "@/components/ui/drawer";
+import { usePurchaseElectricity } from "@/hooks/use-purchase-electricity";
 import {
   FormControl,
   FormControlError,
@@ -46,13 +49,15 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { OtpInput } from "react-native-otp-entry";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 import {
   SafeAreaView,
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
+import { useGetElectricity } from "@/hooks/use-electricity";
 import * as yup from "yup";
+import ElectricitySelector from "@/components/electricity-selector";
+import { useVerifyMeter } from "@/hooks/use-verify-metre";
 
 // Mock electricity providers
 const ELECTRICITY_PROVIDERS = [
@@ -100,6 +105,10 @@ type Stage = "company" | "details";
 export default function Electricity() {
   // State management
   const insets = useSafeAreaInsets();
+  const { electricityProviders, isLoading, isError } = useGetElectricity();
+  const { mutateAsync: verifyMeter, isPending: isVerifyingMeter } =
+    useVerifyMeter();
+    const { purchaseElectricity, isLoading: isPurchasingElectricity } = usePurchaseElectricity();
   const [showProviderDrawer, setShowProviderDrawer] = useState(false);
   const [showConfirmDrawer, setShowConfirmDrawer] = useState(false);
   const [showPinDrawer, setShowPinDrawer] = useState(false);
@@ -143,9 +152,9 @@ export default function Electricity() {
   const amountValue = watch("amount");
 
   // Get selected company
-  const selectedCompany = ELECTRICITY_PROVIDERS.find(
-    (p) => p.value === companyValue
-  );
+ const selectedCompany = electricityProviders.find(
+  (p) => p.serviceID === companyValue
+);
 
   // Filter providers based on search
   const filteredProviders = ELECTRICITY_PROVIDERS.filter((provider) =>
@@ -162,7 +171,7 @@ export default function Electricity() {
   }, []);
 
   // Customer verification with debouncing
-  const handleMeterBlur = useCallback(() => {
+  const handleMeterBlur = useCallback(async () => {
     if (verificationTimeoutRef.current) {
       clearTimeout(verificationTimeoutRef.current);
     }
@@ -176,24 +185,54 @@ export default function Electricity() {
       companyValue &&
       meterTypeValue
     ) {
+      // Find the selected company
+      const selectedProvider = electricityProviders.find(
+        (p) => p.serviceID === companyValue
+      );
+
+      if (!selectedProvider) {
+        console.warn("No provider selected");
+        return;
+      }
+
       setIsVerifyingCustomer(true);
 
-      verificationTimeoutRef.current = setTimeout(() => {
+      verificationTimeoutRef.current = setTimeout(async () => {
         try {
-          // Simulated successful verification
-          setCustomerName("Abdullatif Abdulkarim");
+          const response = await verifyMeter({
+            serviceID: selectedProvider.serviceID,
+            billersCode: meterNumberValue,
+            type: meterTypeValue as "prepaid" | "postpaid",
+          });
+
+          console.log("✅ Meter verified:", response);
+
+          // Set customer details from API response
+          setCustomerName(response.Customer_Name);
           setCustomerVerified(true);
-        } catch (error) {
+        } catch (error: any) {
+          console.error("❌ Meter verification failed:", error);
+
           Alert.alert(
             "Verification Failed",
-            "Unable to verify meter number. Please check and try again."
+            error?.message ||
+              "Unable to verify meter number. Please check and try again."
           );
+
+          setCustomerName("");
+          setCustomerVerified(false);
         } finally {
           setIsVerifyingCustomer(false);
         }
       }, ACCOUNT_VERIFICATION_DELAY);
     }
-  }, [meterNumberValue, companyValue, meterTypeValue]);
+  }, [
+    meterNumberValue,
+    companyValue,
+    meterTypeValue,
+    electricityProviders,
+    verifyMeter,
+  ]);
 
   // Re-verify when company or meter type changes
   useEffect(() => {
@@ -224,89 +263,120 @@ export default function Electricity() {
     }, 300);
   }, []);
 
-  // PIN pad number press
-  const handleNumberPress = useCallback(
-    (num: string) => {
-      if (pin.length < PIN_LENGTH) {
-        const newPin = pin + num;
-        setPin(newPin);
-        setPinError("");
-
-        if (otpRef.current) {
-          otpRef.current.setValue(newPin);
-        }
-
-        if (newPin.length === PIN_LENGTH) {
-          setTimeout(() => handlePinSubmit(newPin), 300);
-        }
-      }
-    },
-    [pin]
-  );
-
-  // Backspace handler
-  const handleBackspace = useCallback(() => {
-    if (pin.length > 0) {
-      const newPin = pin.slice(0, -1);
-      setPin(newPin);
-      setPinError("");
-
-      if (otpRef.current) {
-        otpRef.current.setValue(newPin);
-      }
-    }
-  }, [pin]);
-
-  // PIN change handler
-  const handlePinChange = useCallback((text: string) => {
-    setPin(text);
-    setPinError("");
-  }, []);
-
   // PIN submission
-  const handlePinSubmit = useCallback(
-    async (pinToSubmit?: string) => {
-      const finalPin = pinToSubmit || pin;
+ const handlePinSubmit = useCallback(
+  async (pinToSubmit?: string) => {
+    const finalPin = pinToSubmit || pin;
 
-      if (finalPin.length !== PIN_LENGTH) {
-        setPinError("Please enter your 4-digit PIN");
-        return;
+    if (finalPin.length !== PIN_LENGTH) {
+      setPinError("Please enter your 4-digit PIN");
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      console.log("🔐 PIN entered, processing electricity purchase...");
+
+      // Validate that we have all required data
+      if (!selectedCompany) {
+        throw new Error("No electricity company selected. Please select a company.");
       }
 
-      setIsSubmitting(true);
-
-      try {
-        console.log("PIN entered:", finalPin);
-        await new Promise((resolve) => setTimeout(resolve, 1500));
-
-        setShowPinDrawer(false);
-        setShowConfirmDrawer(false);
-        setPin("");
-        reset();
-
-        router.push({
-          pathname: "/transaction-success",
-          params: {
-            amount: amountValue,
-            recipient: customerName,
-            meterNumber: meterNumberValue,
-            transactionType: "electricity",
-            company: selectedCompany?.name,
-            token: "77727727126363",
-          },
-        });
-      } catch (error) {
-        setPinError("Invalid PIN. Please try again.");
-        setPin("");
-        if (otpRef.current) {
-          otpRef.current.clear();
-        }
-      } finally {
-        setIsSubmitting(false);
+      if (!meterNumberValue) {
+        throw new Error("Meter number is required.");
       }
-    },
-    [pin, amountValue, customerName, meterNumberValue, selectedCompany, reset]
-  );
+
+      if (!meterTypeValue) {
+        throw new Error("Meter type is required.");
+      }
+
+      if (!customerVerified || !customerName) {
+        throw new Error("Customer verification failed. Please verify the meter number.");
+      }
+
+      // Prepare the payload
+      const payload = {
+        serviceID: selectedCompany.serviceID,
+        billersCode: meterNumberValue,
+        variation_code: meterTypeValue as "prepaid" | "postpaid",
+        amount: amountValue,
+        phone: meterNumberValue, // Using meter number as phone (adjust if needed)
+        pin: parseInt(finalPin, 10),
+      };
+
+      console.log("⚡ Electricity purchase payload:", payload);
+
+      // Call the purchase electricity API
+      const result = await purchaseElectricity(payload);
+
+      console.log("Electricity Purchase Success => ", result);
+
+      // Success - close drawers and navigate
+      setShowPinDrawer(false);
+      setShowConfirmDrawer(false);
+      setPin("");
+      reset();
+
+      router.push({
+        pathname: "/transaction-success",
+        params: {
+          amount: amountValue,
+          recipient: customerName,
+          meterNumber: meterNumberValue,
+          transactionType: "electricity",
+          company: selectedCompany.name,
+          token: result.responseBody?.token || "N/A",
+          units: result.responseBody?.units || "N/A",
+          transactionId: result.responseBody?.transactionId || "",
+          reference: result.responseBody?.reference || "",
+          message: result.responseMessage || "Electricity purchased successfully",
+        },
+      });
+    } catch (error: any) {
+      console.error("Electricity purchase error:", error);
+
+      // Handle specific error messages
+      let errorMessage = "Transaction failed. Please try again.";
+
+      if (error?.message) {
+        errorMessage = error.message;
+      } else if (error?.responseMessage) {
+        errorMessage = error.responseMessage;
+      }
+
+      // Show user-friendly error messages based on content
+      if (errorMessage.toLowerCase().includes("pin")) {
+        errorMessage = "Invalid PIN. Please try again.";
+      } else if (errorMessage.toLowerCase().includes("insufficient")) {
+        errorMessage = "Insufficient balance. Please fund your wallet.";
+      } else if (errorMessage.toLowerCase().includes("network")) {
+        errorMessage = "Network error. Please check your connection.";
+      } else if (errorMessage.toLowerCase().includes("meter")) {
+        errorMessage = "Invalid meter number. Please verify and try again.";
+      }
+
+      setPinError(errorMessage);
+      setPin("");
+      if (otpRef.current) {
+        otpRef.current.clear();
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  },
+  [
+    pin,
+    amountValue,
+    customerName,
+    meterNumberValue,
+    meterTypeValue,
+    selectedCompany,
+    customerVerified,
+    purchaseElectricity,
+    reset,
+  ]
+);
 
   // Continue button handler
   const handleContinue = useCallback(async () => {
@@ -410,7 +480,6 @@ export default function Electricity() {
                   style={{ flex: 1 }}
                 >
                   <VStack space="lg" className="flex-1">
-                    {/* COMPANY SELECTION */}
                     <FormControl isInvalid={Boolean(errors.company)}>
                       <FormControlLabel>
                         <FormControlLabelText className="text-[12px] text-[#414651] mb-[6px]">
@@ -421,26 +490,31 @@ export default function Electricity() {
                       <Controller
                         control={control}
                         name="company"
-                        render={({ field: { value } }) => (
-                          <TouchableOpacity
-                            onPress={() => setShowProviderDrawer(true)}
-                            className={`w-full rounded-[99px] border min-h-[48px] flex-row items-center px-4 ${
-                              errors.company
-                                ? "border-2 border-red-500"
-                                : "border border-[#D0D5DD]"
-                            }`}
-                          >
-                            <Text
-                              className={`flex-1 text-[14px] ${
-                                value ? "text-[#000000]" : "text-[#717680]"
-                              }`}
-                            >
-                              {selectedCompany
-                                ? `${selectedCompany.icon} ${selectedCompany.name}`
-                                : "Select"}
-                            </Text>
-                            <ChevronDownIcon size={20} color="#717680" />
-                          </TouchableOpacity>
+                        render={({ field: { onChange, value } }) => (
+                          <>
+                            {isLoading ? (
+                              <View className="w-full rounded-[99px] border border-[#D0D5DD] min-h-[48px] flex items-center justify-center">
+                                <ActivityIndicator
+                                  size="small"
+                                  color="#132939"
+                                />
+                              </View>
+                            ) : isError ? (
+                              <View className="w-full rounded-[99px] border border-red-500 min-h-[48px] flex items-center justify-center px-4">
+                                <Text className="text-[12px] text-red-500">
+                                  Failed to load providers
+                                </Text>
+                              </View>
+                            ) : (
+                              <ElectricitySelector
+                                value={value}
+                                onValueChange={onChange}
+                                providers={electricityProviders}
+                                placeholder="Select your electricity company"
+                                error={Boolean(errors.company)}
+                              />
+                            )}
+                          </>
                         )}
                       />
 
@@ -469,22 +543,55 @@ export default function Electricity() {
                 >
                   <VStack space="lg" className="flex-1">
                     {/* COMPANY DISPLAY */}
-                    <FormControl>
+                    <FormControl isInvalid={Boolean(errors.company)}>
                       <FormControlLabel>
                         <FormControlLabelText className="text-[12px] text-[#414651] mb-[6px]">
                           Company
                         </FormControlLabelText>
                       </FormControlLabel>
 
-                      <TouchableOpacity
-                        onPress={() => setShowProviderDrawer(true)}
-                        className="w-full rounded-[99px] border border-[#D0D5DD] min-h-[48px] flex-row items-center px-4"
-                      >
-                        <Text className="flex-1 text-[14px] text-[#000000]">
-                          {selectedCompany?.icon} {selectedCompany?.name}
-                        </Text>
-                        <ChevronDownIcon size={20} color="#717680" />
-                      </TouchableOpacity>
+                      <Controller
+                        control={control}
+                        name="company"
+                        render={({ field: { onChange, value } }) => (
+                          <>
+                            {isLoading ? (
+                              <View className="w-full rounded-[99px] border border-[#D0D5DD] min-h-[48px] flex items-center justifycenter">
+                                <ActivityIndicator
+                                  size="small"
+                                  color="#132939"
+                                />
+                              </View>
+                            ) : isError ? (
+                              <View className="w-full rounded-[99px] border border-red-500 min-h-[48px] flex items-center justify-center px-4">
+                                <Text className="text-[12px] text-red-500">
+                                  Failed to load providers
+                                </Text>
+                              </View>
+                            ) : (
+                              <ElectricitySelector
+                                value={value}
+                                onValueChange={onChange}
+                                providers={electricityProviders}
+                                placeholder="Select your electricity company"
+                                error={Boolean(errors.company)}
+                              />
+                            )}
+                          </>
+                        )}
+                      />
+
+                      {errors.company && (
+                        <FormControlError>
+                          <FormControlErrorIcon
+                            className="text-red-500"
+                            as={AlertCircleIcon}
+                          />
+                          <FormControlErrorText className="text-red-500">
+                            {errors.company?.message}
+                          </FormControlErrorText>
+                        </FormControlError>
+                      )}
                     </FormControl>
 
                     {/* METER TYPE */}
@@ -596,9 +703,11 @@ export default function Electricity() {
                                 handleMeterBlur();
                               }}
                               autoCapitalize="none"
-                              editable={!isVerifyingCustomer}
+                              editable={
+                                !isVerifyingCustomer && !isVerifyingMeter
+                              }
                             />
-                            {isVerifyingCustomer && (
+                            {(isVerifyingCustomer || isVerifyingMeter) && (
                               <View className="absolute right-4 top-3">
                                 <ActivityIndicator
                                   size="small"
@@ -723,6 +832,7 @@ export default function Electricity() {
           <Button
             className="rounded-full bg-[#132939] h-[48px] w-full"
             size="xl"
+            disabled={isPurchasingElectricity}
             onPress={handleContinue}
           >
             <ButtonText className="text-white text-[16px] font-medium leading-[24px]">
@@ -834,348 +944,70 @@ export default function Electricity() {
         </DrawerContent>
       </Drawer>
 
-      {/* CONFIRMATION DRAWER */}
-      <Drawer
-        className="border-t-0"
+      <ConfirmationDrawer
         isOpen={showConfirmDrawer}
-        size="lg"
-        anchor="bottom"
         onClose={() => setShowConfirmDrawer(false)}
-      >
-        <DrawerBackdrop
-          style={{
-            backgroundColor: "#24242440",
-            opacity: 1,
-          }}
-        />
-        <DrawerContent
-          className="rounded-t-[30px] pt[28px] bg-[#FFFFFF]"
-          style={{
-            borderTopWidth: 0,
-            borderColor: "transparent",
-            shadowOpacity: 0,
-            elevation: 0,
-            // paddingBottom: Platform.OS === "ios" ? 34 : 16,
-            paddingBottom: insets.bottom || 16,
-          }}
-        >
-          <DrawerHeader className="border-b-0 pb2 px-6">
-            <VStack>
-              <VStack>
-                <Heading className="font-manropesemibold text-center text-[18px] text-[#000000] mb2">
-                  Confirm Transaction
-                </Heading>
-                <Text className="text-center text-[12px] font-manroperegular text-[#6B7280] px-2">
-                  Please review details carefully. Transactions are
-                  irreversible.
-                </Text>
-              </VStack>
-              <Heading className="text-[28px] font-medium text-center mt-[18px] font-manropebold text-[#000000]">
-                ₦{formatAmount(amountValue)}
-              </Heading>
-            </VStack>
-            <DrawerCloseButton />
-          </DrawerHeader>
-
-          <DrawerBody className="pt-2 px-1 pb-4">
-            <VStack space="md">
-              {/* Transaction Details */}
-              <View className="rounded-[20px] border-[#E5E7EF] border px-4">
-                <VStack space="sm">
-                  <HStack className="justify-between items-center py-2">
-                    <Text className="text-[12px] font-manroperegular text-[#303237]">
-                      Recipient
-                    </Text>
-                    <Text className="text-[12px] font-medium leading-[100%] font-manropesemibold text-[#141316]">
-                      {customerName}
-                    </Text>
-                  </HStack>
-
-                  <View className="h-[1px] bg-[#E5E7EB]" />
-
-                  <HStack className="justify-between items-center py-2">
-                    <Text className="text-[12px] font-manroperegular text-[#303237]">
-                      Meter Number
-                    </Text>
-                    <Text className="text-[12px] font-medium leading-[100%] font-manropesemibold text-[#141316]">
-                      {meterNumberValue}
-                    </Text>
-                  </HStack>
-
-                  <View className="h-[1px] bg-[#E5E7EB]" />
-
-                  <HStack className="justify-between items-center py-2">
-                    <Text className="text-[12px] font-manroperegular text-[#303237]">
-                      Company
-                    </Text>
-                    <Text className="text-[12px] font-medium leading-[100%] font-manropesemibold text-[#141316]">
-                      {selectedCompany?.name}
-                    </Text>
-                  </HStack>
-
-                  <View className="h-[1px] bg-[#E5E7EB]" />
-
-                  <HStack className="justify-between items-center py-2">
-                    <Text className="text-[12px] font-manroperegular text-[#303237]">
-                      Amount
-                    </Text>
-                    <Text className="text-[12px] font-medium leading-[100%] font-manropesemibold text-[#141316]">
-                      ₦{formatAmount(amountValue)}
-                    </Text>
-                  </HStack>
-
-                  <View className="h-[1px] bg-[#E5E7EB]" />
-
-                  <HStack className="justify-between items-center py-2">
-                    <Text className="text-[12px] font-manroperegular text-[#303237]">
-                      Meter Type
-                    </Text>
-                    <Text className="text-[12px] font-medium leading-[100%] font-manropesemibold text-[#141316]">
-                      {meterTypeValue === "prepaid" ? "Prepaid" : "Postpaid"}
-                    </Text>
-                  </HStack>
-                </VStack>
-              </View>
-
-              {/* Wallet & Cashback */}
-              <View className="px-4">
-                <VStack space="sm">
-                  <HStack className="justify-between items-center py-3">
-                    <HStack space="sm" className="items-center">
-                      <Wallet size={16} color="#FF8D28" />
-                      <Text className="text-[12px] font-manroperegular text-[#303237]">
-                        Wallet Balance
-                      </Text>
-                    </HStack>
-                    <Text className="text-[12px] font-medium leading-[100%] font-manropesemibold text-[#141316]">
-                      ₦50,000
-                    </Text>
-                  </HStack>
-
-                  <View className="h-[1px] bg-[#E5E7EB]" />
-
-                  <HStack className="justify-between items-center py-3">
-                    <HStack space="sm" className="items-center">
-                      <Gift size={16} color="#CB30E0" />
-                      <Text className="text-[12px] font-manroperegular text-[#303237]">
-                        Cashback
-                      </Text>
-                    </HStack>
-                    <Text className="text-[12px] font-medium leading-[100%] font-manropesemibold text-[#10B981]">
-                      +₦500
-                    </Text>
-                  </HStack>
-                </VStack>
-              </View>
-            </VStack>
-          </DrawerBody>
-
-          <DrawerFooter className="px-4 pt4 pb4">
-            <Button
-              className="rounded-full bg-[#132939] h-[48px] w-full"
-              size="xl"
-              onPress={handleContinueToPin}
-            >
-              <ButtonText className="text-white text-[16px] font-medium leading-[24px]">
-                Continue
-              </ButtonText>
-            </Button>
-          </DrawerFooter>
-        </DrawerContent>
-      </Drawer>
+        onConfirm={handleContinueToPin}
+        title="Confirm Transaction"
+        subtitle="Please review details carefully. Transactions are irreversible."
+        amount={amountValue}
+        showAmount={true}
+        amountClassName="text-[28px] font-medium text-center mt-[18px] font-manropebold text-[#000000]"
+        sections={[
+          {
+            containerClassName: "rounded-[20px] border-[#E5E7EF] border px-4",
+            details: [
+              {
+                label: "Recipient",
+                value: customerName,
+              },
+              {
+                label: "Meter Number",
+                value: meterNumberValue,
+              },
+              {
+                label: "Company",
+        value: selectedCompany?.name || "",
+              },
+              {
+                label: "Amount",
+                value: `₦${formatAmount(amountValue)}`,
+              },
+              {
+                label: "Meter Type",
+                value: meterTypeValue === "prepaid" ? "Prepaid" : "Postpaid",
+              },
+            ],
+          },
+          {
+            containerClassName: "px-4",
+            details: [
+              {
+                label: "Wallet Balance",
+                value: "₦50,000",
+                icon: <Wallet size={16} color="#FF8D28" />,
+              },
+              {
+                label: "Cashback",
+                value: "+₦500",
+                icon: <Gift size={16} color="#CB30E0" />,
+                valueClassName:
+                  "text-[12px] font-medium leading-[100%] font-manropesemibold text-[#10B981]",
+              },
+            ],
+          },
+        ]}
+      />
 
       {/* PIN DRAWER */}
-      <Drawer
-        className="border-t-0"
+      <PinDrawer
         isOpen={showPinDrawer}
-        size="lg"
-        anchor="bottom"
-        onClose={() => {
-          if (!isSubmitting) {
-            setShowPinDrawer(false);
-            setPin("");
-            setPinError("");
-          }
-        }}
-      >
-        <DrawerBackdrop
-          style={{
-            backgroundColor: "#24242440",
-            opacity: 1,
-          }}
-        />
-        <DrawerContent
-          className="rounded-t-[30px] pt-[39px] bg-[#FFFFFF]"
-          style={{
-            borderTopWidth: 0,
-            borderColor: "transparent",
-            shadowOpacity: 0,
-            elevation: 0,
-            paddingBottom: Platform.OS === "ios" ? 34 : 16,
-          }}
-        >
-          <DrawerHeader className="border-b-0 pb-6 px-4">
-            <Heading className="font-manropesemibold w-full text-center text-[18px] text-[#000000] mb-2">
-              Enter PIN
-            </Heading>
-            {!isSubmitting && <DrawerCloseButton />}
-          </DrawerHeader>
-
-          <DrawerBody className="pt-2 px-2 pb-8">
-            <VStack space="lg" className="items-center">
-              {/* OTP Input */}
-              <View className="mb-6">
-                <OtpInput
-                  ref={otpRef}
-                  numberOfDigits={PIN_LENGTH}
-                  focusColor="transparent"
-                  type="numeric"
-                  secureTextEntry={true}
-                  disabled={isSubmitting}
-                  autoFocus={false}
-                  onTextChange={handlePinChange}
-                  theme={{
-                    containerStyle: {
-                      width: "auto",
-                      alignSelf: "center",
-                    },
-                    pinCodeContainerStyle: {
-                      width: 49,
-                      height: 49,
-                      borderRadius: 12,
-                      borderWidth: 1.5,
-                      borderColor: pinError ? "#EF4444" : "#E5E7EB",
-                      backgroundColor: "#FFFFFF",
-                      marginHorizontal: 4,
-                      justifyContent: "center",
-                      alignItems: "center",
-                    },
-                    focusedPinCodeContainerStyle: {
-                      borderColor: pinError ? "#EF4444" : "#132939",
-                    },
-                    pinCodeTextStyle: {
-                      color: "#000000",
-                      fontSize: 32,
-                      fontWeight: "600",
-                    },
-                    filledPinCodeContainerStyle: {
-                      borderColor: pinError ? "#EF4444" : "#10B981",
-                    },
-                  }}
-                />
-              </View>
-
-              {/* Error or Loading */}
-              {pinError && !isSubmitting && (
-                <Text className="text-red-500 text-[12px] font-manroperegular text-center mb-2">
-                  {pinError}
-                </Text>
-              )}
-
-              {isSubmitting && (
-                <View className="mb-4">
-                  <ActivityIndicator size="small" color="#132939" />
-                  <Text className="text-[12px] font-manroperegular text-[#6B7280] text-center mt-2">
-                    Processing transaction...
-                  </Text>
-                </View>
-              )}
-
-              {/* Number Keypad */}
-              {!isSubmitting && (
-                <View className="w-full max-w-[320px]">
-                  <VStack space="lg">
-                    {/* Row 1-3: Numbers 1-9 */}
-                    {[
-                      [1, 2, 3],
-                      [4, 5, 6],
-                      [7, 8, 9],
-                    ].map((row, rowIndex) => (
-                      <HStack key={rowIndex} className="justify-between px-4">
-                        {row.map((num) => (
-                          <TouchableOpacity
-                            key={num}
-                            onPress={() => handleNumberPress(num.toString())}
-                            className="w-[70px] h-[60px] items-center justify-center"
-                            activeOpacity={0.6}
-                            disabled={pin.length >= PIN_LENGTH}
-                          >
-                            <Text className="text-[28px] font-manropesemibold text-[#000000]">
-                              {num}
-                            </Text>
-                          </TouchableOpacity>
-                        ))}
-                      </HStack>
-                    ))}
-
-                    {/* Row 4: Biometric, 0, Backspace */}
-                    <HStack className="justify-between px-4">
-                      {/* Biometric placeholder */}
-                      <TouchableOpacity
-                        onPress={() => {
-                          // Implement biometric auth
-                          console.log("Biometric auth");
-                        }}
-                        className="w-[70px] h-[60px] items-center justify-center"
-                        activeOpacity={0.6}
-                      >
-                        <Text className="text-[28px]">👆</Text>
-                      </TouchableOpacity>
-
-                      {/* Zero */}
-                      <TouchableOpacity
-                        onPress={() => handleNumberPress("0")}
-                        className="w-[70px] h-[60px] items-center justify-center"
-                        activeOpacity={0.6}
-                        disabled={pin.length >= PIN_LENGTH}
-                      >
-                        <Text className="text-[28px] font-manropesemibold text-[#000000]">
-                          0
-                        </Text>
-                      </TouchableOpacity>
-
-                      {/* Backspace */}
-                      <TouchableOpacity
-                        onPress={handleBackspace}
-                        className="w-[70px] h-[60px] items-center justify-center"
-                        activeOpacity={0.6}
-                        disabled={pin.length === 0}
-                      >
-                        <Text
-                          className={`text-[24px] ${
-                            pin.length === 0 ? "opacity-30" : ""
-                          }`}
-                        >
-                          ⌫
-                        </Text>
-                      </TouchableOpacity>
-                    </HStack>
-                  </VStack>
-                </View>
-              )}
-
-              {/* Forgot PIN */}
-              {!isSubmitting && (
-                <TouchableOpacity
-                  onPress={() => {
-                    // Implement forgot PIN flow
-                    Alert.alert(
-                      "Forgot PIN",
-                      "Please contact support to reset your PIN.",
-                      [{ text: "OK" }]
-                    );
-                  }}
-                  className="mt-6"
-                >
-                  <Text className="text-[14px] font-manropesemibold text-[#132939]">
-                    Forgot PIN?
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </VStack>
-          </DrawerBody>
-        </DrawerContent>
-      </Drawer>
+        onClose={() => setShowPinDrawer(false)}
+        onSubmit={handlePinSubmit}
+        title="Enter PIN"
+         isSubmitting={isSubmitting || isPurchasingElectricity} 
+        loadingText="Processing transaction..."
+      />
     </SafeAreaView>
   );
 }

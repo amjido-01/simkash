@@ -13,7 +13,7 @@ export const useGetBanks = () => {
       });
       return banks;
     },
-    staleTime: 1000 * 60 * 10,
+    staleTime: 1000 * 60 * 10, 
     retry: 2,
   });
 
