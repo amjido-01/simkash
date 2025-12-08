@@ -58,6 +58,7 @@ import { useGetElectricity } from "@/hooks/use-electricity";
 import * as yup from "yup";
 import ElectricitySelector from "@/components/electricity-selector";
 import { useVerifyMeter } from "@/hooks/use-verify-metre";
+import { OtpInput } from "react-native-otp-entry";
 
 // Mock electricity providers
 const ELECTRICITY_PROVIDERS = [
@@ -82,8 +83,7 @@ const schema = yup.object().shape({
     .string()
     .required("Meter number is required")
     .matches(/^[0-9]+$/, "Meter number must contain only digits")
-    .min(10, "Meter number must be at least 10 digits")
-    .max(13, "Meter number must not exceed 13 digits"),
+    .length(11, "Meter number must be exactly 11 digits"),
   amount: yup
     .string()
     .required("Please enter amount")
@@ -108,7 +108,8 @@ export default function Electricity() {
   const { electricityProviders, isLoading, isError } = useGetElectricity();
   const { mutateAsync: verifyMeter, isPending: isVerifyingMeter } =
     useVerifyMeter();
-    const { purchaseElectricity, isLoading: isPurchasingElectricity } = usePurchaseElectricity();
+  const { purchaseElectricity, isLoading: isPurchasingElectricity } =
+    usePurchaseElectricity();
   const [showProviderDrawer, setShowProviderDrawer] = useState(false);
   const [showConfirmDrawer, setShowConfirmDrawer] = useState(false);
   const [showPinDrawer, setShowPinDrawer] = useState(false);
@@ -152,9 +153,9 @@ export default function Electricity() {
   const amountValue = watch("amount");
 
   // Get selected company
- const selectedCompany = electricityProviders.find(
-  (p) => p.serviceID === companyValue
-);
+  const selectedCompany = electricityProviders.find(
+    (p) => p.serviceID === companyValue
+  );
 
   // Filter providers based on search
   const filteredProviders = ELECTRICITY_PROVIDERS.filter((provider) =>
@@ -264,7 +265,7 @@ export default function Electricity() {
   }, []);
 
   // PIN submission
- const handlePinSubmit = useCallback(
+const handlePinSubmit = useCallback(
   async (pinToSubmit?: string) => {
     const finalPin = pinToSubmit || pin;
 
@@ -274,13 +275,14 @@ export default function Electricity() {
     }
 
     setIsSubmitting(true);
+    setPinError(""); // Clear previous errors
 
     try {
-      console.log("🔐 PIN entered, processing electricity purchase...");
-
       // Validate that we have all required data
       if (!selectedCompany) {
-        throw new Error("No electricity company selected. Please select a company.");
+        throw new Error(
+          "No electricity company selected. Please select a company."
+        );
       }
 
       if (!meterNumberValue) {
@@ -292,7 +294,9 @@ export default function Electricity() {
       }
 
       if (!customerVerified || !customerName) {
-        throw new Error("Customer verification failed. Please verify the meter number.");
+        throw new Error(
+          "Customer verification failed. Please verify the meter number."
+        );
       }
 
       // Prepare the payload
@@ -301,66 +305,90 @@ export default function Electricity() {
         billersCode: meterNumberValue,
         variation_code: meterTypeValue as "prepaid" | "postpaid",
         amount: amountValue,
-        phone: meterNumberValue, // Using meter number as phone (adjust if needed)
+        phone: meterNumberValue,
         pin: parseInt(finalPin, 10),
       };
-
-      console.log("⚡ Electricity purchase payload:", payload);
 
       // Call the purchase electricity API
       const result = await purchaseElectricity(payload);
 
-      console.log("Electricity Purchase Success => ", result);
+      console.log("Electricity Purchase API Response => ", result);
 
-      // Success - close drawers and navigate
-      setShowPinDrawer(false);
-      setShowConfirmDrawer(false);
-      setPin("");
-      reset();
+      // Check if the transaction was successful
+      if (result.responseSuccessful) {
+        console.log("Electricity Purchase Success => ", result);
 
-      router.push({
-        pathname: "/transaction-success",
-        params: {
-          amount: amountValue,
-          recipient: customerName,
-          meterNumber: meterNumberValue,
-          transactionType: "electricity",
-          company: selectedCompany.name,
-          token: result.responseBody?.token || "N/A",
-          units: result.responseBody?.units || "N/A",
-          transactionId: result.responseBody?.transactionId || "",
-          reference: result.responseBody?.reference || "",
-          message: result.responseMessage || "Electricity purchased successfully",
-        },
-      });
+        // Success - close drawers and navigate
+        setShowPinDrawer(false);
+        setShowConfirmDrawer(false);
+        setPin("");
+        setPinError("");
+        reset();
+
+        router.push({
+          pathname: "/transaction-success",
+          params: {
+            amount: amountValue,
+            recipient: customerName,
+            meterNumber: meterNumberValue,
+            transactionType: "electricity",
+            company: selectedCompany.name,
+            token: result.responseBody?.token || "N/A",
+            units: result.responseBody?.units || "N/A",
+            transactionId: result.responseBody?.transactionId || "",
+            reference: result.responseBody?.reference || "",
+            message: result.responseMessage || "Electricity purchased successfully",
+          },
+        });
+      } else {
+        // Transaction failed (incorrect PIN, insufficient balance, etc.)
+        console.error("Electricity purchase failed:", result.responseMessage);
+
+        // Handle specific error messages
+        let errorMessage = result.responseMessage || "Transaction failed. Please try again.";
+
+        // Show user-friendly error messages
+        if (
+          errorMessage.toLowerCase().includes("pin") ||
+          errorMessage.toLowerCase().includes("incorrect")
+        ) {
+          errorMessage = "Incorrect PIN. Please try again.";
+        } else if (errorMessage.toLowerCase().includes("insufficient")) {
+          errorMessage = "Insufficient balance. Please fund your wallet.";
+        } else if (errorMessage.toLowerCase().includes("network")) {
+          errorMessage = "Network error. Please check your connection.";
+        } else if (errorMessage.toLowerCase().includes("meter")) {
+          errorMessage = "Invalid meter number. Please verify and try again.";
+        }
+
+        setPinError(errorMessage);
+
+        // Clear PIN and OTP input only for PIN errors
+        if (errorMessage.toLowerCase().includes("pin") || errorMessage.toLowerCase().includes("incorrect")) {
+          setPin("");
+          // Clear OTP input after a short delay
+          setTimeout(() => {
+            if (otpRef.current) {
+              try {
+                otpRef.current.clear();
+              } catch (e) {
+                console.log("Error clearing OTP:", e);
+              }
+            }
+          }, 100);
+        }
+      }
     } catch (error: any) {
+      // This catches network errors or other exceptions
       console.error("Electricity purchase error:", error);
 
-      // Handle specific error messages
       let errorMessage = "Transaction failed. Please try again.";
 
       if (error?.message) {
         errorMessage = error.message;
-      } else if (error?.responseMessage) {
-        errorMessage = error.responseMessage;
-      }
-
-      // Show user-friendly error messages based on content
-      if (errorMessage.toLowerCase().includes("pin")) {
-        errorMessage = "Invalid PIN. Please try again.";
-      } else if (errorMessage.toLowerCase().includes("insufficient")) {
-        errorMessage = "Insufficient balance. Please fund your wallet.";
-      } else if (errorMessage.toLowerCase().includes("network")) {
-        errorMessage = "Network error. Please check your connection.";
-      } else if (errorMessage.toLowerCase().includes("meter")) {
-        errorMessage = "Invalid meter number. Please verify and try again.";
       }
 
       setPinError(errorMessage);
-      setPin("");
-      if (otpRef.current) {
-        otpRef.current.clear();
-      }
     } finally {
       setIsSubmitting(false);
     }
@@ -377,6 +405,47 @@ export default function Electricity() {
     reset,
   ]
 );
+
+  // Backspace handler
+  const handleBackspace = useCallback(() => {
+    if (pin.length > 0) {
+      const newPin = pin.slice(0, -1);
+      setPin(newPin);
+      setPinError("");
+
+      if (otpRef.current) {
+        otpRef.current.setValue(newPin);
+      }
+    }
+  }, [pin]);
+
+  // PIN change handler
+  const handlePinChange = useCallback((text: string) => {
+    setPin(text);
+    setPinError("");
+  }, []);
+
+  // PIN pad number press
+  const handleNumberPress = useCallback(
+    (num: string) => {
+      if (pin.length < PIN_LENGTH) {
+        const newPin = pin + num;
+        setPin(newPin);
+        setPinError("");
+
+        // Update OTP input
+        if (otpRef.current) {
+          otpRef.current.setValue(newPin);
+        }
+
+        // Auto-submit when complete
+        if (newPin.length === PIN_LENGTH) {
+          setTimeout(() => handlePinSubmit(newPin), 300);
+        }
+      }
+    },
+    [pin]
+  );
 
   // Continue button handler
   const handleContinue = useCallback(async () => {
@@ -692,7 +761,7 @@ export default function Electricity() {
                               placeholder="Enter Meter Number"
                               className="w-full text-[14px] text-[#717680] min-h-[48px] px-4 py-3"
                               value={value}
-                              maxLength={13}
+                              maxLength={11}
                               keyboardType="number-pad"
                               onChangeText={(text) => {
                                 const cleaned = text.replace(/[^0-9]/g, "");
@@ -967,7 +1036,7 @@ export default function Electricity() {
               },
               {
                 label: "Company",
-        value: selectedCompany?.name || "",
+                value: selectedCompany?.name || "",
               },
               {
                 label: "Amount",
@@ -1000,14 +1069,205 @@ export default function Electricity() {
       />
 
       {/* PIN DRAWER */}
-      <PinDrawer
+      <Drawer
+        className="border-t-0"
         isOpen={showPinDrawer}
-        onClose={() => setShowPinDrawer(false)}
-        onSubmit={handlePinSubmit}
-        title="Enter PIN"
-         isSubmitting={isSubmitting || isPurchasingElectricity} 
-        loadingText="Processing transaction..."
-      />
+        size="lg"
+        anchor="bottom"
+        onClose={() => {
+          if (!isSubmitting && !pinError) {
+            setShowPinDrawer(false);
+            setPin("");
+            setPinError("");
+          }
+        }}
+      >
+        <DrawerBackdrop
+          style={{
+            backgroundColor: "#24242440",
+            opacity: 1,
+          }}
+        />
+        <DrawerContent
+          className="rounded-t-[30px] pt-[39px] bg-[#FFFFFF]"
+          style={{
+            borderTopWidth: 0,
+            borderColor: "transparent",
+            shadowOpacity: 0,
+            elevation: 0,
+            paddingBottom: Platform.OS === "ios" ? 34 : 16,
+          }}
+        >
+          <DrawerHeader className="border-b-0 pb-6 px-4">
+            <Heading className="font-manropesemibold w-full text-center text-[18px] text-[#000000] mb-2">
+              Enter PIN
+            </Heading>
+            {!isSubmitting && <DrawerCloseButton />}
+          </DrawerHeader>
+
+          <DrawerBody className="pt-2 px-2 pb-8">
+            <VStack space="lg" className="items-center">
+              {/* OTP Input */}
+              <View className="mb-6">
+                <OtpInput
+                  ref={(ref) => {
+                    otpRef.current = ref;
+                  }}
+                  numberOfDigits={PIN_LENGTH}
+                  focusColor="transparent"
+                  type="numeric"
+                  secureTextEntry={true}
+                  disabled={isSubmitting}
+                  autoFocus={true}
+                   onTextChange={(text) => {
+      handlePinChange(text);
+      // Auto-submit when complete
+      if (text.length === PIN_LENGTH) {
+        setTimeout(() => handlePinSubmit(text), 300);
+      }
+    }}
+                  theme={{
+                    containerStyle: {
+                      width: "auto",
+                      alignSelf: "center",
+                    },
+                    pinCodeContainerStyle: {
+                      width: 49,
+                      height: 49,
+                      borderRadius: 12,
+                      borderWidth: 1.5,
+                      borderColor: pinError ? "#EF4444" : "#E5E7EB",
+                      backgroundColor: "#FFFFFF",
+                      marginHorizontal: 4,
+                      justifyContent: "center",
+                      alignItems: "center",
+                    },
+                    focusedPinCodeContainerStyle: {
+                      borderColor: pinError ? "#EF4444" : "#132939",
+                    },
+                    pinCodeTextStyle: {
+                      color: "#000000",
+                      fontSize: 32,
+                      fontWeight: "600",
+                    },
+                    filledPinCodeContainerStyle: {
+                      borderColor: pinError ? "#EF4444" : "#10B981",
+                    },
+                  }}
+                />
+              </View>
+
+              {/* Error or Loading */}
+              {pinError && !isSubmitting && (
+                <Text className="text-red-500 text-[12px] font-manroperegular text-center mb-2">
+                  {pinError}
+                </Text>
+              )}
+
+              {isSubmitting && (
+                <View className="mb-4">
+                  <ActivityIndicator size="small" color="#132939" />
+                  <Text className="text-[12px] font-manroperegular text-[#6B7280] text-center mt-2">
+                    Processing transaction...
+                  </Text>
+                </View>
+              )}
+
+              {/* Number Keypad */}
+              {!isSubmitting && (
+                <View className="w-full max-w-[320px]">
+                  <VStack space="lg">
+                    {/* Row 1-3: Numbers 1-9 */}
+                    {[
+                      [1, 2, 3],
+                      [4, 5, 6],
+                      [7, 8, 9],
+                    ].map((row, rowIndex) => (
+                      <HStack key={rowIndex} className="justify-between px-4">
+                        {row.map((num) => (
+                          <TouchableOpacity
+                            key={num}
+                            onPress={() => handleNumberPress(num.toString())}
+                            className="w-[70px] h-[60px] items-center justify-center"
+                            activeOpacity={0.6}
+                            disabled={pin.length >= PIN_LENGTH}
+                          >
+                            <Text className="text-[28px] font-manropesemibold text-[#000000]">
+                              {num}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </HStack>
+                    ))}
+
+                    {/* Row 4: Biometric, 0, Backspace */}
+                    <HStack className="justify-between px-4">
+                      {/* Biometric placeholder */}
+                      <TouchableOpacity
+                        onPress={() => {
+                          // Implement biometric auth
+                          console.log("Biometric auth");
+                        }}
+                        className="w-[70px] h-[60px] items-center justify-center"
+                        activeOpacity={0.6}
+                      >
+                        <Text className="text-[28px]">👆</Text>
+                      </TouchableOpacity>
+
+                      {/* Zero */}
+                      <TouchableOpacity
+                        onPress={() => handleNumberPress("0")}
+                        className="w-[70px] h-[60px] items-center justify-center"
+                        activeOpacity={0.6}
+                        disabled={pin.length >= PIN_LENGTH}
+                      >
+                        <Text className="text-[28px] font-manropesemibold text-[#000000]">
+                          0
+                        </Text>
+                      </TouchableOpacity>
+
+                      {/* Backspace */}
+                      <TouchableOpacity
+                        onPress={handleBackspace}
+                        className="w-[70px] h-[60px] items-center justify-center"
+                        activeOpacity={0.6}
+                        disabled={pin.length === 0}
+                      >
+                        <Text
+                          className={`text-[24px] ${
+                            pin.length === 0 ? "opacity-30" : ""
+                          }`}
+                        >
+                          ⌫
+                        </Text>
+                      </TouchableOpacity>
+                    </HStack>
+                  </VStack>
+                </View>
+              )}
+
+              {/* Forgot PIN */}
+              {!isSubmitting && (
+                <TouchableOpacity
+                  onPress={() => {
+                    // Implement forgot PIN flow
+                    Alert.alert(
+                      "Forgot PIN",
+                      "Please contact support to reset your PIN.",
+                      [{ text: "OK" }]
+                    );
+                  }}
+                  className="mt-6"
+                >
+                  <Text className="text-[14px] font-manropesemibold text-[#132939]">
+                    Forgot PIN?
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </VStack>
+          </DrawerBody>
+        </DrawerContent>
+      </Drawer>
     </SafeAreaView>
   );
 }

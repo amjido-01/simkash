@@ -27,6 +27,7 @@ export const useGetDataPlans = (serviceID: string, enabled: boolean = true) => {
           method: "GET",
         }
       );
+      console.log(response, "from tt")
       return response;
     },
     enabled: enabled && !!serviceID, // Only run if serviceID exists and enabled is true

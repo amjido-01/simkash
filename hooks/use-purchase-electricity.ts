@@ -43,9 +43,9 @@ export const usePurchaseElectricity = () => {
         serviceID: payload.serviceID,
         billersCode: payload.billersCode,
         variation_code: payload.variation_code,
-        amount: payload.amount.toString(), // Ensure amount is a string
+        amount: payload.amount.toString(),
         phone: payload.phone,
-        pin: typeof payload.pin === 'number' ? payload.pin : parseInt(payload.pin, 10), // Ensure PIN is a number
+        pin: payload.pin.toString(),
       };
 
       console.log("⚡ Purchasing electricity with payload:", requestBody);
@@ -60,33 +60,30 @@ export const usePurchaseElectricity = () => {
 
       console.log("✅ Electricity purchase response:", response);
 
-      // Check if the response was successful
-      if (!response.responseSuccessful) {
-        throw new Error(response.responseMessage || "Electricity purchase failed");
-      }
-
+      // Return the response regardless of success/failure
+      // Let the component handle the error messages
       return response;
     },
     onSuccess: (data) => {
-      console.log("✅ Electricity purchased successfully:", data);
-      
-      // Invalidate dashboard to refresh wallet balance
-      queryClient.invalidateQueries({ queryKey: dashboardKeys.info() });
-      
-      // Invalidate transaction history to show new transaction
-      queryClient.invalidateQueries({ queryKey: ["transactions"] });
-      queryClient.invalidateQueries({ queryKey: ["transaction-history"] });
-      
-      // Optionally invalidate account details
-      queryClient.invalidateQueries({ queryKey: ["account-detail"] });
+      if (data.responseSuccessful) {
+        console.log("✅ Electricity purchased successfully:", data);
+        
+        // Invalidate dashboard to refresh wallet balance
+        queryClient.invalidateQueries({ queryKey: dashboardKeys.info() });
+        
+        // Invalidate transaction history to show new transaction
+        // queryClient.invalidateQueries({ queryKey: ["transactions"] });
+        // queryClient.invalidateQueries({ queryKey: ["transaction-history"] });
+        
+        // // Optionally invalidate account details
+        // queryClient.invalidateQueries({ queryKey: ["account-detail"] });
+      } else {
+        console.log("❌ Electricity purchase failed:", data.responseMessage);
+        // Don't throw here, let the component handle it
+      }
     },
     onError: (error: any) => {
-      console.error("❌ Electricity purchase failed:", error);
-      
-      // Log detailed error for debugging
-      if (error?.response) {
-        console.error("Error response:", error.response);
-      }
+      console.error("❌ Electricity purchase request failed:", error);
     },
   });
 

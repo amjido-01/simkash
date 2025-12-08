@@ -31,7 +31,7 @@ import {
   Gift,
   Wallet,
 } from "lucide-react-native";
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useRef, useState, useMemo } from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
   KeyboardAvoidingView,
@@ -50,6 +50,8 @@ import { OtpInput } from "react-native-otp-entry";
 import * as yup from "yup";
 import { router } from "expo-router";
 import { PIN_LENGTH } from "@/constants/menu";
+import { useWaecVariations } from '@/hooks/use-waec-variations';
+import { usePurchaseWaec } from '@/hooks/use-purchase-waec';
 
 // Service types
 const SERVICE_TYPES = [
@@ -68,6 +70,7 @@ const QUANTITIES = [
 ];
 
 // Validation schema
+// Update validation schema
 const schema = yup.object().shape({
   serviceType: yup.string().required("Please select a service type"),
   quantity: yup.string().required("Please select quantity"),
@@ -83,6 +86,8 @@ type FormData = yup.InferType<typeof schema>;
 export default function WaecPurchase() {
   // State management
   const insets = useSafeAreaInsets();
+  const { data: waecData, isLoading: isLoadingVariations, isError: isVariationsError, error: variationsError } = useWaecVariations();
+  const { purchaseWaec, isLoading: isPurchasing } = usePurchaseWaec();
   const [showServiceDrawer, setShowServiceDrawer] = useState(false);
   const [showQuantityDrawer, setShowQuantityDrawer] = useState(false);
   const [showConfirmDrawer, setShowConfirmDrawer] = useState(false);
@@ -92,6 +97,28 @@ export default function WaecPurchase() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const otpRef = useRef<any>(null);
+
+// In your component, update the serviceTypes memo:
+const serviceTypes = useMemo(() => {
+  if (!waecData?.responseSuccessful || !waecData.responseBody) {
+    return [];
+  }
+  
+  // Use the correct property name - try 'variations' first, then fallback to 'varations'
+  const variations = waecData.responseBody.variations || waecData.responseBody.varations || [];
+  
+  console.log("Mapped service types:", {
+    variationsCount: variations.length,
+    rawVariations: waecData.responseBody.variations,
+    rawVarations: waecData.responseBody.varations,
+  });
+  
+  return variations.map((variation) => ({
+    id: variation.variation_code,
+    name: variation.name,
+    price: variation.variation_amount,
+  }));
+}, [waecData?.responseSuccessful, waecData?.responseBody]);
 
   // Form setup
   const {
@@ -181,27 +208,59 @@ export default function WaecPurchase() {
     setPinError("");
   }, []);
 
+  
+
   // PIN submission
   const handlePinSubmit = useCallback(
-    async (pinToSubmit?: string) => {
-      const finalPin = pinToSubmit || pin;
+  async (pinToSubmit?: string) => {
+    const finalPin = pinToSubmit || pin;
 
-      if (finalPin.length !== PIN_LENGTH) {
-        setPinError("Please enter your 4-digit PIN");
-        return;
+    if (finalPin.length !== PIN_LENGTH) {
+      setPinError("Please enter your 4-digit PIN");
+      return;
+    }
+
+    setIsSubmitting(true);
+    setPinError("");
+
+    try {
+      // Get selected service details
+      const selectedService = serviceTypes.find(s => s.id === serviceTypeValue);
+      
+      if (!selectedService) {
+        throw new Error("Please select a service type");
       }
 
-      setIsSubmitting(true);
+      if (!quantityValue) {
+        throw new Error("Please select quantity");
+      }
 
-      try {
-        console.log("PIN entered:", finalPin);
-        await new Promise((resolve) => setTimeout(resolve, 1500));
+      if (!phoneNumberValue) {
+        throw new Error("Phone number is required");
+      }
 
+      // Prepare payload for API
+      const payload = {
+        serviceID: "waec",
+        variation_code: serviceTypeValue,
+        amount: totalAmount,
+        quantity: parseInt(quantityValue),
+        phone: phoneNumberValue,
+        pin: finalPin,
+      };
+
+      // Call the API
+      const result = await purchaseWaec(payload);
+
+      // Check if successful
+      if (result.responseSuccessful) {
+        // Success - close drawers and navigate
         setShowPinDrawer(false);
         setShowConfirmDrawer(false);
         setPin("");
         reset();
 
+        // Navigate to success screen with PINs/serials
         router.push({
           pathname: "/transaction-success",
           params: {
@@ -214,18 +273,123 @@ export default function WaecPurchase() {
             commission: "10",
           },
         });
-      } catch (error) {
-        setPinError("Invalid PIN. Please try again.");
-        setPin("");
-        if (otpRef.current) {
-          otpRef.current.clear();
+      } else {
+        // Handle API error
+        let errorMessage = result.responseMessage || "Transaction failed";
+        
+        if (errorMessage.toLowerCase().includes("pin")) {
+          errorMessage = "Incorrect PIN. Please try again.";
+          setPin("");
+          setTimeout(() => {
+            if (otpRef.current) otpRef.current.clear();
+          }, 100);
         }
-      } finally {
-        setIsSubmitting(false);
+        
+        setPinError(errorMessage);
       }
-    },
-    [pin, totalAmount, phoneNumberValue, selectedService, quantityValue, reset]
-  );
+    } catch (error: any) {
+      console.error("WAEC purchase error:", error);
+      
+      let errorMessage = "Transaction failed. Please try again.";
+      
+      // Handle network/API errors
+      if (error?.response?.status === 400 || error?.response?.status === 404) {
+        const apiError = error.response?.data?.responseMessage;
+        if (apiError?.toLowerCase().includes("pin")) {
+          errorMessage = "Incorrect PIN. Please try again.";
+          setPin("");
+          setTimeout(() => {
+            if (otpRef.current) otpRef.current.clear();
+          }, 100);
+        } else {
+          errorMessage = apiError || errorMessage;
+        }
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+      
+      setPinError(errorMessage);
+    } finally {
+      setIsSubmitting(false);
+    }
+  },
+  [
+    pin,
+    serviceTypeValue,
+    quantityValue,
+    phoneNumberValue,
+    totalAmount,
+    serviceTypes,
+    purchaseWaec,
+    reset,
+  ]
+);
+  // const handlePinSubmit = useCallback(
+  //   async (pinToSubmit?: string) => {
+  //     const finalPin = pinToSubmit || pin;
+
+  //     if (finalPin.length !== PIN_LENGTH) {
+  //       setPinError("Please enter your 4-digit PIN");
+  //       return;
+  //     }
+
+  //     setIsSubmitting(true);
+  //     setPinError("");
+  //     try {
+  //       const selectedService = serviceTypes.find(s => s.id === serviceTypeValue);
+      
+  //     if (!selectedService) {
+  //       throw new Error("Please select a service type");
+  //     }
+
+  //     if (!quantityValue) {
+  //       throw new Error("Please select quantity");
+  //     }
+
+  //     if (!phoneNumberValue) {
+  //       throw new Error("Phone number is required");
+  //     }
+
+  //     const payload = {
+  //       serviceID: "waec",
+  //       variation_code: serviceTypeValue,
+  //       amount: totalAmount,
+  //       quantity: parseInt(quantityValue),
+  //       phone: phoneNumberValue,
+  //       pin: finalPin,
+  //     };
+
+  //     const result = await purchaseWaec(payload);
+
+  //       setShowPinDrawer(false);
+  //       setShowConfirmDrawer(false);
+  //       setPin("");
+  //       reset();
+
+  //       router.push({
+  //         pathname: "/transaction-success",
+  //         params: {
+  //           amount: totalAmount,
+  //           recipient: phoneNumberValue,
+  //           phoneNumber: phoneNumberValue,
+  //           transactionType: "waec",
+  //           serviceType: selectedService?.name,
+  //           quantity: quantityValue,
+  //           commission: "10",
+  //         },
+  //       });
+  //     } catch (error) {
+  //       setPinError("Invalid PIN. Please try again.");
+  //       setPin("");
+  //       if (otpRef.current) {
+  //         otpRef.current.clear();
+  //       }
+  //     } finally {
+  //       setIsSubmitting(false);
+  //     }
+  //   },
+  //   [pin, totalAmount, phoneNumberValue, selectedService, quantityValue, reset]
+  // );
 
   // Continue button handler
   const handleContinue = useCallback(async () => {
@@ -257,6 +421,8 @@ export default function WaecPurchase() {
       router.push("/(tabs)");
     }
   }, [phoneNumberValue, serviceTypeValue]);
+
+
 
   // Format amount for display
   const formatAmount = useCallback((amount: string) => {
@@ -321,29 +487,47 @@ export default function WaecPurchase() {
                   </FormControlLabelText>
                 </FormControlLabel>
 
-                <Controller
-                  control={control}
-                  name="serviceType"
-                  render={({ field: { value } }) => (
-                    <TouchableOpacity
-                      onPress={() => setShowServiceDrawer(true)}
-                      className={`w-full rounded-[99px] min-h-[48px] flex-row items-center justify-between px-4 ${
-                        errors.serviceType
-                          ? "border-2 border-red-500"
-                          : "border border-[#D0D5DD]"
-                      }`}
-                    >
-                      <Text
-                        className={`text-[14px] ${
-                          value ? "text-[#000000]" : "text-[#717680]"
-                        }`}
-                      >
-                        {selectedService?.name || "Select service type"}
-                      </Text>
-                      <ChevronDown size={20} color="#717680" />
-                    </TouchableOpacity>
-                  )}
-                />
+{isLoadingVariations ? (
+  <View className="w-full rounded-[99px] border border-[#D0D5DD] min-h-[48px] flex items-center justify-center">
+    <ActivityIndicator size="small" color="#132939" />
+  </View>
+) : isVariationsError ? (
+  <View className="w-full rounded-[99px] border border-red-500 min-h-[48px] flex items-center justify-center px-4">
+    <Text className="text-[12px] text-red-500">
+      Failed to load service types. Please try again.
+    </Text>
+  </View>
+) : serviceTypes.length > 0 ? (
+  <Controller
+    control={control}
+    name="serviceType"
+    render={({ field: { value } }) => (
+      <TouchableOpacity
+        onPress={() => setShowServiceDrawer(true)}
+        className={`w-full rounded-[99px] min-h-[48px] flex-row items-center justify-between px-4 ${
+          errors.serviceType
+            ? "border-2 border-red-500"
+            : "border border-[#D0D5DD]"
+        }`}
+      >
+        <Text
+          className={`text-[14px] ${
+            value ? "text-[#000000]" : "text-[#717680]"
+          }`}
+        >
+          {serviceTypes.find(s => s.id === value)?.name || "Select service type"}
+        </Text>
+        <ChevronDown size={20} color="#717680" />
+      </TouchableOpacity>
+    )}
+  />
+) : (
+  <View className="w-full rounded-[99px] border border-red-500 min-h-[48px] flex items-center justify-center px-4">
+    <Text className="text-[12px] text-red-500">
+      No service types available
+    </Text>
+  </View>
+)}
 
                 {errors.serviceType && (
                   <FormControlError>
@@ -534,22 +718,33 @@ export default function WaecPurchase() {
             <DrawerCloseButton />
           </DrawerHeader>
 
-          <DrawerBody className="px6 pb-8">
-            <VStack space="sm">
-              {SERVICE_TYPES.map((service) => (
-                <TouchableOpacity
-                  key={service.id}
-                  onPress={() => handleServiceSelect(service.id)}
-                  className="flex-row justify-between items-center p-4 rounded-[16px] border-b border-[#E5E7EB] bg-white"
-                >
-                  <Text className="text-[14px] font-medium leading-[100%] font-manropesemibold text-[#141316]">
-                    {service.name}
-                  </Text>
-                  <ChevronRight size={20} color="#000000" />
-                </TouchableOpacity>
-              ))}
-            </VStack>
-          </DrawerBody>
+          {/* SERVICE TYPE SELECTION DRAWER */}
+<DrawerBody className="px-6 pb-8">
+  <VStack space="sm">
+    {isLoadingVariations ? (
+      <ActivityIndicator size="small" color="#132939" />
+    ) : serviceTypes.length > 0 ? (
+      serviceTypes.map((service) => (
+        <TouchableOpacity
+          key={service.id}
+          onPress={() => handleServiceSelect(service.id)}
+          className="flex-row justify-between items-center p-4 rounded-[16px] border-b border-[#E5E7EB] bg-white"
+        >
+          <Text className="text-[14px] font-medium leading-[100%] font-manropesemibold text-[#141316]">
+            {service.name}
+          </Text>
+          <Text className="text-[14px] text-gray-500">
+            ₦{parseInt(service.price).toLocaleString()}
+          </Text>
+        </TouchableOpacity>
+      ))
+    ) : (
+      <Text className="text-center text-gray-500 py-4">
+        No service types available
+      </Text>
+    )}
+  </VStack>
+</DrawerBody>
         </DrawerContent>
       </Drawer>
 

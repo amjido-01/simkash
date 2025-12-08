@@ -190,7 +190,6 @@ export default function DataBundle() {
 
   const selectedNetwork = networks.find((n) => n.serviceID === networkValue);
   const selectedBundle = popularPlans.find((b) => b.variation_code === dataBundleValue);
-  console.log("Selected Bundle:", selectedBundle);
 
   const submitForm = useCallback((data: FormData) => {
     setShowConfirmDrawer(true);
@@ -208,7 +207,6 @@ export default function DataBundle() {
     setIsSubmitting(true);
 
     try {
-      console.log("🔐 PIN entered, processing data purchase...");
 
       // Validate that we have all required data
       if (!selectedBundle) {
@@ -219,9 +217,10 @@ export default function DataBundle() {
         throw new Error("Network not found. Please select a network.");
       }
 
+      const serviceID = `${networkValue}-data`
       // Prepare the payload
       const payload = {
-        serviceID: networkValue, // e.g., "mtn-data", "glo-data"
+        serviceID: serviceID, // e.g., "mtn-data", "glo-data"
         billersCode: phoneValue, // Phone number as string
         variation_code: selectedBundle.variation_code, // e.g., "glo-50"
         amount: Number(selectedBundle.variation_amount), // Amount as number
@@ -233,7 +232,6 @@ export default function DataBundle() {
       // Call the purchase data API
       const result = await purchaseData(payload);
 
-      console.log("Data Purchase Success => ", result);
 
       // Success - close drawers and navigate
       setShowPinDrawer(false);
