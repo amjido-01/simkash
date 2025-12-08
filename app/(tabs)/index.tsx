@@ -56,8 +56,6 @@ export default function HomeScreen() {
   const [showBalance, setShowBalance] = useState(true);
   const [showTopUpDrawer, setShowTopUpDrawer] = useState(false);
   const [hasCompletedKYC, setHasCompletedKYC] = useState(false); // or true 
-  console.log("Dashboard Data:", dashboard);
-  console.log("Wallet Data:", accountDetail);
 
 
 

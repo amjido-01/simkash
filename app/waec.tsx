@@ -99,18 +99,23 @@ export default function WaecPurchase() {
   const otpRef = useRef<any>(null);
 
 // In your component, update the serviceTypes memo:
+// In your component, update the serviceTypes memo:
 const serviceTypes = useMemo(() => {
-  if (!waecData?.responseSuccessful || !waecData.responseBody) {
+  if (!waecData) {
+    console.log("No WAEC data available");
     return [];
   }
   
-  // Use the correct property name - try 'variations' first, then fallback to 'varations'
-  const variations = waecData.responseBody.variations || waecData.responseBody.varations || [];
+  console.log("WAEC Data received:", waecData);
   
-  console.log("Mapped service types:", {
+  // Try variations first, then varations (with typo)
+  const variations = waecData.variations || waecData.varations || [];
+  
+  console.log("Extracted variations:", {
+    hasVariations: !!waecData.variations,
+    hasVarations: !!waecData.varations,
     variationsCount: variations.length,
-    rawVariations: waecData.responseBody.variations,
-    rawVarations: waecData.responseBody.varations,
+    variationsData: variations,
   });
   
   return variations.map((variation) => ({
@@ -118,7 +123,7 @@ const serviceTypes = useMemo(() => {
     name: variation.name,
     price: variation.variation_amount,
   }));
-}, [waecData?.responseSuccessful, waecData?.responseBody]);
+}, [waecData]);
 
   // Form setup
   const {
@@ -144,16 +149,23 @@ const serviceTypes = useMemo(() => {
   const phoneNumberValue = watch("phoneNumber");
 
   // Get selected items
-  const selectedService = SERVICE_TYPES.find((s) => s.id === serviceTypeValue);
+const selectedService = useMemo(() => {
+  return serviceTypes.find((s) => s.id === serviceTypeValue);
+}, [serviceTypes, serviceTypeValue]);
   const selectedQuantity = QUANTITIES.find((q) => q.value === quantityValue);
 
-  // Calculate total amount
-  const totalAmount =
-    selectedService && selectedQuantity
-      ? (
-          parseInt(selectedService.price) * parseInt(selectedQuantity.value)
-        ).toString()
-      : "0";
+
+// With this:
+const totalAmount = useMemo(() => {
+  if (!selectedService || !selectedQuantity) return "0";
+  
+  const price = parseFloat(selectedService.price); // Use parseFloat for decimal values
+  const quantity = parseInt(selectedQuantity.value);
+  
+  // Calculate total and format to 2 decimal places
+  const total = (price * quantity).toFixed(2);
+  return total;
+}, [selectedService, selectedQuantity]);
 
   // Form submission
   const submitForm = useCallback((data: FormData) => {
@@ -249,6 +261,8 @@ const serviceTypes = useMemo(() => {
         pin: finalPin,
       };
 
+      console.log(payload, "payload")
+
       // Call the API
       const result = await purchaseWaec(payload);
 
@@ -324,73 +338,7 @@ const serviceTypes = useMemo(() => {
     reset,
   ]
 );
-  // const handlePinSubmit = useCallback(
-  //   async (pinToSubmit?: string) => {
-  //     const finalPin = pinToSubmit || pin;
-
-  //     if (finalPin.length !== PIN_LENGTH) {
-  //       setPinError("Please enter your 4-digit PIN");
-  //       return;
-  //     }
-
-  //     setIsSubmitting(true);
-  //     setPinError("");
-  //     try {
-  //       const selectedService = serviceTypes.find(s => s.id === serviceTypeValue);
-      
-  //     if (!selectedService) {
-  //       throw new Error("Please select a service type");
-  //     }
-
-  //     if (!quantityValue) {
-  //       throw new Error("Please select quantity");
-  //     }
-
-  //     if (!phoneNumberValue) {
-  //       throw new Error("Phone number is required");
-  //     }
-
-  //     const payload = {
-  //       serviceID: "waec",
-  //       variation_code: serviceTypeValue,
-  //       amount: totalAmount,
-  //       quantity: parseInt(quantityValue),
-  //       phone: phoneNumberValue,
-  //       pin: finalPin,
-  //     };
-
-  //     const result = await purchaseWaec(payload);
-
-  //       setShowPinDrawer(false);
-  //       setShowConfirmDrawer(false);
-  //       setPin("");
-  //       reset();
-
-  //       router.push({
-  //         pathname: "/transaction-success",
-  //         params: {
-  //           amount: totalAmount,
-  //           recipient: phoneNumberValue,
-  //           phoneNumber: phoneNumberValue,
-  //           transactionType: "waec",
-  //           serviceType: selectedService?.name,
-  //           quantity: quantityValue,
-  //           commission: "10",
-  //         },
-  //       });
-  //     } catch (error) {
-  //       setPinError("Invalid PIN. Please try again.");
-  //       setPin("");
-  //       if (otpRef.current) {
-  //         otpRef.current.clear();
-  //       }
-  //     } finally {
-  //       setIsSubmitting(false);
-  //     }
-  //   },
-  //   [pin, totalAmount, phoneNumberValue, selectedService, quantityValue, reset]
-  // );
-
+  
   // Continue button handler
   const handleContinue = useCallback(async () => {
     const valid = await trigger();
@@ -589,26 +537,35 @@ const serviceTypes = useMemo(() => {
                   )}
                 </FormControl>
 
-                   <FormControl>
-                  <FormControlLabel>
-                    <FormControlLabelText className="text-[12px] text-[#414651] mb-[6px]">
-                      Amount
-                    </FormControlLabelText>
-                  </FormControlLabel>
+<FormControl>
+  <FormControlLabel>
+    <FormControlLabelText className="text-[12px] text-[#414651] mb-[6px]">
+      Amount
+    </FormControlLabelText>
+  </FormControlLabel>
 
-                  <Input
-                    variant="outline"
-                    size="xl"
-                    isReadOnly={true}
-                    className="w-full rounded-[99px] min-h-[48px] border border-[#D0D5DD] bg-[#F9FAFB]"
-                  >
-                    <InputField
-                      value={`₦${formatAmount(totalAmount)}`}
-                      className="text-[14px] text-[#000000] font-manropesemibold px-4 py-3"
-                      editable={false}
-                    />
-                  </Input>
-                </FormControl>
+  <Input
+    variant="outline"
+    size="xl"
+    isReadOnly={true}
+    className="w-full rounded-[99px] min-h-[48px] border border-[#D0D5DD] bg-[#F9FAFB]"
+  >
+    <InputField
+      value={`₦${formatAmount(totalAmount)}`}
+      className="text-[14px] text-[#000000] font-manropesemibold px-4 py-3"
+      editable={false}
+    />
+    
+    {/* Optional: Show calculation breakdown */}
+    {selectedService && selectedQuantity && (
+      <View className="absolute right-4 top3">
+        <Text className="text-[10px] text-gray-500">
+          {selectedQuantity.value} × ₦{parseFloat(selectedService.price).toLocaleString()}
+        </Text>
+      </View>
+    )}
+  </Input>
+</FormControl>
 
                   <FormControl isInvalid={Boolean(errors.phoneNumber)}>
                   <FormControlLabel>
@@ -631,7 +588,7 @@ const serviceTypes = useMemo(() => {
                         }`}
                       >
                         <InputField
-                          placeholder="Enter Meter Number"
+                          placeholder="Enter Phone Number"
                           className="text-[14px] text-[#717680] px-4 py-3"
                           value={value}
                           maxLength={11}
@@ -691,7 +648,7 @@ const serviceTypes = useMemo(() => {
       <Drawer
         className="border-t-0"
         isOpen={showServiceDrawer}
-        size="md"
+        size="sm"
         anchor="bottom"
         onClose={() => setShowServiceDrawer(false)}
       >
@@ -860,7 +817,7 @@ const serviceTypes = useMemo(() => {
                       Service Type
                     </Text>
                     <Text className="text-[12px] font-medium leading-[100%] font-manropesemibold text-[#141316]">
-                      {selectedService?.name}
+                        {selectedService?.name || ""}
                     </Text>
                   </HStack>
 
