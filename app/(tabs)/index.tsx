@@ -19,6 +19,7 @@ import {
   paymentOptions,
   quickActions,
 } from "@/constants/menu";
+import { WalletBalance } from "@/components/wallet-balance";
 import { transactions, transferOptions } from "@/utils/mock";
 import { router } from "expo-router";
 import { ChevronRight, Eye, EyeOff } from "lucide-react-native";
@@ -41,13 +42,13 @@ export default function HomeScreen() {
  const {
   wallet,              // Wallet balance data
   parsedTransactions,  // Transactions with parsed metadata
-  userProfile,         // User profile info
-  dashboard,           // Full dashboard data
+  // userProfile,         // User profile info
+  // dashboard,           // Full dashboard data
   isLoading,          // Initial loading state
   isFetching,         // Refetching state
-  isError,            // Error state
-  error,              // Error object
-  refetch,            // Manual refetch function
+  // isError,            // Error state
+  // error,              // Error object
+  // refetch,            // Manual refetch function
 } = useDashboard();
   const { accountDetail, isFetchingAccountDetail, isAccountDetailError, accountDetailError } = useAccountDetail();
   const [showDrawer, setShowDrawer] = useState(false);
@@ -55,8 +56,7 @@ export default function HomeScreen() {
   const [selectedQuickAction, setSelectedQuickAction] = useState<any>(null);
   const [showBalance, setShowBalance] = useState(true);
   const [showTopUpDrawer, setShowTopUpDrawer] = useState(false);
-  const [hasCompletedKYC, setHasCompletedKYC] = useState(false); // or true 
-
+  // const [hasCompletedKYC, setHasCompletedKYC] = useState(false); 
 
 
   const handlePaymentOptionPress = (option: MenuOption | any) => {
@@ -115,30 +115,7 @@ export default function HomeScreen() {
             <Text className="font-manroperegular text-[14px] text-[#6B7280] mb-2">
               Wallet Balance
             </Text>
-            <HStack className="items-center gap-3">
-               {showBalance ? (
-                <Heading className="text-[#141316] font-manropesemibold text-[38px]">
-                  ₦ {parseFloat(wallet?.balance || "0").toLocaleString()}
-                </Heading>
-              ) : (
-                <Heading className="text-[#141316] font-manropesemibold text-[38px]">
-                  ₦ ••••••
-                </Heading>
-              )}
-              {/* <Heading className="text-[#141316] font-manropesemibold text-[38px]">
-               
-              </Heading> */}
-               <TouchableOpacity
-                className="p-2"
-                onPress={() => setShowBalance(!showBalance)}
-              >
-                {showBalance ? (
-                  <Eye size={24} color="#6B7280" />
-                ) : (
-                  <EyeOff size={24} color="#6B7280" />
-                )}
-              </TouchableOpacity>
-            </HStack>
+          <WalletBalance balance={wallet?.balance} size="lg"/>
           </VStack>
 
           {/* Quick Actions - Top Up & Send */}

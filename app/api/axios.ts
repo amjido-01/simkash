@@ -3,6 +3,7 @@ import { tokenStorage } from '@/utils/tokenStorage';
 import { ApiResponse, ApiError } from '@/types';
 import { router } from 'expo-router';
 import { BASE_URL } from '@/constants/api';
+import { useAuthStore } from '@/store/auth-store';
 // Get base URL from environment variables
 
 export const api = axios.create({
@@ -63,10 +64,10 @@ api.interceptors.response.use(
 
       if (!refreshToken) {
         // No refresh token - logout and redirect
-        await tokenStorage.clearTokens();
+         await tokenStorage.clearTokens();
         
-        // DIFFERENCE: Use expo-router instead of window.location
-        router.replace('/(auth)/signin');
+        // ✅ Use Zustand store to sign out
+        useAuthStore.getState().signOut();
         return Promise.reject(error);
       }
 
@@ -102,7 +103,7 @@ api.interceptors.response.use(
         
         // Refresh failed - logout
         await tokenStorage.clearTokens();
-        router.replace('/(auth)/signin');
+        useAuthStore.getState().signOut();
         return Promise.reject(refreshError);
       }
     }

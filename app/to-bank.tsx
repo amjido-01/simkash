@@ -246,7 +246,6 @@ export default function ToBank() {
     setPinError("");
   }, []);
 
-  // PIN submission
 const handlePinSubmit = useCallback(
   async (pinToSubmit?: string) => {
     const finalPin = pinToSubmit || pin;
@@ -258,24 +257,36 @@ const handlePinSubmit = useCallback(
 
     setIsSubmitting(true);
 
+    // -------------------------
+    // Extract payload here
+    // -------------------------
+    const payload = {
+      amount: parseInt(amountValue, 10),
+      account_number: phoneValue,
+      bank_code: bankValue,
+      pin: parseInt(finalPin, 10),
+      narration: narrationValue || undefined,
+    };
+
+    console.log(payload, "transfer")
+
     try {
-      // Call the API to send money
-      const response = await sendMoney({
-        amount: parseInt(amountValue, 10),
-        account_number: phoneValue,
-        bank_code: bankValue,
-        pin: parseInt(finalPin, 10),
-        narration: narrationValue || undefined,
-      });
+      const response = await sendMoney(payload);
 
       console.log("Transfer successful:", response);
 
-      // Success - close drawers and navigate
+      // Close drawers first
       setShowPinDrawer(false);
       setShowDrawer(false);
       setPin("");
       reset();
 
+      // -------------------------
+      // Wait for drawer animation to finish (e.g., 200–300ms)
+      // -------------------------
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
+      // Navigate AFTER drawers close
       router.push({
         pathname: "/transaction-success",
         params: {
@@ -283,7 +294,6 @@ const handlePinSubmit = useCallback(
           recipient: accountName,
           phoneNumber: phoneValue,
           narration: narrationValue || "",
-          // Add response data
           reference: response.data.data.reference,
           transferCode: response.data.data.transfer_code,
           status: response.data.data.status,
@@ -293,27 +303,23 @@ const handlePinSubmit = useCallback(
       });
     } catch (error: any) {
       console.error("Transfer error:", error);
-      
-      // Handle specific error messages
-      let errorMessage = "Transaction failed. Please try again.";
-      
-      if (error?.message) {
-        errorMessage = error.message;
-      } else if (error?.responseMessage) {
-        errorMessage = error.responseMessage;
-      }
-      
+
+      let errorMessage =
+        error?.message ||
+        error?.responseMessage ||
+        "Transaction failed. Please try again.";
+
       setPinError(errorMessage);
       setPin("");
-      if (otpRef.current) {
-        otpRef.current.clear();
-      }
+
+      if (otpRef.current) otpRef.current.clear();
     } finally {
       setIsSubmitting(false);
     }
   },
   [pin, amountValue, accountName, phoneValue, narrationValue, bankValue, reset, sendMoney]
 );
+
 
 
   // Continue button handler

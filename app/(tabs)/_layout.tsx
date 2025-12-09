@@ -1,50 +1,9 @@
 // app/(tabs)/_layout.tsx
-import { useEffect, useState } from "react";
-import { Tabs, router } from "expo-router";
+import { Tabs } from "expo-router";
 import { Home, User, WalletMinimal, Gift } from "lucide-react-native";
-import { tokenStorage } from "@/utils/tokenStorage";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
-import SimpleLoader from "@/components/simple-loader";
 
 export default function TabsLayout() {
-  const [isAuthChecked, setIsAuthChecked] = useState(false);
-
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        // ✅ Add delay to allow token storage to complete
-        // This prevents race condition when navigating from onboarding
-        await new Promise((resolve) => setTimeout(resolve, 800));
-
-        const token = await tokenStorage.getAccessToken();
-        
-        console.log("🔍 Auth check - Token exists:", !!token);
-
-        if (!token) {
-          console.log("❌ No token found, redirecting to sign in");
-          router.replace("/(auth)/signin");
-        } else {
-          console.log("✅ Token found, user authenticated");
-          setIsAuthChecked(true);
-        }
-      } catch (error) {
-        console.error("❌ Auth check error:", error);
-        // On error, redirect to sign in
-        router.replace("/(auth)/signin");
-      }
-    };
-
-    checkAuth();
-  }, []);
-
-  // Optional: Show nothing while checking (prevents flash)
-  // You can also show a loading spinner here
-  if (!isAuthChecked) {
-    return (
-        <SimpleLoader />
-    );
-  }
-
   return (
     <Tabs
       screenOptions={{

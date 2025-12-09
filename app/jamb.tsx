@@ -50,6 +50,7 @@ import * as yup from "yup";
 import { router } from "expo-router";
 import { PIN_LENGTH } from "@/constants/menu";
 import { transferOptions } from "@/utils/mock";
+import { JambVariation } from "@/hooks/use-jamb-variations";
 
 // Service types
 const SERVICE_TYPES = [
@@ -74,6 +75,7 @@ type FormData = yup.InferType<typeof schema>;
 export default function JambPurchase() {
   // State management
   const insets = useSafeAreaInsets();
+   const { data: jambData, isLoading: isLoadingVariations, isError: isVariationsError, error: variationsError } = useWaecVariations();
   const [showServiceDrawer, setShowServiceDrawer] = useState(false);
   const [showConfirmDrawer, setShowConfirmDrawer] = useState(false);
   const [showPinDrawer, setShowPinDrawer] = useState(false);

@@ -258,6 +258,8 @@ export default function ToSimkash() {
       setPin("");
       reset();
 
+       await new Promise((resolve) => setTimeout(resolve, 300));
+
       router.push({
         pathname: "/transaction-success",
         params: {

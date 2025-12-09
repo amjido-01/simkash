@@ -30,15 +30,11 @@ const schema = yup.object().shape({
     .string()
     .email("Invalid email address. Try again.")
     .required("Email is required"),
-   password: yup
-    .string()
-    .required("Password is required")
-    
-
+  password: yup.string().required("Password is required"),
 });
 
 export default function Login() {
-   const [showPassword, setShowPassword] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [savedUserInfo, setSavedUserInfo] = useState<{
     email: string | null;
@@ -47,12 +43,12 @@ export default function Login() {
   }>({ email: null, name: null, phone: null });
   const [showEmailInput, setShowEmailInput] = useState(false);
   const [alert, setAlert] = useState<{
-     show: boolean;
-     type: "success" | "error" | "warning" | "info";
-     message: string;
-   }>({ show: false, type: "info", message: "" });
+    show: boolean;
+    type: "success" | "error" | "warning" | "info";
+    message: string;
+  }>({ show: false, type: "info", message: "" });
 
-   const {
+  const {
     control,
     handleSubmit,
     formState: { errors },
@@ -70,21 +66,21 @@ export default function Login() {
   const loadSavedUserInfo = async () => {
     try {
       const userInfo = await userStorage.getUserInfo();
-      console.log('🔍 Loaded user info from storage:', userInfo);
-      
+      console.log("🔍 Loaded user info from storage:", userInfo);
+
       if (userInfo.email && userInfo.shouldRemember) {
         setSavedUserInfo({
           email: userInfo.email,
           name: userInfo.name,
           phone: userInfo.phone,
         });
-        setValue('email', userInfo.email);
-        console.log('✅ Loaded saved user info:', userInfo.email);
+        setValue("email", userInfo.email);
+        console.log("✅ Loaded saved user info:", userInfo.email);
       } else {
         setShowEmailInput(true);
       }
     } catch (error) {
-      console.error('Error loading saved user info:', error);
+      console.error("Error loading saved user info:", error);
       setShowEmailInput(true);
     }
   };
@@ -95,7 +91,7 @@ export default function Login() {
       console.log("🔐 Attempting login...");
 
       let response;
-      
+
       if (savedUserInfo.email && !showEmailInput) {
         // Quick login with saved email
         console.log("🚀 Quick login with saved email:", savedUserInfo.email);
@@ -103,11 +99,11 @@ export default function Login() {
       } else {
         // Full login with email
         console.log("🚀 Full login with email:", data.email);
-        
+
         if (!data.email) {
           throw new Error("Please enter your email");
         }
-        
+
         response = await authEndpoints.login(data.email, data.password);
       }
 
@@ -119,19 +115,18 @@ export default function Login() {
       //   message: "Login successful! Redirecting...",
       // });
 
-      await new Promise(res => setTimeout(res, 800));
+      await new Promise((res) => setTimeout(res, 800));
 
       // Navigate to dashboard
       router.replace("/(tabs)");
       // setTimeout(() => {
       //   router.replace("/(tabs)");
       // }, 1000);
-
     } catch (error: any) {
       console.error("❌ Login failed:", error);
-      
+
       let errorMessage = "Login failed. Please try again.";
-      
+
       if (error instanceof Error) {
         errorMessage = error.message;
       } else if (error?.message) {
@@ -175,62 +170,62 @@ export default function Login() {
           </VStack>
 
           <VStack space="xl" className="flex-1">
-             {alert.show && (
-                              <CustomAlert
-                                type={alert.type}
-                                message={alert.message}
-                                onClose={() =>
-                                  setAlert((prev) => ({ ...prev, show: false }))
-                                }
-                              />
-                            )}
-            
-            {/* EMAIL */}
-             {showEmailInput && (<FormControl isInvalid={Boolean(errors.email)}>
-              <FormControlLabel>
-                <FormControlLabelText className="text-[12px] text-[#414651] mb-[6px]">
-                  Email
-                </FormControlLabelText>
-              </FormControlLabel>
-
-              <Controller
-                control={control}
-                name="email"
-                render={({ field: { onChange, onBlur, value } }) => (
-                  <Input
-                    variant="outline"
-                    size="xl"
-                    className={`w-full p-2 rounded-[99px] focus:border-2 focus:border-[#D0D5DD] min-h-[48px] ${
-                      errors.email
-                        ? "border-2 border-red-500"
-                        : "border border-[#D0D5DD]"
-                    }`}
-                  >
-                    <InputField
-                      placeholder="olivia@untitledui.com"
-                      className="w-full text-[14px] text-[#717680] h-[48px]"
-                      value={value}
-                      onChangeText={onChange}
-                      onBlur={onBlur}
-                      keyboardType="email-address"
-                      autoCapitalize="none"
-                    />
-                  </Input>
-                )}
+            {alert.show && (
+              <CustomAlert
+                type={alert.type}
+                message={alert.message}
+                onClose={() => setAlert((prev) => ({ ...prev, show: false }))}
               />
+            )}
 
-              {errors.email && (
-                <FormControlError>
-                  <FormControlErrorIcon
-                    className="text-red-500"
-                    as={AlertCircleIcon}
-                  />
-                  <FormControlErrorText className="text-red-500">
-                    {errors.email?.message}
-                  </FormControlErrorText>
-                </FormControlError>
-              )}
-            </FormControl>)}
+            {/* EMAIL */}
+            {showEmailInput && (
+              <FormControl isInvalid={Boolean(errors.email)}>
+                <FormControlLabel>
+                  <FormControlLabelText className="text-[12px] text-[#414651] mb-[6px]">
+                    Email
+                  </FormControlLabelText>
+                </FormControlLabel>
+
+                <Controller
+                  control={control}
+                  name="email"
+                  render={({ field: { onChange, onBlur, value } }) => (
+                    <Input
+                      variant="outline"
+                      size="xl"
+                      className={`w-full p-2 rounded-[99px] focus:border-2 focus:border-[#D0D5DD] min-h-[48px] ${
+                        errors.email
+                          ? "border-2 border-red-500"
+                          : "border border-[#D0D5DD]"
+                      }`}
+                    >
+                      <InputField
+                        placeholder="olivia@untitledui.com"
+                        className="w-full text-[14px] text-[#717680] h-[48px]"
+                        value={value}
+                        onChangeText={onChange}
+                        onBlur={onBlur}
+                        keyboardType="email-address"
+                        autoCapitalize="none"
+                      />
+                    </Input>
+                  )}
+                />
+
+                {errors.email && (
+                  <FormControlError>
+                    <FormControlErrorIcon
+                      className="text-red-500"
+                      as={AlertCircleIcon}
+                    />
+                    <FormControlErrorText className="text-red-500">
+                      {errors.email?.message}
+                    </FormControlErrorText>
+                  </FormControlError>
+                )}
+              </FormControl>
+            )}
 
             {/* PASSWORD */}
             <FormControl isInvalid={Boolean(errors.password)}>
@@ -258,11 +253,11 @@ export default function Login() {
                       placeholder="Enter 6-Digit Password"
                       className="text-[14px] text-[#717680]"
                       value={value}
-                        onChangeText={onChange}
+                      onChangeText={onChange}
                       onBlur={onBlur}
                       autoCapitalize="none"
-                       keyboardType="number-pad"
-                          maxLength={10}
+                      keyboardType="number-pad"
+                      maxLength={10}
                     />
                     <InputSlot
                       className="pr-3"
@@ -287,6 +282,21 @@ export default function Login() {
               )}
             </FormControl>
 
+            {/* SWITCH ACCOUNT BUTTON */}
+            {savedUserInfo.email && !showEmailInput && (
+              <HStack className="justify-start mt-2">
+                <Button
+                  variant="link"
+                  onPress={handleSwitchAccount}
+                  className="self-start -mt-2"
+                >
+                  <ButtonText className="text-[13px] text-[#132939] underline underline-offset-8">
+                    Switch account
+                  </ButtonText>
+                </Button>
+              </HStack>
+            )}
+
             {/* FORGOT PASSWORD */}
             <HStack className="justify-end">
               <Button
@@ -302,7 +312,7 @@ export default function Login() {
           </VStack>
 
           {/* BUTTONS */}
-         <VStack space="sm" className="px6 pb6">
+          <VStack space="sm" className="px6 pb6">
             <Button
               className="rounded-full bg-[#132939] h-[48px]"
               size="xl"

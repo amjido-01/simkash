@@ -8,15 +8,19 @@ import { Button, ButtonIcon } from "@/components/ui/button";
 import React from "react";
 import { Box } from "@/components/ui/box";
 import { Search, Bell, Menu } from "lucide-react-native";
-import { authEndpoints } from "@/app/api/endpoints";
-import { router } from "expo-router";
+import { useAuthStore } from "@/store/auth-store";
 
 export default function Header() {
+  const { user, signOut } = useAuthStore();
+  // console.log(user, "from header")
 
    const handleLogout = async () => {
-    console.log('Search icon pressed - triggering logout');
-    await authEndpoints.logout();
-    router.replace('/(auth)/signin');
+    try {
+      await signOut();
+      // Navigation is handled automatically by useProtectedRoute
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
   };
   return (
     <Box className={"border-b-2 border-[#E9EAEB] px-4 py-4"}>

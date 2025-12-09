@@ -133,7 +133,7 @@ export const ConfirmationDrawer: React.FC<ConfirmationDrawerProps> = ({
               <Heading
                 className={
                   titleClassName ||
-                  "font-manropesemibold text-center text-[18px] text-[#000000] mb-2"
+                  "font-manropesemibold text-center text-[18px] text-[#000000] mb2"
                 }
               >
                 {title}
@@ -164,7 +164,7 @@ export const ConfirmationDrawer: React.FC<ConfirmationDrawerProps> = ({
         </DrawerHeader>
 
         <DrawerBody
-          className={`pt-4 px-1 pb-6 ${bodyClassName}`}
+          className={`pt4 px-1 pb6 ${bodyClassName}`}
           style={bodyStyle}
         >
           <VStack space="md">
@@ -215,7 +215,7 @@ export const ConfirmationDrawer: React.FC<ConfirmationDrawerProps> = ({
         </DrawerBody>
 
         <DrawerFooter
-          className={`px-4 pt-4 pb-0 ${footerClassName}`}
+          className={`px-4 pt4 pb-0 ${footerClassName}`}
           style={footerStyle}
         >
           <Button

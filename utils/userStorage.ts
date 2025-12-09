@@ -4,6 +4,7 @@ const USER_EMAIL_KEY = 'user_email';
 const USER_NAME_KEY = 'user_name';
 const USER_PHONE_KEY = 'user_phone';
 const REMEMBER_ME_KEY = 'remember_me';
+const SHOW_BALANCE_KEY = 'user_show_balance_preference'; 
 
 export const userStorage = {
   // Save user info after successful login/registration
@@ -124,6 +125,52 @@ export const userStorage = {
       await SecureStore.setItemAsync(USER_PHONE_KEY, phone);
     } catch (error) {
       console.error('❌ Error updating phone:', error);
+    }
+  },
+
+  getShowBalancePreference: async (): Promise<boolean> => {
+    try {
+      const preference = await SecureStore.getItemAsync(SHOW_BALANCE_KEY);
+      // Default to true (show balance) if no preference is set
+      return preference !== null ? preference === 'true' : true;
+    } catch (error) {
+      console.error('❌ Error getting balance visibility preference:', error);
+      return true; // Default to showing balance on error
+    }
+  },
+
+  /**
+   * Set user's balance visibility preference
+   * @param show - true to show balance, false to hide
+   */
+  setShowBalancePreference: async (show: boolean): Promise<void> => {
+    try {
+      await SecureStore.setItemAsync(SHOW_BALANCE_KEY, String(show));
+      console.log('✅ Balance visibility preference saved:', show);
+    } catch (error) {
+      console.error('❌ Error saving balance visibility preference:', error);
+      throw error;
+    }
+  },
+
+  toggleShowBalancePreference: async (): Promise<boolean> => {
+    try {
+      const currentPreference = await userStorage.getShowBalancePreference();
+      const newPreference = !currentPreference;
+      await userStorage.setShowBalancePreference(newPreference);
+      return newPreference;
+    } catch (error) {
+      console.error('❌ Error toggling balance visibility preference:', error);
+      throw error;
+    }
+  },
+
+  clearShowBalancePreference: async (): Promise<void> => {
+    try {
+      await SecureStore.deleteItemAsync(SHOW_BALANCE_KEY);
+      console.log('✅ Balance visibility preference cleared');
+    } catch (error) {
+      console.error('❌ Error clearing balance visibility preference:', error);
     }
   },
 };

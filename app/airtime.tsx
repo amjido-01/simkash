@@ -247,17 +247,17 @@ export default function Airtime() {
         if (!selectedNetworkData) {
           throw new Error("Network not found. Please select a network.");
         }
-
+        console.log(selectedNetworkData, "data")
         // Get network ID for API call
-        const networkId = getNetworkId(selectedNetworkData.serviceID);
 
         const payload = {
           phone: phoneValue,
           amount: Number(amountValue),
-            network: networkId.toString(),
+            network: selectedNetworkData?.serviceID,
           pin: pin,
         };
 
+        console.log(payload, "airtime")
 
         // Call the purchase airtime API
         const result = await purchaseAirtime(payload);
@@ -269,6 +269,8 @@ export default function Airtime() {
         setShowDrawer(false);
         reset();
 
+         await new Promise((resolve) => setTimeout(resolve, 300));
+         
         // Reset tracking
         setHasSetDefaultNetwork(false);
         lastVerifiedPhone.current = "";

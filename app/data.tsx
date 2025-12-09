@@ -202,12 +202,11 @@ export default function DataBundle() {
     }, 300);
   }, []);
 
- const handlePinSubmit = useCallback(
+const handlePinSubmit = useCallback(
   async (pin: string) => {
     setIsSubmitting(true);
 
     try {
-
       // Validate that we have all required data
       if (!selectedBundle) {
         throw new Error("No data bundle selected. Please select a bundle.");
@@ -217,26 +216,36 @@ export default function DataBundle() {
         throw new Error("Network not found. Please select a network.");
       }
 
-      const serviceID = `${networkValue}-data`
-      // Prepare the payload
+      const serviceID = `${networkValue}-data`;
       const payload = {
-        serviceID: serviceID, // e.g., "mtn-data", "glo-data"
-        billersCode: phoneValue, // Phone number as string
-        variation_code: selectedBundle.variation_code, // e.g., "glo-50"
-        amount: Number(selectedBundle.variation_amount), // Amount as number
-        phone: phoneValue, // Phone number
-        pin: pin, // Transaction PIN
+        serviceID: serviceID,
+        billersCode: phoneValue,
+        variation_code: selectedBundle.variation_code,
+        amount: Number(selectedBundle.variation_amount),
+        phone: phoneValue,
+        pin: pin,
       };
 
+      console.log("🚀 Submitting purchase:", payload);
 
       // Call the purchase data API
       const result = await purchaseData(payload);
 
+      console.log("✅ Purchase result:", result);
+
+      // ✅ Add explicit success check
+      if (!result || !result.responseSuccessful) {
+        throw new Error(
+          result?.responseMessage || "Transaction failed. Please try again."
+        );
+      }
 
       // Success - close drawers and navigate
       setShowPinDrawer(false);
       setShowConfirmDrawer(false);
       reset();
+
+      await new Promise((resolve) => setTimeout(resolve, 300));
 
       // Reset tracking
       setHasSetDefaultNetwork(false);
@@ -257,27 +266,37 @@ export default function DataBundle() {
         },
       });
     } catch (error: any) {
-      console.error("Data purchase error:", error);
+      console.error("❌ Data purchase error:", error);
 
-      // Handle specific error messages
+      // ✅ Better error message extraction
       let errorMessage = "Transaction failed. Please try again.";
 
-      if (error?.message) {
+      // Check if it's an actual error object
+      if (error instanceof Error) {
         errorMessage = error.message;
+      } else if (error?.response?.data?.responseMessage) {
+        errorMessage = error.response.data.responseMessage;
       } else if (error?.responseMessage) {
         errorMessage = error.responseMessage;
+      } else if (typeof error === "string") {
+        errorMessage = error;
       }
 
-      // Show user-friendly error messages based on content
-      if (errorMessage.toLowerCase().includes("pin")) {
+      // ✅ Only modify error message if it's NOT a successful transaction
+      // Don't check for "network" string as it might be in success responses
+      if (errorMessage.toLowerCase().includes("invalid") && 
+          errorMessage.toLowerCase().includes("pin")) {
         errorMessage = "Invalid PIN. Please try again.";
       } else if (errorMessage.toLowerCase().includes("insufficient")) {
         errorMessage = "Insufficient balance. Please fund your wallet.";
-      } else if (errorMessage.toLowerCase().includes("network")) {
+      } else if (errorMessage.toLowerCase().includes("connection") || 
+                 errorMessage.toLowerCase().includes("timeout")) {
         errorMessage = "Network error. Please check your connection.";
       } else if (errorMessage.toLowerCase().includes("invalid phone")) {
         errorMessage = "Invalid phone number. Please check and try again.";
       }
+
+      console.error("📢 Final error message:", errorMessage);
 
       // Throw error to be caught by PinDrawer component
       throw new Error(errorMessage);
@@ -294,7 +313,6 @@ export default function DataBundle() {
     reset,
   ]
 );
-
   const handleContinue = useCallback(async () => {
     const valid = await trigger();
     if (!valid) return;

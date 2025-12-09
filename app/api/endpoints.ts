@@ -1,5 +1,6 @@
 import { apiClient, authApi } from "./axios";
 import { tokenStorage } from "@/utils/tokenStorage";
+import { useAuthStore } from "@/store/auth-store";
 import {
   LoginResponse,
   RefreshResponse,
@@ -68,7 +69,8 @@ export const authEndpoints = {
       }
 
       // Store tokens
-      await tokenStorage.setTokens(accessToken, refreshToken);
+      // await tokenStorage.setTokens(accessToken, refreshToken);
+       await useAuthStore.getState().setAuth(user, accessToken, refreshToken);
 
       return data.responseBody;
     } catch (error: any) {
@@ -144,14 +146,8 @@ export const authEndpoints = {
         const { accessToken, refreshToken, user } = response.data.responseBody;
         console.log("🔐 Login successful for user:", response.data);
         // Store tokens
-        await tokenStorage.setTokens(accessToken, refreshToken);
+       await useAuthStore.getState().setAuth(user, accessToken, refreshToken);
 
-        // ✅ Save user info for quick login next time
-        await userStorage.saveUserInfo(
-          user.email,
-          // user.username,
-          user.phone
-        );
 
         return response.data.responseBody;
       }
@@ -192,7 +188,7 @@ export const authEndpoints = {
       console.log("🔓 Logging out user...");
 
       // Clear authentication tokens
-      await tokenStorage.clearTokens();
+      await useAuthStore.getState().signOut();
 
       // ✅ Keep email and name for quick login next time
       // Only clear tokens, not user info
@@ -201,7 +197,7 @@ export const authEndpoints = {
     } catch (error) {
       console.error("❌ Error during logout:", error);
       // Still clear tokens even if something goes wrong
-      await tokenStorage.clearTokens();
+      await useAuthStore.getState().signOut();
     }
   },
 

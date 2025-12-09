@@ -49,6 +49,8 @@ export const usePurchaseData = () => {
         pin: payload.pin.toString(), // Ensure PIN is a string
       };
 
+      console.log(requestBody, "from dt")
+
       console.log("📱 Purchasing data with payload:", requestBody);
 
       const response = await apiClient<PurchaseDataResponse>(
@@ -69,7 +71,7 @@ export const usePurchaseData = () => {
       return response;
     },
     onSuccess: (data) => {
-      console.log("✅ Data purchased successfully:", data);
+     console.log("✅ SUCCESS CALLBACK - Data purchased:", data);
       
       // Invalidate dashboard to refresh wallet balance
       queryClient.invalidateQueries({ queryKey: dashboardKeys.info() });

@@ -26,7 +26,6 @@ import { yupResolver } from "@hookform/resolvers/yup";
 import {
   AlertCircleIcon,
   ChevronLeft,
-  ChevronRight,
   ChevronDown,
   Gift,
   Wallet,
@@ -53,12 +52,6 @@ import { PIN_LENGTH } from "@/constants/menu";
 import { useWaecVariations } from '@/hooks/use-waec-variations';
 import { usePurchaseWaec } from '@/hooks/use-purchase-waec';
 
-// Service types
-const SERVICE_TYPES = [
-  { id: "result_checker", name: "Result Checker PIN", price: "3400" },
-  { id: "registration", name: "Registration PIN", price: "5000" },
-  { id: "gce", name: "GCE PIN", price: "4200" },
-];
 
 // Quantities
 const QUANTITIES = [
