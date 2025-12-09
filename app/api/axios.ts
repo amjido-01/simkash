@@ -1,7 +1,6 @@
 import axios, { AxiosError } from 'axios';
 import { tokenStorage } from '@/utils/tokenStorage';
 import { ApiResponse, ApiError } from '@/types';
-import { router } from 'expo-router';
 import { BASE_URL } from '@/constants/api';
 import { useAuthStore } from '@/store/auth-store';
 // Get base URL from environment variables

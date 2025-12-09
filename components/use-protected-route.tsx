@@ -9,36 +9,43 @@ export function useProtectedRoute() {
   const { isAuthenticated, isLoading, isInitialized } = useAuthStore();
 
   useEffect(() => {
+    console.log('🔄 useProtectedRoute effect triggered:', {
+      segments,
+      isAuthenticated,
+      isLoading,
+      isInitialized,
+      currentSegment: segments[0],
+    });
+
     if (!isInitialized || isLoading) {
-      // Still initializing or loading, don't redirect yet
+      console.log('⏳ Waiting for auth initialization...');
       return;
     }
 
-    const inAuthGroup = segments[0] === '(auth)';
+     const currentSegment = segments[0];
     
     // Define public routes that don't require authentication
-    const publicRoutes = [
-      '(auth)',
-      'splash',
-      'onboarding',
+   const publicRoutes = [
+      'index',           // Your home/index route
+      'onboarding',      // Onboarding screens
+      '(auth)',          // Auth group
+      'splash',          // Splash screen
     ];
     
-    const isPublicRoute = publicRoutes.some(route => segments[0] === route);
+    const isPublicRoute = publicRoutes.includes(currentSegment || '');
 
-    console.log('🔍 Route protection check:', {
-      segments,
-      currentRoute: segments[0],
+    console.log('🔍 Route decision:', {
+      currentSegment,
       isAuthenticated,
-      inAuthGroup,
       isPublicRoute,
     });
 
-    if (!isAuthenticated && !isPublicRoute) {
-      // User is not authenticated and trying to access protected routes
+     if (!isAuthenticated && !isPublicRoute) {
+      // Not authenticated and trying to access protected route
       console.log('❌ Not authenticated, redirecting to sign in');
       router.replace('/(auth)/signin');
-    } else if (isAuthenticated && inAuthGroup) {
-      // User is authenticated but on auth screens, redirect to home
+    } else if (isAuthenticated && currentSegment === '(auth)') {
+      // Authenticated but on auth screen, go to tabs
       console.log('✅ Authenticated, redirecting to home');
       router.replace('/(tabs)');
     }

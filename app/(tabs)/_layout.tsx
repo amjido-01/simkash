@@ -1,15 +1,26 @@
 // app/(tabs)/_layout.tsx
-import { Tabs } from "expo-router";
-import { Home, User, WalletMinimal, Gift } from "lucide-react-native";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
+import { Tabs } from "expo-router";
+import { Gift, Home, User, WalletMinimal } from "lucide-react-native";
 
 export default function TabsLayout() {
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
+        tabBarHideOnKeyboard: true,
         tabBarActiveTintColor: "#244155",
         tabBarInactiveTintColor: "#9CA3AF",
+        tabBarStyle: {
+          backgroundColor: "#FFFFFF",
+          borderTopWidth: 1,
+          borderTopColor: "#E5E7EB",
+          elevation: 0,
+          shadowOpacity: 0,
+          height: 60,
+          paddingBottom: 8,
+          paddingTop: 8,
+        },
         tabBarLabelStyle: {
           fontSize: 12,
           fontWeight: "700",

@@ -1,3 +1,259 @@
+// import { Button, ButtonText } from "@/components/ui/button";
+// import {
+//   Drawer,
+//   DrawerBackdrop,
+//   DrawerBody,
+//   DrawerCloseButton,
+//   DrawerContent,
+//   DrawerHeader,
+// } from "@/components/ui/drawer";
+// import { Heading } from "@/components/ui/heading";
+// import { HStack } from "@/components/ui/hstack";
+// import { Text } from "@/components/ui/text";
+// import { VStack } from "@/components/ui/vstack";
+// import { ChevronRight, Copy } from "lucide-react-native";
+// import { Platform, TouchableOpacity, View, Alert } from "react-native";
+// import { router } from "expo-router";
+// import { useSafeAreaInsets } from "react-native-safe-area-context";
+// import { BlurView } from "expo-blur";
+// import { useState } from "react";
+// import * as Clipboard from 'expo-clipboard';
+// import { useToast, Toast, ToastTitle, ToastDescription } from '@/components/ui/toast';
+
+
+// interface TopUpWalletDrawerProps {
+//   isOpen: boolean;
+//   onClose: () => void;
+//   hasCompletedKYC?: boolean;
+//   accountNumber?: string;
+//   accountName?: string;
+//   bankName?: string;
+// }
+
+// export default function TopUpWalletDrawer({
+//   isOpen,
+//   onClose,
+//   hasCompletedKYC = false,
+//   accountNumber = "9325678767",
+//   accountName = "SIMKASH/ADAM BABA YUSUF",
+//   bankName = "WEMA BANK",
+// }: TopUpWalletDrawerProps) {
+//   const toast = useToast();
+// const [toastId, setToastId] = useState<string | null>(null);
+
+
+//   const insets = useSafeAreaInsets();
+
+// const handleCopyAccountNumber = async () => {
+//   // Ensure accountNumber is a string
+//   await Clipboard.setStringAsync(accountNumber.toString());
+
+//   // Show toast
+//   if (!toastId || !toast.isActive(toastId)) {
+//     const newId = Math.random().toString();
+//     setToastId(newId);
+//     toast.show({
+//       id: newId,
+//       placement: 'bottom',
+//       duration: 3000,
+//       render: ({ id }) => (
+//         <Toast nativeID={'toast-' + id} variant="solid" action="muted">
+//           <ToastTitle>Copied!</ToastTitle>
+//           <ToastDescription>Account number copied to clipboard</ToastDescription>
+//         </Toast>
+//       ),
+//     });
+//   }
+// };
+
+
+//   const handleUnlockAccount = () => {
+//     onClose();
+//     router.push("/kyc");
+//   };
+
+// const handleSecurePayment = async () => {
+//   onClose();
+
+//   // Example: Call your backend to create Paystack authorization URL
+//   const response = await fetch("https://your-backend.com/api/paystack/initiate", {
+//     method: "POST",
+//     headers: { "Content-Type": "application/json" },
+//     body: JSON.stringify({
+//       amount: 5000, // your amount
+//       userId: "123",
+//     }),
+//   });
+
+//   const data = await response.json();
+
+//   // Example response.data = { authorization_url: "https://checkout.paystack.com/xyz..." }
+//   const url = data.authorization_url;
+
+//   router.push({
+//     pathname: "/paystack",
+//     params: { url },
+//   });
+// };
+
+
+//   return (
+//     <Drawer
+//       className="border-t-0"
+//       isOpen={isOpen}
+//       size="md"
+//       anchor="bottom"
+//       onClose={onClose}
+//     >
+//       <DrawerBackdrop
+//         style={{
+//           backgroundColor: "#24242440",
+//           opacity: 1,
+//         }}
+//       />
+//       <DrawerContent
+//         className="rounded-t-[30px] pt-[28px] bg-[#FFFFFF]"
+//         style={{
+//           borderTopWidth: 0,
+//           borderColor: "transparent",
+//           shadowOpacity: 0,
+//           elevation: 0,
+//           paddingBottom: insets.bottom || 16,
+//         }}
+//       >
+//         <DrawerHeader className="border-b-0 pb-2">
+//           <Heading className="font-manropesemibold text-center text-[18px] text-[#000000] mb2">
+//                         Top Up Wallet
+
+//           </Heading>
+//           <DrawerCloseButton />
+//         </DrawerHeader>
+
+//         <DrawerBody className="pt-4">
+//           <VStack space="lg">
+//             {/* Personal Account Section */}
+//             {!hasCompletedKYC ? (
+//               // Blurred account with unlock button
+//               <View className="relative rounded-[16px] border border-[#E5E7EB] overflow-hidden">
+//                 <View className="p-4">
+//                   <HStack className="items-center gap-3 mb-4">
+//                     {/* Avatar with Badge */}
+//                     <View className="relative">
+//                       <View className="w-12 h-12 bg-[#3B82F6] rounded-full items-center justify-center">
+//                         <Text className="text-white text-[18px] font-manropesemibold">
+//                           A
+//                         </Text>
+//                       </View>
+//                       <View className="absolute -top-1 -right-1 w-6 h-6 bg-[#3B82F6] rounded-full items-center justify-center border-2 border-white">
+//                         <Text className="text-white text-[10px]">👤</Text>
+//                       </View>
+//                     </View>
+
+//                     <VStack className="flex-1">
+//                       <Text className="text-[16px] font-manropesemibold text-[#000000] mb-1">
+//                         ••••• •••• •
+//                       </Text>
+//                       <Text className="text-[12px] font-manroperegular text-[#6B7280]">
+//                         Your dedicated account number
+//                       </Text>
+//                     </VStack>
+//                   </HStack>
+
+//                   <Button
+//                     className="rounded-full z-10 bg-[#132939] h-[44px] w-full"
+//                     size="lg"
+//                     onPress={handleUnlockAccount}
+//                   >
+//                     <ButtonText className="text-white text-[14px] font-medium">
+//                       Unlock Personal Account
+//                     </ButtonText>
+//                   </Button>
+//                 </View>
+
+//                 {/* Blur overlay */}
+//                 {Platform.OS === "ios" ? (
+//                   <BlurView
+//                     intensity={10}
+//                     tint="light"
+//                     style={{
+//                       position: "absolute",
+//                       top: 0,
+//                       left: 0,
+//                       right: 0,
+//                       bottom: 0,
+//                     }}
+//                   />
+//                 ) : (
+//                   <View
+//                     style={{
+//                       position: "absolute",
+//                       top: 0,
+//                       left: 0,
+//                       right: 0,
+//                       bottom: 0,
+//                       backgroundColor: "rgba(255, 255, 255, 0.8)",
+//                     }}
+//                   />
+//                 )}
+//               </View>
+//             ) : (
+//               // Unlocked account with details
+//               <View className="rounded-[16px] border border-[#E5E7EB] p-4">
+//                 <HStack className="items-center justify-between mb-2">
+//                   <HStack className="items-center gap-2 flex-1">
+//                     <Text className="text-[16px] font-bold font-manropebold text-[#000000]">
+//                       {accountNumber}
+//                     </Text>
+//                     <TouchableOpacity
+//                       onPress={handleCopyAccountNumber}
+//                       className="p-1"
+//                       activeOpacity={0.7}
+//                     >
+//                       <Copy size={18} color="#1E1E1E" />
+//                     </TouchableOpacity>
+//                   </HStack>
+//                 </HStack>
+
+//                 <HStack className="items-center gap-2">
+//                   <Text className="text-[12px] font-bold font-manropesemibold text-[#000000]">
+//                     {accountName}
+//                   </Text>
+//                   <View className="w-1 h-1 rounded-full bg-[#6B7280]" />
+//                   <Text className="text-[12px] font-bold font-manropesemibold text-[#000000]">
+//                     {bankName}
+//                   </Text>
+//                 </HStack>
+//               </View>
+//             )}
+
+//             {/* OR Divider */}
+//               <Text className="text-[14px] text-center font-semibold font-manroperegular text-[#000000]">
+//                 OR
+//               </Text>
+
+//             {/* Secure Payment Channels */}
+//             <TouchableOpacity
+//               onPress={handleSecurePayment}
+//               activeOpacity={0.7}
+//               className="flex-row items-center border border-[#E5E7EF] px-4 justify-between py-4 rounded-[16px]"
+//             >
+//               <VStack className="flex-1">
+//                 <Text className="font-manropesemibold text-[14px] leading-[100%] font-bold text-[#000000] mb-1">
+//                   Secure Payment Channels
+//                 </Text>
+//                 <Text className="font-manroperegular font-medium text-[12px] text-[#303237]">
+//                   Top up using cards, USSD and more
+//                 </Text>
+//               </VStack>
+//               <ChevronRight size={20} color="#000000" />
+//             </TouchableOpacity>
+//           </VStack>
+//         </DrawerBody>
+//       </DrawerContent>
+//     </Drawer>
+//   );
+// }
+
 import { Button, ButtonText } from "@/components/ui/button";
 import {
   Drawer,
@@ -11,15 +267,46 @@ import { Heading } from "@/components/ui/heading";
 import { HStack } from "@/components/ui/hstack";
 import { Text } from "@/components/ui/text";
 import { VStack } from "@/components/ui/vstack";
-import { ChevronRight, Copy } from "lucide-react-native";
-import { Platform, TouchableOpacity, View, Alert } from "react-native";
+import { ChevronRight, Copy, ArrowLeft, AlertCircle } from "lucide-react-native";
+import { Platform, TouchableOpacity, View, Alert, ActivityIndicator } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BlurView } from "expo-blur";
 import { useState } from "react";
 import * as Clipboard from 'expo-clipboard';
+import * as WebBrowser from 'expo-web-browser';
 import { useToast, Toast, ToastTitle, ToastDescription } from '@/components/ui/toast';
+import { useInitiateDeposit, useVerifyPayment } from "@/hooks/use-paystack-deposit";
+import {
+  FormControl,
+  FormControlError,
+  FormControlErrorIcon,
+  FormControlErrorText,
+  FormControlLabel,
+  FormControlLabelText,
+} from "@/components/ui/form-control";
+import { Input, InputField } from "@/components/ui/input";
+import * as yup from "yup";
+import { useForm, Controller } from "react-hook-form";
+import { yupResolver } from "@hookform/resolvers/yup";
 
+// Validation schema
+const schema = yup.object().shape({
+  amount: yup
+    .string()
+    .required("Please enter amount")
+    .matches(/^[0-9]+$/, "Amount must contain only numbers")
+    .test("min-amount", "Minimum amount is ₦100", (value) => {
+      if (!value) return false;
+      return parseInt(value, 10) >= 100;
+    })
+    .test("max-amount", "Maximum amount is ₦500,000", (value) => {
+      if (!value) return false;
+      return parseInt(value, 10) <= 500000;
+    }),
+});
+
+type FormData = yup.InferType<typeof schema>;
 
 interface TopUpWalletDrawerProps {
   isOpen: boolean;
@@ -30,6 +317,8 @@ interface TopUpWalletDrawerProps {
   bankName?: string;
 }
 
+type DrawerView = 'main' | 'amountInput' | 'processing';
+
 export default function TopUpWalletDrawer({
   isOpen,
   onClose,
@@ -39,63 +328,412 @@ export default function TopUpWalletDrawer({
   bankName = "WEMA BANK",
 }: TopUpWalletDrawerProps) {
   const toast = useToast();
-const [toastId, setToastId] = useState<string | null>(null);
-
-
+  const [toastId, setToastId] = useState<string | null>(null);
   const insets = useSafeAreaInsets();
+  
+  // State for drawer views
+  const [currentView, setCurrentView] = useState<DrawerView>('main');
+  
+  // React Hook Form
+  const {
+    control,
+    handleSubmit,
+    formState: { errors, isValid },
+    reset,
+    setValue,
+    watch,
+  } = useForm<FormData>({
+    resolver: yupResolver(schema),
+    mode: "onChange",
+    defaultValues: {
+      amount: "",
+    },
+  });
 
-const handleCopyAccountNumber = async () => {
-  // Ensure accountNumber is a string
-  await Clipboard.setStringAsync(accountNumber.toString());
+  // Watch amount for conditional rendering
+  const amountValue = watch("amount");
 
-  // Show toast
-  if (!toastId || !toast.isActive(toastId)) {
-    const newId = Math.random().toString();
-    setToastId(newId);
-    toast.show({
-      id: newId,
-      placement: 'bottom',
-      duration: 3000,
-      render: ({ id }) => (
-        <Toast nativeID={'toast-' + id} variant="solid" action="muted">
-          <ToastTitle>Copied!</ToastTitle>
-          <ToastDescription>Account number copied to clipboard</ToastDescription>
-        </Toast>
-      ),
-    });
-  }
-};
+  // Use the custom hooks
+  const { initiateDeposit, isLoading: isInitiating } = useInitiateDeposit();
+  const { verifyPayment, isLoading: isVerifying } = useVerifyPayment();
 
+  const handleCopyAccountNumber = async () => {
+    await Clipboard.setStringAsync(accountNumber.toString());
+
+    if (!toastId || !toast.isActive(toastId)) {
+      const newId = Math.random().toString();
+      setToastId(newId);
+      toast.show({
+        id: newId,
+        placement: 'bottom',
+        duration: 3000,
+        render: ({ id }) => (
+          <Toast nativeID={'toast-' + id} variant="solid" action="muted">
+            <ToastTitle>Copied!</ToastTitle>
+            <ToastDescription>Account number copied to clipboard</ToastDescription>
+          </Toast>
+        ),
+      });
+    }
+  };
 
   const handleUnlockAccount = () => {
     onClose();
     router.push("/kyc");
   };
 
-const handleSecurePayment = async () => {
-  onClose();
+  const handleSecurePaymentClick = () => {
+    // Switch to amount input view
+    setCurrentView('amountInput');
+  };
 
-  // Example: Call your backend to create Paystack authorization URL
-  const response = await fetch("https://your-backend.com/api/paystack/initiate", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      amount: 5000, // your amount
-      userId: "123",
-    }),
-  });
+  const handleBackToMain = () => {
+    setCurrentView('main');
+    reset(); // Reset form
+  };
 
-  const data = await response.json();
+  const handleInitiatePayment = async (data: FormData) => {
+    const amountNum = parseInt(data.amount, 10);
+    
+    try {
+      setCurrentView('processing');
+      
+      // Initiate deposit using the hook with user-entered amount
+      const response = await initiateDeposit({
+        amount: amountNum, // Convert to kobo (Paystack expects amount in kobo)
+      });
 
-  // Example response.data = { authorization_url: "https://checkout.paystack.com/xyz..." }
-  const url = data.authorization_url;
+      console.log("Initiate deposit response:", response);
 
-  router.push({
-    pathname: "/paystack",
-    params: { url },
-  });
-};
+      // response is already the responseBody (extracted by apiClient)
+      if (response?.authorization_url) {
+        // Close the drawer first
+        onClose();
 
+        // Open Paystack checkout in in-app browser
+        const result = await WebBrowser.openBrowserAsync(
+          response.authorization_url,
+          {
+            // iOS specific options
+            dismissButtonStyle: "close",
+            presentationStyle: WebBrowser.WebBrowserPresentationStyle.PAGE_SHEET,
+            controlsColor: "#244155",
+            // Android specific options
+            toolbarColor: "#244155",
+            showTitle: true,
+            enableBarCollapsing: false,
+          }
+        );
+
+        // Handle the browser result
+        if (result.type === "cancel") {
+          Alert.alert(
+            "Payment Cancelled",
+            "You cancelled the payment process"
+          );
+          setCurrentView('amountInput');
+        } else if (result.type === "dismiss") {
+          // Verify payment status using the hook
+          try {
+            const verifyResponse = await verifyPayment(response.reference);
+            
+            console.log("Verify payment response:", verifyResponse);
+            
+            // verifyResponse is already the responseBody (extracted by apiClient)
+            if (verifyResponse?.data?.status === "success") {
+              Alert.alert("Success", "Payment completed successfully!");
+              // Reset state after successful payment
+              reset();
+              setCurrentView('main');
+            } else {
+              Alert.alert(
+                "Payment Status", 
+                "Please check your transaction history"
+              );
+              setCurrentView('main');
+            }
+          } catch (verifyError) {
+            console.error("Verification error:", verifyError);
+            Alert.alert(
+              "Verification Error", 
+              "Unable to verify payment. Please check your transaction history."
+            );
+            setCurrentView('main');
+          }
+        }
+      } else {
+        Alert.alert(
+          "Error",
+          "Failed to get payment URL"
+        );
+        setCurrentView('amountInput');
+      }
+    } catch (error) {
+      console.error("Payment error:", error);
+      Alert.alert("Error", "Failed to initiate payment. Please try again.");
+      setCurrentView('amountInput');
+    }
+  };
+
+  const isProcessing = isInitiating || isVerifying;
+
+  const renderMainView = () => (
+    <VStack space="lg">
+      {/* Personal Account Section */}
+      {!hasCompletedKYC ? (
+        // Blurred account with unlock button
+        <View className="relative rounded-[16px] border border-[#E5E7EB] overflow-hidden">
+          <View className="p-4">
+            <HStack className="items-center gap-3 mb-4">
+              {/* Avatar with Badge */}
+              <View className="relative">
+                <View className="w-12 h-12 bg-[#3B82F6] rounded-full items-center justify-center">
+                  <Text className="text-white text-[18px] font-manropesemibold">
+                    A
+                  </Text>
+                </View>
+                <View className="absolute -top-1 -right-1 w-6 h-6 bg-[#3B82F6] rounded-full items-center justify-center border-2 border-white">
+                  <Text className="text-white text-[10px]">👤</Text>
+                </View>
+              </View>
+
+              <VStack className="flex-1">
+                <Text className="text-[16px] font-manropesemibold text-[#000000] mb-1">
+                  ••••• •••• •
+                </Text>
+                <Text className="text-[12px] font-manroperegular text-[#6B7280]">
+                  Your dedicated account number
+                </Text>
+              </VStack>
+            </HStack>
+
+            <Button
+              className="rounded-full z-10 bg-[#132939] h-[44px] w-full"
+              size="lg"
+              onPress={handleUnlockAccount}
+            >
+              <ButtonText className="text-white text-[14px] font-medium">
+                Unlock Personal Account
+              </ButtonText>
+            </Button>
+          </View>
+
+          {/* Blur overlay */}
+          {Platform.OS === "ios" ? (
+            <BlurView
+              intensity={10}
+              tint="light"
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+              }}
+            />
+          ) : (
+            <View
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: "rgba(255, 255, 255, 0.8)",
+              }}
+            />
+          )}
+        </View>
+      ) : (
+        // Unlocked account with details
+        <View className="rounded-[16px] border border-[#E5E7EB] p-4">
+          <HStack className="items-center justify-between mb-2">
+            <HStack className="items-center gap-2 flex-1">
+              <Text className="text-[16px] font-bold font-manropebold text-[#000000]">
+                {accountNumber}
+              </Text>
+              <TouchableOpacity
+                onPress={handleCopyAccountNumber}
+                className="p-1"
+                activeOpacity={0.7}
+              >
+                <Copy size={18} color="#1E1E1E" />
+              </TouchableOpacity>
+            </HStack>
+          </HStack>
+
+          <HStack className="items-center gap-2">
+            <Text className="text-[12px] font-bold font-manropesemibold text-[#000000]">
+              {accountName}
+            </Text>
+            <View className="w-1 h-1 rounded-full bg-[#6B7280]" />
+            <Text className="text-[12px] font-bold font-manropesemibold text-[#000000]">
+              {bankName}
+            </Text>
+          </HStack>
+        </View>
+      )}
+
+      {/* OR Divider */}
+      <Text className="text-[14px] text-center font-semibold font-manroperegular text-[#000000]">
+        OR
+      </Text>
+
+      {/* Secure Payment Channels */}
+      <TouchableOpacity
+        onPress={handleSecurePaymentClick}
+        activeOpacity={0.7}
+        className="flex-row items-center border border-[#E5E7EF] px-4 justify-between py-4 rounded-[16px]"
+      >
+        <VStack className="flex-1">
+          <Text className="font-manropesemibold text-[14px] leading-[100%] font-bold text-[#000000] mb-1">
+            Secure Payment Channels
+          </Text>
+          <Text className="font-manroperegular font-medium text-[12px] text-[#303237]">
+            Top up using cards, USSD and more
+          </Text>
+        </VStack>
+        <ChevronRight size={20} color="#000000" />
+      </TouchableOpacity>
+    </VStack>
+  );
+
+  const renderAmountInputView = () => (
+    <VStack className="border2" space="lg">
+      {/* Back Button */}
+    
+
+      {/* Amount Input Section */}
+      <View>
+        <Text className="font-manropesemibold text-[16px] text-[#000000] mb-2">
+          Enter Amount
+        </Text>
+        <Text className="font-manroperegular text-[14px] text-[#6B7280] mb-4">
+          Enter the amount you want to add to your wallet
+        </Text>
+        
+        {/* Amount Input using InputField */}
+        <FormControl isInvalid={Boolean(errors.amount)}>
+          <FormControlLabel>
+            <FormControlLabelText className="text-[12px] text-[#414651] mb-[6px]">
+              Amount (₦)
+            </FormControlLabelText>
+          </FormControlLabel>
+
+          <Controller
+            control={control}
+            name="amount"
+            render={({ field: { onChange, onBlur, value } }) => (
+              <Input
+                variant="outline"
+                size="xl"
+                className={`w-full rounded-[12px] focus:border-2 focus:border-[#244155] min-h-[56px] ${
+                  errors.amount
+                    ? "border-2 border-red-500"
+                    : "border border-[#E5E7EB]"
+                }`}
+              >
+                <View className="absolute left-4 pr-2 h-full justify-center z-10">
+                  <Text className="text-[16px] font-manropesemibold text-[#244155]">
+                    ₦
+                  </Text>
+                </View>
+                <InputField
+                  placeholder="0.00"
+                  className="text-[18px] placeholder:text-[16px] placeholder:text-[#9CA3AF] text-[#000000] pl-12 pr-4 py-3"
+                  value={value}
+                  onChangeText={(text) => {
+                    // Remove non-numeric characters
+                    const cleaned = text.replace(/[^0-9]/g, "");
+                    onChange(cleaned);
+                  }}
+                  onBlur={onBlur}
+                  keyboardType="numeric"
+                  autoFocus={true}
+                  autoCapitalize="none"
+                  editable={!isProcessing}
+                />
+              </Input>
+            )}
+          />
+
+          {errors.amount && (
+            <FormControlError>
+              <FormControlErrorIcon
+                className="text-red-500"
+                as={AlertCircle}
+              />
+              <FormControlErrorText className="text-red-500 text-[12px]">
+                {errors.amount?.message}
+              </FormControlErrorText>
+            </FormControlError>
+          )}
+          
+          {/* Helper text */}
+          <Text className="text-[#6B7280] text-[12px] font-manroperegular mt-2">
+            Minimum: ₦100.00 • Maximum: ₦500,000.00
+          </Text>
+        </FormControl>
+
+        {/* Format display if amount is entered */}
+        {amountValue && !errors.amount && (
+          <View className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-100">
+            <Text className="font-manropesemibold text-[14px] text-[#1E40AF]">
+              You are adding:
+            </Text>
+            <Text className="font-manropebold text-[20px] text-[#1E3A8A] mt-1">
+              ₦{parseInt(amountValue).toLocaleString()}
+            </Text>
+          </View>
+        )}
+      </View>
+
+      {/* Continue Button */}
+      <Button
+        onPress={handleSubmit(handleInitiatePayment)}
+        disabled={!isValid || isProcessing}
+        className={`rounded-full h-[50px] mt-4 ${
+          !isValid || isProcessing
+            ? "bg-gray-300"
+            : "bg-[#244155]"
+        }`}
+        size="lg"
+      >
+        {isProcessing ? (
+          <ActivityIndicator size="small" color="#FFFFFF" />
+        ) : (
+          <ButtonText className="text-white text-[16px] font-medium">
+            Continue to Payment
+          </ButtonText>
+        )}
+      </Button>
+    </VStack>
+  );
+
+  const renderProcessingView = () => (
+    <View className="items-center justify-center py-12">
+      <ActivityIndicator size="large" color="#244155" />
+      <Text className="mt-4 font-manropesemibold text-[16px] text-[#000000]">
+        Processing Payment...
+      </Text>
+      <Text className="mt-2 font-manroperegular text-[14px] text-[#6B7280] text-center">
+        Please wait while we prepare your payment
+      </Text>
+    </View>
+  );
+
+  const getDrawerTitle = () => {
+    switch (currentView) {
+      case 'amountInput':
+        return 'Enter Amount';
+      case 'processing':
+        return 'Processing';
+      default:
+        return 'Top Up Wallet';
+    }
+  };
+
+  const showCloseButton = currentView === 'main';
 
   return (
     <Drawer
@@ -103,7 +741,12 @@ const handleSecurePayment = async () => {
       isOpen={isOpen}
       size="md"
       anchor="bottom"
-      onClose={onClose}
+      onClose={() => {
+        // Reset to main view when closing
+        setCurrentView('main');
+        reset();
+        onClose();
+      }}
     >
       <DrawerBackdrop
         style={{
@@ -112,7 +755,7 @@ const handleSecurePayment = async () => {
         }}
       />
       <DrawerContent
-        className="rounded-t-[30px] pt-[28px] bg-[#FFFFFF]"
+        className="rounded-t-[30px] pt-[28px] px-4 bg-[#FFFFFF]"
         style={{
           borderTopWidth: 0,
           borderColor: "transparent",
@@ -121,133 +764,33 @@ const handleSecurePayment = async () => {
           paddingBottom: insets.bottom || 16,
         }}
       >
-        <DrawerHeader className="border-b-0 pb-2">
-          <Heading className="font-manropesemibold text-center text-[18px] text-[#000000] mb2">
-                        Top Up Wallet
+       <DrawerHeader className="pb2 flex-row items-center justify-between">
+  <Heading className="font-manropesemibold text-center text-[18px] text-[#000000] mb2 flex-1">
+    {getDrawerTitle()}
+  </Heading>
+  
+  {/* Show close button in main view */}
+  {showCloseButton && <DrawerCloseButton />}
+  
+  {/* Show back button in amountInput view */}
+  {currentView === 'amountInput' && (
+      <TouchableOpacity
+        onPress={handleBackToMain}
+        className="flex-row items-center border2 mb-4"
+        activeOpacity={0.7}
+      >
+        <ArrowLeft size={20} color="#000000" />
+        <Text className="ml-2 font-manropesemibold text-[16px] text-[#000000]">
+          Back
+        </Text>
+      </TouchableOpacity>
+  )}
+</DrawerHeader>
 
-          </Heading>
-          <DrawerCloseButton />
-        </DrawerHeader>
-
-        <DrawerBody className="pt-4">
-          <VStack space="lg">
-            {/* Personal Account Section */}
-            {!hasCompletedKYC ? (
-              // Blurred account with unlock button
-              <View className="relative rounded-[16px] border border-[#E5E7EB] overflow-hidden">
-                <View className="p-4">
-                  <HStack className="items-center gap-3 mb-4">
-                    {/* Avatar with Badge */}
-                    <View className="relative">
-                      <View className="w-12 h-12 bg-[#3B82F6] rounded-full items-center justify-center">
-                        <Text className="text-white text-[18px] font-manropesemibold">
-                          A
-                        </Text>
-                      </View>
-                      <View className="absolute -top-1 -right-1 w-6 h-6 bg-[#3B82F6] rounded-full items-center justify-center border-2 border-white">
-                        <Text className="text-white text-[10px]">👤</Text>
-                      </View>
-                    </View>
-
-                    <VStack className="flex-1">
-                      <Text className="text-[16px] font-manropesemibold text-[#000000] mb-1">
-                        ••••• •••• •
-                      </Text>
-                      <Text className="text-[12px] font-manroperegular text-[#6B7280]">
-                        Your dedicated account number
-                      </Text>
-                    </VStack>
-                  </HStack>
-
-                  <Button
-                    className="rounded-full z-10 bg-[#132939] h-[44px] w-full"
-                    size="lg"
-                    onPress={handleUnlockAccount}
-                  >
-                    <ButtonText className="text-white text-[14px] font-medium">
-                      Unlock Personal Account
-                    </ButtonText>
-                  </Button>
-                </View>
-
-                {/* Blur overlay */}
-                {Platform.OS === "ios" ? (
-                  <BlurView
-                    intensity={10}
-                    tint="light"
-                    style={{
-                      position: "absolute",
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                    }}
-                  />
-                ) : (
-                  <View
-                    style={{
-                      position: "absolute",
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      backgroundColor: "rgba(255, 255, 255, 0.8)",
-                    }}
-                  />
-                )}
-              </View>
-            ) : (
-              // Unlocked account with details
-              <View className="rounded-[16px] border border-[#E5E7EB] p-4">
-                <HStack className="items-center justify-between mb-2">
-                  <HStack className="items-center gap-2 flex-1">
-                    <Text className="text-[16px] font-bold font-manropebold text-[#000000]">
-                      {accountNumber}
-                    </Text>
-                    <TouchableOpacity
-                      onPress={handleCopyAccountNumber}
-                      className="p-1"
-                      activeOpacity={0.7}
-                    >
-                      <Copy size={18} color="#1E1E1E" />
-                    </TouchableOpacity>
-                  </HStack>
-                </HStack>
-
-                <HStack className="items-center gap-2">
-                  <Text className="text-[12px] font-bold font-manropesemibold text-[#000000]">
-                    {accountName}
-                  </Text>
-                  <View className="w-1 h-1 rounded-full bg-[#6B7280]" />
-                  <Text className="text-[12px] font-bold font-manropesemibold text-[#000000]">
-                    {bankName}
-                  </Text>
-                </HStack>
-              </View>
-            )}
-
-            {/* OR Divider */}
-              <Text className="text-[14px] text-center font-semibold font-manroperegular text-[#000000]">
-                OR
-              </Text>
-
-            {/* Secure Payment Channels */}
-            <TouchableOpacity
-              onPress={handleSecurePayment}
-              activeOpacity={0.7}
-              className="flex-row items-center border border-[#E5E7EF] px-4 justify-between py-4 rounded-[16px]"
-            >
-              <VStack className="flex-1">
-                <Text className="font-manropesemibold text-[14px] leading-[100%] font-bold text-[#000000] mb-1">
-                  Secure Payment Channels
-                </Text>
-                <Text className="font-manroperegular font-medium text-[12px] text-[#303237]">
-                  Top up using cards, USSD and more
-                </Text>
-              </VStack>
-              <ChevronRight size={20} color="#000000" />
-            </TouchableOpacity>
-          </VStack>
+        <DrawerBody className="pt-4 px-4">
+          {currentView === 'main' && renderMainView()}
+          {currentView === 'amountInput' && renderAmountInputView()}
+          {currentView === 'processing' && renderProcessingView()}
         </DrawerBody>
       </DrawerContent>
     </Drawer>

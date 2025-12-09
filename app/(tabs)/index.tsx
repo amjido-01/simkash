@@ -105,10 +105,12 @@ export default function HomeScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaView className="flex-1 bg-white" edges={['top']}>
       <Header />
 
-      <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+      <ScrollView
+      contentContainerStyle={{ paddingBottom: 40 }}
+      className="flex-1 pb-[20px]" showsVerticalScrollIndicator={false}>
         {/* Wallet Balance Section */}
         <View className="mt-[22px] px-4">
           <VStack className="w-full mb-[32px] py-[32px] items-center bg-[#F9FAFB] rounded-[20px]">

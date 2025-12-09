@@ -29,7 +29,7 @@ export function WalletBalance({ balance = "0", size = 'lg' }: WalletBalanceProps
         </Heading>
       ) : (
         <Heading className={`text-[#141316] font-manropesemibold ${fontSize}`}>
-          ₦ ••••••
+          ₦ •••
         </Heading>
       )}
       <TouchableOpacity className="p-2" onPress={toggleShowBalance}>
