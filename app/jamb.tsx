@@ -26,6 +26,7 @@ import { yupResolver } from "@hookform/resolvers/yup";
 import {
   AlertCircleIcon,
   ChevronRight,
+  ChevronLeft,
   ChevronDown,
   Gift,
   Wallet,
@@ -50,7 +51,8 @@ import * as yup from "yup";
 import { router } from "expo-router";
 import { PIN_LENGTH } from "@/constants/menu";
 import { transferOptions } from "@/utils/mock";
-import { JambVariation } from "@/hooks/use-jamb-variations";
+import { JambVariation, useJambVariations } from "@/hooks/use-jamb-variations";
+import { PageHeader } from "@/components/page-header";
 
 // Service types
 const SERVICE_TYPES = [
@@ -75,14 +77,14 @@ type FormData = yup.InferType<typeof schema>;
 export default function JambPurchase() {
   // State management
   const insets = useSafeAreaInsets();
-   const { data: jambData, isLoading: isLoadingVariations, isError: isVariationsError, error: variationsError } = useWaecVariations();
+   const { data: jambData, isLoading: isLoadingVariations, isError: isVariationsError, error: variationsError } = useJambVariations();
   const [showServiceDrawer, setShowServiceDrawer] = useState(false);
   const [showConfirmDrawer, setShowConfirmDrawer] = useState(false);
   const [showPinDrawer, setShowPinDrawer] = useState(false);
   const [pin, setPin] = useState("");
   const [pinError, setPinError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-
+console.log(jambData, "jamb")
   const otpRef = useRef<any>(null);
 
   // Form setup
@@ -274,20 +276,7 @@ export default function JambPurchase() {
         keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
       >
         {/* Header */}
-        <HStack className="px-4 mb-[40px] mt-2 py-3 items-center justify-center">
-          <TouchableOpacity
-            className="absolute left-4"
-            onPress={handleBack}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            accessibilityLabel="Go back"
-            accessibilityRole="button"
-          >
-            <ChevronDown size={24} color="#000000" />
-          </TouchableOpacity>
-          <Text className="text-[16px] font-semibold font-manropesemibold text-[#000000]">
-            Jamb
-          </Text>
-        </HStack>
+        <PageHeader title="Jamb" onBack={handleBack} showBackButton={true} />
 
         <ScrollView
           contentContainerStyle={{ flexGrow: 1 }}

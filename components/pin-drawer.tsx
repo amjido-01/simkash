@@ -1,4 +1,5 @@
 import React, { useRef, useCallback, useState } from "react";
+import { ScanFace } from "lucide-react-native";
 import {
   Drawer,
   DrawerBackdrop,
@@ -278,7 +279,8 @@ export const PinDrawer: React.FC<PinDrawerProps> = ({
                       className="w-[70px] h-[60px] items-center justify-center"
                       activeOpacity={0.6}
                     >
-                      <Text className="text-[28px]">👆</Text>
+                      <ScanFace className="text-red-500 h-[24px] w-[24px]" color="#141B34" />
+                      {/* <Text className="text-[28px]">👆</Text> */}
                     </TouchableOpacity>
 
                     {/* Zero */}

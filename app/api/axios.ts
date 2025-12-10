@@ -60,6 +60,7 @@ api.interceptors.response.use(
 
       // Get refresh token from secure storage
       const refreshToken = await tokenStorage.getRefreshToken();
+      console.log("ala refresh", refreshToken)
 
       if (!refreshToken) {
         // No refresh token - logout and redirect

@@ -59,6 +59,7 @@ import { useGetBanks } from "@/hooks/use-banks";
 import BankSelector from "@/components/bank-selector";
 import { useVerifyAccount } from "@/hooks/use-verify-account";
 import { useSendMoney } from "@/hooks/use-send-money";
+import { PinDrawer } from "@/components/pin-drawer";
 // Validation schema
 const schema = yup.object().shape({
   phone: yup
@@ -94,7 +95,8 @@ export default function ToBank() {
   const insets = useSafeAreaInsets();
   const { banks, isLoading } = useGetBanks();
   const { sendMoney, isLoading: isSendingMoney } = useSendMoney();
-    const { mutateAsync: verifyAccount, isPending: isVerifyingAccount } = useVerifyAccount();
+  const { mutateAsync: verifyAccount, isPending: isVerifyingAccount } =
+    useVerifyAccount();
   const [showDrawer, setShowDrawer] = useState(false);
   const [showPinDrawer, setShowPinDrawer] = useState(false);
   const [accountName, setAccountName] = useState("");
@@ -154,7 +156,7 @@ export default function ToBank() {
     setAccountName("");
     setPhoneVerified(false);
 
-  if (phoneValue && phoneValue.length === 10 && bankValue) {
+    if (phoneValue && phoneValue.length === 10 && bankValue) {
       // Debounce the API call
       verificationTimeoutRef.current = setTimeout(async () => {
         try {
@@ -167,10 +169,11 @@ export default function ToBank() {
           setPhoneVerified(true);
         } catch (error: any) {
           console.error("Account verification error:", error);
-          
+
           Alert.alert(
             "Verification Failed",
-            error?.message || "Unable to verify account. Please check the account number and try again."
+            error?.message ||
+              "Unable to verify account. Please check the account number and try again."
           );
           setAccountName("");
           setPhoneVerified(false);
@@ -178,7 +181,6 @@ export default function ToBank() {
       }, ACCOUNT_VERIFICATION_DELAY);
     }
   }, [phoneValue, bankValue, verifyAccount]);
-
 
   // Re-verify when bank changes
   useEffect(() => {
@@ -246,81 +248,88 @@ export default function ToBank() {
     setPinError("");
   }, []);
 
-const handlePinSubmit = useCallback(
-  async (pinToSubmit?: string) => {
-    const finalPin = pinToSubmit || pin;
+  const handlePinSubmit = useCallback(
+    async (pinToSubmit?: string) => {
+      const finalPin = pinToSubmit || pin;
 
-    if (finalPin.length !== PIN_LENGTH) {
-      setPinError("Please enter your 4-digit PIN");
-      return;
-    }
+      if (finalPin.length !== PIN_LENGTH) {
+        setPinError("Please enter your 4-digit PIN");
+        return;
+      }
 
-    setIsSubmitting(true);
-
-    // -------------------------
-    // Extract payload here
-    // -------------------------
-    const payload = {
-      amount: parseInt(amountValue, 10),
-      account_number: phoneValue,
-      bank_code: bankValue,
-      pin: parseInt(finalPin, 10),
-      narration: narrationValue || undefined,
-    };
-
-    console.log(payload, "transfer")
-
-    try {
-      const response = await sendMoney(payload);
-
-      console.log("Transfer successful:", response);
-
-      // Close drawers first
-      setShowPinDrawer(false);
-      setShowDrawer(false);
-      setPin("");
-      reset();
+      setIsSubmitting(true);
 
       // -------------------------
-      // Wait for drawer animation to finish (e.g., 200–300ms)
+      // Extract payload here
       // -------------------------
-      await new Promise((resolve) => setTimeout(resolve, 300));
+      const payload = {
+        amount: parseInt(amountValue, 10),
+        account_number: phoneValue,
+        bank_code: bankValue,
+        pin: parseInt(finalPin, 10),
+        narration: narrationValue || undefined,
+      };
 
-      // Navigate AFTER drawers close
-      router.push({
-        pathname: "/transaction-success",
-        params: {
-          amount: amountValue,
-          recipient: accountName,
-          phoneNumber: phoneValue,
-          narration: narrationValue || "",
-          reference: response.data.data.reference,
-          transferCode: response.data.data.transfer_code,
-          status: response.data.data.status,
-          updatedBalance: response.updatedBalance.toString(),
-          message: response.data.message,
-        },
-      });
-    } catch (error: any) {
-      console.error("Transfer error:", error);
+      console.log(payload, "transfer");
 
-      let errorMessage =
-        error?.message ||
-        error?.responseMessage ||
-        "Transaction failed. Please try again.";
+      try {
+        const response = await sendMoney(payload);
 
-      setPinError(errorMessage);
-      setPin("");
+        console.log("Transfer successful:", response);
 
-      if (otpRef.current) otpRef.current.clear();
-    } finally {
-      setIsSubmitting(false);
-    }
-  },
-  [pin, amountValue, accountName, phoneValue, narrationValue, bankValue, reset, sendMoney]
-);
+        // Close drawers first
+        setShowPinDrawer(false);
+        setShowDrawer(false);
+        setPin("");
+        reset();
 
+        // -------------------------
+        // Wait for drawer animation to finish (e.g., 200–300ms)
+        // -------------------------
+        await new Promise((resolve) => setTimeout(resolve, 300));
 
+        // Navigate AFTER drawers close
+        router.push({
+          pathname: "/transaction-success",
+          params: {
+            amount: amountValue,
+            recipient: accountName,
+            phoneNumber: phoneValue,
+            narration: narrationValue || "",
+            reference: response.data.data.reference,
+            transferCode: response.data.data.transfer_code,
+            status: response.data.data.status,
+            updatedBalance: response.updatedBalance.toString(),
+            message: response.data.message,
+          },
+        });
+      } catch (error: any) {
+        console.error("Transfer error:", error);
+
+        let errorMessage =
+          error?.message ||
+          error?.responseMessage ||
+          "Transaction failed. Please try again.";
+
+        setPinError(errorMessage);
+        setPin("");
+
+        if (otpRef.current) otpRef.current.clear();
+      } finally {
+        setIsSubmitting(false);
+      }
+    },
+    [
+      pin,
+      amountValue,
+      accountName,
+      phoneValue,
+      narrationValue,
+      bankValue,
+      reset,
+      sendMoney,
+    ]
+  );
 
   // Continue button handler
   const handleContinue = useCallback(async () => {
@@ -379,7 +388,8 @@ const handlePinSubmit = useCallback(
     return parseInt(amount, 10).toLocaleString();
   }, []);
 
-  const selectedBankName = banks.find((b) => b.code === bankValue)?.name || bankValue;
+  const selectedBankName =
+    banks.find((b) => b.code === bankValue)?.name || bankValue;
 
   return (
     <SafeAreaView className="flex-1 bg-white" edges={["top"]}>
@@ -706,7 +716,7 @@ const handlePinSubmit = useCallback(
             shadowOpacity: 0,
             elevation: 0,
             // paddingBottom: Platform.OS === "ios" ? 34 : 16,
-            paddingBottom: insets.bottom || 16, 
+            paddingBottom: insets.bottom || 16,
           }}
         >
           <DrawerHeader className="border-b-0 pb2 px-6">
@@ -838,197 +848,14 @@ const handlePinSubmit = useCallback(
       </Drawer>
 
       {/* PIN DRAWER */}
-      <Drawer
-        className="border-t-0"
+      <PinDrawer
         isOpen={showPinDrawer}
-        size="lg"
-        anchor="bottom"
-        onClose={() => {
-          if (!isSubmitting) {
-            setShowPinDrawer(false);
-            setPin("");
-            setPinError("");
-          }
-        }}
-      >
-        <DrawerBackdrop
-          style={{
-            backgroundColor: "#24242440",
-            opacity: 1,
-          }}
-        />
-        <DrawerContent
-          className="rounded-t-[30px] pt-[39px] bg-[#FFFFFF]"
-          style={{
-            borderTopWidth: 0,
-            borderColor: "transparent",
-            shadowOpacity: 0,
-            elevation: 0,
-            paddingBottom: Platform.OS === "ios" ? 34 : 16,
-          }}
-        >
-          <DrawerHeader className="border-b-0 pb-6 px-4">
-            <Heading className="font-manropesemibold w-full text-center text-[18px] text-[#000000] mb-2">
-              Enter PIN
-            </Heading>
-            {!isSubmitting && <DrawerCloseButton />}
-          </DrawerHeader>
-
-          <DrawerBody className="pt-2 px-2 pb-8">
-            <VStack space="lg" className="items-center">
-              {/* OTP Input */}
-              <View className="mb-6">
-                <OtpInput
-                  ref={otpRef}
-                  numberOfDigits={PIN_LENGTH}
-                  focusColor="transparent"
-                  type="numeric"
-                  secureTextEntry={true}
-                  disabled={isSubmitting}
-                  autoFocus={false}
-                  onTextChange={handlePinChange}
-                  theme={{
-                    containerStyle: {
-                      width: "auto",
-                      alignSelf: "center",
-                    },
-                    pinCodeContainerStyle: {
-                      width: 49,
-                      height: 49,
-                      borderRadius: 12,
-                      borderWidth: 1.5,
-                      borderColor: pinError ? "#EF4444" : "#E5E7EB",
-                      backgroundColor: "#FFFFFF",
-                      marginHorizontal: 4,
-                      justifyContent: "center",
-                      alignItems: "center",
-                    },
-                    focusedPinCodeContainerStyle: {
-                      borderColor: pinError ? "#EF4444" : "#132939",
-                    },
-                    pinCodeTextStyle: {
-                      color: "#000000",
-                      fontSize: 32,
-                      fontWeight: "600",
-                    },
-                    filledPinCodeContainerStyle: {
-                      borderColor: pinError ? "#EF4444" : "#10B981",
-                    },
-                  }}
-                />
-              </View>
-
-              {/* Error or Loading */}
-              {pinError && !isSubmitting && (
-                <Text className="text-red-500 text-[12px] font-manroperegular text-center mb-2">
-                  {pinError}
-                </Text>
-              )}
-
-              {isSubmitting && (
-                <View className="mb-4">
-                  <ActivityIndicator size="small" color="#132939" />
-                  <Text className="text-[12px] font-manroperegular text-[#6B7280] text-center mt-2">
-                    Processing transaction...
-                  </Text>
-                </View>
-              )}
-
-              {/* Number Keypad */}
-              {!isSubmitting && (
-                <View className="w-full max-w-[320px]">
-                  <VStack space="lg">
-                    {/* Row 1-3: Numbers 1-9 */}
-                    {[
-                      [1, 2, 3],
-                      [4, 5, 6],
-                      [7, 8, 9],
-                    ].map((row, rowIndex) => (
-                      <HStack key={rowIndex} className="justify-between px-4">
-                        {row.map((num) => (
-                          <TouchableOpacity
-                            key={num}
-                            onPress={() => handleNumberPress(num.toString())}
-                            className="w-[70px] h-[60px] items-center justify-center"
-                            activeOpacity={0.6}
-                            disabled={pin.length >= PIN_LENGTH}
-                          >
-                            <Text className="text-[28px] font-manropesemibold text-[#000000]">
-                              {num}
-                            </Text>
-                          </TouchableOpacity>
-                        ))}
-                      </HStack>
-                    ))}
-
-                    {/* Row 4: Biometric, 0, Backspace */}
-                    <HStack className="justify-between px-4">
-                      {/* Biometric placeholder */}
-                      <TouchableOpacity
-                        onPress={() => {
-                          // Implement biometric auth
-                          console.log("Biometric auth");
-                        }}
-                        className="w-[70px] h-[60px] items-center justify-center"
-                        activeOpacity={0.6}
-                      >
-                        <Text className="text-[28px]">👆</Text>
-                      </TouchableOpacity>
-
-                      {/* Zero */}
-                      <TouchableOpacity
-                        onPress={() => handleNumberPress("0")}
-                        className="w-[70px] h-[60px] items-center justify-center"
-                        activeOpacity={0.6}
-                        disabled={pin.length >= PIN_LENGTH}
-                      >
-                        <Text className="text-[28px] font-manropesemibold text-[#000000]">
-                          0
-                        </Text>
-                      </TouchableOpacity>
-
-                      {/* Backspace */}
-                      <TouchableOpacity
-                        onPress={handleBackspace}
-                        className="w-[70px] h-[60px] items-center justify-center"
-                        activeOpacity={0.6}
-                        disabled={pin.length === 0}
-                      >
-                        <Text
-                          className={`text-[24px] ${
-                            pin.length === 0 ? "opacity-30" : ""
-                          }`}
-                        >
-                          ⌫
-                        </Text>
-                      </TouchableOpacity>
-                    </HStack>
-                  </VStack>
-                </View>
-              )}
-
-              {/* Forgot PIN */}
-              {!isSubmitting && (
-                <TouchableOpacity
-                  onPress={() => {
-                    // Implement forgot PIN flow
-                    Alert.alert(
-                      "Forgot PIN",
-                      "Please contact support to reset your PIN.",
-                      [{ text: "OK" }]
-                    );
-                  }}
-                  className="mt-6"
-                >
-                  <Text className="text-[14px] font-manropesemibold text-[#132939]">
-                    Forgot PIN?
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </VStack>
-          </DrawerBody>
-        </DrawerContent>
-      </Drawer>
+        onClose={() => setShowPinDrawer(false)}
+        onSubmit={handlePinSubmit}
+        title="Enter PIN"
+        isSubmitting={isSubmitting}
+        loadingText="Processing transaction..."
+      />
     </SafeAreaView>
   );
 }

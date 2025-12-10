@@ -20,7 +20,7 @@ import {
   quickActions,
 } from "@/constants/menu";
 import { WalletBalance } from "@/components/wallet-balance";
-import { transactions, transferOptions } from "@/utils/mock";
+import { transferOptions } from "@/utils/mock";
 import { router } from "expo-router";
 import { ChevronRight, Eye, EyeOff } from "lucide-react-native";
 import { useState } from "react";

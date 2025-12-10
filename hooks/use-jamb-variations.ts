@@ -23,7 +23,7 @@ export const useJambVariations = () => {
     queryFn: async (): Promise<JambVariationsResponse> => {
       // apiClient already extracts responseBody, so it returns WaecVariationsResponse directly
       const response = await apiClient<JambVariationsResponse>(
-        '/billpayment/education/waec/variation?serviceID=jamb'
+        '/billpayment/education/jamb/variation?serviceID=jamb'
       );
       console.log("Jamb Variations API Response:", response);
       return response;

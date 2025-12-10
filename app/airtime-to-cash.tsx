@@ -9,6 +9,7 @@ import {
   DrawerFooter,
   DrawerHeader,
 } from "@/components/ui/drawer";
+import { Image } from "@/components/ui/image";
 import {
   FormControl,
   FormControlError,
@@ -31,8 +32,10 @@ import {
   Gift,
   Wallet,
 } from "lucide-react-native";
+import { useVerifyPhone } from "@/hooks/use-verify-phone";
+import { PageHeader } from "@/components/page-header";
 import Animated, { FadeIn } from "react-native-reanimated";
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
   KeyboardAvoidingView,
@@ -48,6 +51,7 @@ import {
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
 import { OtpInput } from "react-native-otp-entry";
+import { useGetNetworks } from "@/hooks/use-networks";
 import * as yup from "yup";
 import { router } from "expo-router";
 import {
@@ -63,6 +67,7 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { NETWORKS, QUICK_AMOUNTS, PIN_LENGTH } from "@/constants/menu";
+import { NetworkSelectionDrawer } from "@/components/network-selection-drawer";
 
 // Validation schema
 const schema = yup.object().shape({
@@ -97,9 +102,13 @@ const OTP_LENGTH = 6;
 export default function AirtimeToCash() {
   // State management
   const insets = useSafeAreaInsets();
+   const verifyPhoneMutation = useVerifyPhone();
+    const { networks, isLoading, isError } = useGetNetworks();
   const [showOtpDrawer, setShowOtpDrawer] = useState(false);
   const [showConfirmDrawer, setShowConfirmDrawer] = useState(false);
   const [showPinDrawer, setShowPinDrawer] = useState(false);
+    const [isVerifyingPhone, setIsVerifyingPhone] = useState(false);
+      const [showNetworkDrawer, setShowNetworkDrawer] = useState(false);
   const [otp, setOtp] = useState("");
   const [otpError, setOtpError] = useState("");
   const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
@@ -107,6 +116,8 @@ export default function AirtimeToCash() {
   const [pinError, setPinError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedAmount, setSelectedAmount] = useState("");
+    const [hasSetDefaultNetwork, setHasSetDefaultNetwork] = useState(false);
+     const lastVerifiedPhone = useRef<string>("");
 
   const otpInputRef = useRef<any>(null);
   const pinRef = useRef<any>(null);
@@ -135,6 +146,116 @@ export default function AirtimeToCash() {
   const networkValue = watch("network");
   const amountValue = watch("amount");
   const sharePinValue = watch("sharePin");
+
+   // Set MTN as default when networks finish loading (ONLY ONCE)
+    useEffect(() => {
+      if (!isLoading && networks.length > 0 && !hasSetDefaultNetwork) {
+        // Find MTN network
+        const mtnNetwork = networks.find(
+          (network) =>
+            network.serviceID?.toLowerCase() === "mtn" ||
+            network.name?.toLowerCase() === "mtn"
+        );
+  
+        if (mtnNetwork) {
+          setValue("network", mtnNetwork.serviceID, { shouldValidate: false });
+          console.log("✅ Default network set to MTN:", mtnNetwork.serviceID);
+        } else {
+          // Fallback to first network if MTN not found
+          setValue("network", networks[0].serviceID, { shouldValidate: false });
+          console.log("⚠️ MTN not found, using first network:", networks[0].name);
+        }
+        
+        setHasSetDefaultNetwork(true);
+      }
+    }, [isLoading, networks, hasSetDefaultNetwork, setValue]);
+  
+    // Verify phone number and auto-detect network
+    const verifyAndSetNetwork = useCallback(
+      async (phone: string) => {
+        // Only verify if we have 11 digits and haven't verified this number yet
+        if (phone.length !== 11 || phone === lastVerifiedPhone.current) {
+          return;
+        }
+  
+        // Prevent duplicate calls
+        lastVerifiedPhone.current = phone;
+        setIsVerifyingPhone(true);
+  
+        try {
+          const response = await verifyPhoneMutation.mutateAsync({ phone });
+  
+          console.log("✅ Phone verified:", response);
+  
+          // The API returns an ARRAY: [{ id: "airtel", name: "Airtel Nigeria", status: "ACTIVE" }]
+          // Extract the first item from the array
+          const networkData = Array.isArray(response) ? response[0] : response;
+          
+          if (!networkData) {
+            console.warn("⚠️ No network data in response");
+            return;
+          }
+  
+          console.log("📱 Network data extracted:", networkData);
+  
+          // Match with your networks using serviceID
+          const detectedNetwork = networks.find(
+            (network) => {
+              const apiId = networkData.id?.toLowerCase();
+              const serviceId = network.serviceID?.toLowerCase();
+              
+              console.log(`Comparing: API ID="${apiId}" vs Service ID="${serviceId}"`);
+              
+              // Direct match
+              if (serviceId === apiId) return true;
+              
+              // Handle 9mobile/etisalat case
+              if (apiId === "9mobile" && serviceId === "etisalat") return true;
+              if (apiId === "etisalat" && serviceId === "etisalat") return true;
+              
+              // Fallback: check if API id is contained in serviceID or name
+              return (
+                serviceId?.includes(apiId) ||
+                network.name?.toLowerCase().includes(apiId)
+              );
+            }
+          );
+  
+          if (detectedNetwork) {
+            setValue("network", detectedNetwork.serviceID, { shouldValidate: true });
+            console.log("✅ Network auto-detected:", detectedNetwork.name);
+          } else {
+            console.warn("⚠️ Could not match network. API ID:", networkData.id);
+            console.warn("Available networks:", networks.map(n => ({ id: n.id, serviceID: n.serviceID })));
+          }
+        } catch (error: any) {
+          console.error("❌ Phone verification failed:", error);
+          // Reset the last verified phone so user can retry
+          lastVerifiedPhone.current = "";
+        } finally {
+          setIsVerifyingPhone(false);
+        }
+      },
+      [networks, setValue, verifyPhoneMutation]
+    );
+  
+    // Watch for phone number changes and verify when complete
+    useEffect(() => {
+      if (phoneValue && phoneValue.length === 11 && phoneValue !== lastVerifiedPhone.current) {
+        // Debounce the verification to avoid too many API calls
+        const timeoutId = setTimeout(() => {
+          verifyAndSetNetwork(phoneValue);
+        }, 800); // Increased to 800ms for better debouncing
+  
+        return () => clearTimeout(timeoutId);
+      }
+      
+      // Reset verification tracking if phone number is cleared or changed
+      if (phoneValue.length < 11) {
+        lastVerifiedPhone.current = "";
+      }
+    }, [phoneValue, verifyAndSetNetwork]); // Remove verifyAndSetNetwork from dependencies to prevent loop
+  
 
   // Calculate amount to receive (90% conversion rate for demo)
   const calculateReceiveAmount = useCallback((amount: string) => {
@@ -371,8 +492,15 @@ export default function AirtimeToCash() {
     return parseInt(amount, 10).toLocaleString();
   }, []);
 
+   const handleNetworkSelect = useCallback(
+      (serviceID: string) => {
+        setValue("network", serviceID);
+      },
+      [setValue]
+    );
+
   // Get selected network details
-  const selectedNetwork = NETWORKS.find((n) => n.value === networkValue);
+  const selectedNetwork = networks.find((n) => n.serviceID === networkValue);
 
   return (
     <SafeAreaView className="flex-1 bg-white" edges={["top"]}>
@@ -381,21 +509,7 @@ export default function AirtimeToCash() {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
       >
-        {/* Header */}
-        <HStack className="px-4 mb-[40px] mt-2 py-3 items-center justify-center border-b border-[#F3F4F6]">
-          <TouchableOpacity
-            className="absolute left-4"
-            onPress={handleBack}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            accessibilityLabel="Go back"
-            accessibilityRole="button"
-          >
-            <ChevronLeft size={24} color="#000000" />
-          </TouchableOpacity>
-          <Text className="text-[16px] font-semibold font-manropesemibold text-[#000000]">
-            Airtime to Cash
-          </Text>
-        </HStack>
+       <PageHeader title=" Airtime to Cash" onBack={handleBack} showBackButton={true} />
 
         <ScrollView
           contentContainerStyle={{ flexGrow: 1 }}
@@ -406,9 +520,7 @@ export default function AirtimeToCash() {
           <Box className="bg-white px-4 pt-6 pb-24 flex-1">
             <VStack space="xl" className="flex-1">
               {/* Phone Number with Network Selector */}
-              <FormControl
-                isInvalid={Boolean(errors.phoneNumber || errors.network)}
-              >
+               <FormControl isInvalid={Boolean(errors.phoneNumber || errors.network)}>
                 <FormControlLabel>
                   <FormControlLabelText className="text-[12px] text-[#414651] mb-[6px]">
                     Phone Number
@@ -428,52 +540,26 @@ export default function AirtimeToCash() {
                           : "border border-[#D0D5DD]"
                       }`}
                     >
-                      {/* Network Selector */}
-                      <Controller
-                        control={control}
-                        name="network"
-                        render={({
-                          field: {
-                            onChange: onNetworkChange,
-                            value: networkVal,
-                          },
-                        }) => (
-                          <Select
-                            onValueChange={onNetworkChange}
-                            selectedValue={networkVal}
-                          >
-                            <SelectTrigger
-                              variant="outline"
-                              className="w-[70px] border-0 h-full"
-                            >
-                              <SelectInput
-                                placeholder="📱"
-                                className="text-[20px] text-center"
-                              />
-                              <SelectIcon
-                                as={ChevronDownIcon}
-                                className="ml-[-8px] w-4 h-4"
-                              />
-                            </SelectTrigger>
-                            <SelectPortal>
-                              <SelectBackdrop />
-                              <SelectContent>
-                                <SelectDragIndicatorWrapper>
-                                  <SelectDragIndicator />
-                                </SelectDragIndicatorWrapper>
-                                {NETWORKS.map((network) => (
-                                  <SelectItem
-                                    className="text-sm"
-                                    key={network.value}
-                                    label={`${network.icon} ${network.label}`}
-                                    value={network.value}
-                                  />
-                                ))}
-                              </SelectContent>
-                            </SelectPortal>
-                          </Select>
+                      {/* Network Selector Button */}
+                      <TouchableOpacity
+                        onPress={() => setShowNetworkDrawer(true)}
+                        className="w-[70px] h-full items-center justify-center flex-row"
+                        disabled={isLoading || isVerifyingPhone}
+                      >
+                        {isLoading || isVerifyingPhone ? (
+                          <ActivityIndicator size="small" color="#132939" />
+                        ) : selectedNetwork?.image ? (
+                          <Image
+                            source={{ uri: selectedNetwork.image }}
+                            alt="network images"
+                            className="h-8 w-8 rounded-full"
+                            resizeMode="contain"
+                          />
+                        ) : (
+                          <Text className="text-[20px]">📱</Text>
                         )}
-                      />
+                        <ChevronDownIcon size={16} color="#6B7280" />
+                      </TouchableOpacity>
 
                       {/* Phone Number Input */}
                       <InputField
@@ -487,6 +573,7 @@ export default function AirtimeToCash() {
                           onChange(cleaned);
                         }}
                         onBlur={onBlur}
+                        editable={!isVerifyingPhone}
                       />
                     </Input>
                   )}
@@ -494,14 +581,18 @@ export default function AirtimeToCash() {
 
                 {(errors.phoneNumber || errors.network) && (
                   <FormControlError>
-                    <FormControlErrorIcon
-                      className="text-red-500"
-                      as={AlertCircleIcon}
-                    />
+                    <FormControlErrorIcon className="text-red-500" as={AlertCircleIcon} />
                     <FormControlErrorText className="text-red-500">
                       {errors.phoneNumber?.message || errors.network?.message}
                     </FormControlErrorText>
                   </FormControlError>
+                )}
+
+                {/* Show verification status */}
+                {isVerifyingPhone && (
+                  <Text className="text-[11px] text-[#6B7280] mt-1 ml-2">
+                    Verifying number...
+                  </Text>
                 )}
               </FormControl>
 
@@ -807,6 +898,18 @@ export default function AirtimeToCash() {
 
         </DrawerContent>
       </Drawer>
+
+        <NetworkSelectionDrawer
+        isOpen={showNetworkDrawer}
+        onClose={() => setShowNetworkDrawer(false)}
+        networks={networks}
+        selectedNetworkId={networkValue}
+        onSelectNetwork={handleNetworkSelect}
+        isLoading={isLoading}
+        isError={isError}
+        title="Choose network Provider"
+      />
+      
 
       {/* CONFIRMATION DRAWER */}
       <Drawer

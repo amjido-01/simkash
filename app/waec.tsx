@@ -51,6 +51,7 @@ import { router } from "expo-router";
 import { PIN_LENGTH } from "@/constants/menu";
 import { useWaecVariations } from '@/hooks/use-waec-variations';
 import { usePurchaseWaec } from '@/hooks/use-purchase-waec';
+import { PageHeader } from "@/components/page-header";
 
 
 // Quantities
@@ -88,10 +89,10 @@ export default function WaecPurchase() {
   const [pin, setPin] = useState("");
   const [pinError, setPinError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
 
   const otpRef = useRef<any>(null);
 
-// In your component, update the serviceTypes memo:
 // In your component, update the serviceTypes memo:
 const serviceTypes = useMemo(() => {
   if (!waecData) {
@@ -397,20 +398,7 @@ const totalAmount = useMemo(() => {
         keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
       >
         {/* Header */}
-        <HStack className="px-4 mb-[40px] mt-2 py-3 items-center justify-center border-b border-[#F3F4F6]">
-          <TouchableOpacity
-            className="absolute left-4"
-            onPress={handleBack}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            accessibilityLabel="Go back"
-            accessibilityRole="button"
-          >
-            <ChevronLeft size={24} color="#000000" />
-          </TouchableOpacity>
-          <Text className="text-[16px] font-semibold font-manropesemibold text-[#000000]">
-            WAEC
-          </Text>
-        </HStack>
+         <PageHeader title="WAEC" onBack={handleBack} showBackButton={true} />
 
         <ScrollView
           contentContainerStyle={{ flexGrow: 1 }}
