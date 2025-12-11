@@ -49,10 +49,9 @@ import { OtpInput } from "react-native-otp-entry";
 import * as yup from "yup";
 import { router } from "expo-router";
 import { PIN_LENGTH } from "@/constants/menu";
-import { useWaecVariations } from '@/hooks/use-waec-variations';
-import { usePurchaseWaec } from '@/hooks/use-purchase-waec';
+import { useWaecVariations } from "@/hooks/use-waec-variations";
+import { usePurchaseWaec } from "@/hooks/use-purchase-waec";
 import { PageHeader } from "@/components/page-header";
-
 
 // Quantities
 const QUANTITIES = [
@@ -80,7 +79,12 @@ type FormData = yup.InferType<typeof schema>;
 export default function WaecPurchase() {
   // State management
   const insets = useSafeAreaInsets();
-  const { data: waecData, isLoading: isLoadingVariations, isError: isVariationsError, error: variationsError } = useWaecVariations();
+  const {
+    data: waecData,
+    isLoading: isLoadingVariations,
+    isError: isVariationsError,
+    error: variationsError,
+  } = useWaecVariations();
   const { purchaseWaec, isLoading: isPurchasing } = usePurchaseWaec();
   const [showServiceDrawer, setShowServiceDrawer] = useState(false);
   const [showQuantityDrawer, setShowQuantityDrawer] = useState(false);
@@ -89,35 +93,34 @@ export default function WaecPurchase() {
   const [pin, setPin] = useState("");
   const [pinError, setPinError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
 
   const otpRef = useRef<any>(null);
 
-// In your component, update the serviceTypes memo:
-const serviceTypes = useMemo(() => {
-  if (!waecData) {
-    console.log("No WAEC data available");
-    return [];
-  }
-  
-  console.log("WAEC Data received:", waecData);
-  
-  // Try variations first, then varations (with typo)
-  const variations = waecData.variations || waecData.varations || [];
-  
-  console.log("Extracted variations:", {
-    hasVariations: !!waecData.variations,
-    hasVarations: !!waecData.varations,
-    variationsCount: variations.length,
-    variationsData: variations,
-  });
-  
-  return variations.map((variation) => ({
-    id: variation.variation_code,
-    name: variation.name,
-    price: variation.variation_amount,
-  }));
-}, [waecData]);
+  // In your component, update the serviceTypes memo:
+  const serviceTypes = useMemo(() => {
+    if (!waecData) {
+      console.log("No WAEC data available");
+      return [];
+    }
+
+    console.log("WAEC Data received:", waecData);
+
+    // Try variations first, then varations (with typo)
+    const variations = waecData.variations || waecData.varations || [];
+
+    console.log("Extracted variations:", {
+      hasVariations: !!waecData.variations,
+      hasVarations: !!waecData.varations,
+      variationsCount: variations.length,
+      variationsData: variations,
+    });
+
+    return variations.map((variation) => ({
+      id: variation.variation_code,
+      name: variation.name,
+      price: variation.variation_amount,
+    }));
+  }, [waecData]);
 
   // Form setup
   const {
@@ -143,23 +146,22 @@ const serviceTypes = useMemo(() => {
   const phoneNumberValue = watch("phoneNumber");
 
   // Get selected items
-const selectedService = useMemo(() => {
-  return serviceTypes.find((s) => s.id === serviceTypeValue);
-}, [serviceTypes, serviceTypeValue]);
+  const selectedService = useMemo(() => {
+    return serviceTypes.find((s) => s.id === serviceTypeValue);
+  }, [serviceTypes, serviceTypeValue]);
   const selectedQuantity = QUANTITIES.find((q) => q.value === quantityValue);
 
+  // With this:
+  const totalAmount = useMemo(() => {
+    if (!selectedService || !selectedQuantity) return "0";
 
-// With this:
-const totalAmount = useMemo(() => {
-  if (!selectedService || !selectedQuantity) return "0";
-  
-  const price = parseFloat(selectedService.price); // Use parseFloat for decimal values
-  const quantity = parseInt(selectedQuantity.value);
-  
-  // Calculate total and format to 2 decimal places
-  const total = (price * quantity).toFixed(2);
-  return total;
-}, [selectedService, selectedQuantity]);
+    const price = parseFloat(selectedService.price); // Use parseFloat for decimal values
+    const quantity = parseInt(selectedQuantity.value);
+
+    // Calculate total and format to 2 decimal places
+    const total = (price * quantity).toFixed(2);
+    return total;
+  }, [selectedService, selectedQuantity]);
 
   // Form submission
   const submitForm = useCallback((data: FormData) => {
@@ -214,125 +216,128 @@ const totalAmount = useMemo(() => {
     setPinError("");
   }, []);
 
-  
-
   // PIN submission
   const handlePinSubmit = useCallback(
-  async (pinToSubmit?: string) => {
-    const finalPin = pinToSubmit || pin;
+    async (pinToSubmit?: string) => {
+      const finalPin = pinToSubmit || pin;
 
-    if (finalPin.length !== PIN_LENGTH) {
-      setPinError("Please enter your 4-digit PIN");
-      return;
-    }
-
-    setIsSubmitting(true);
-    setPinError("");
-
-    try {
-      // Get selected service details
-      const selectedService = serviceTypes.find(s => s.id === serviceTypeValue);
-      
-      if (!selectedService) {
-        throw new Error("Please select a service type");
+      if (finalPin.length !== PIN_LENGTH) {
+        setPinError("Please enter your 4-digit PIN");
+        return;
       }
 
-      if (!quantityValue) {
-        throw new Error("Please select quantity");
-      }
+      setIsSubmitting(true);
+      setPinError("");
 
-      if (!phoneNumberValue) {
-        throw new Error("Phone number is required");
-      }
+      try {
+        // Get selected service details
+        const selectedService = serviceTypes.find(
+          (s) => s.id === serviceTypeValue
+        );
 
-      // Prepare payload for API
-      const payload = {
-        serviceID: "waec",
-        variation_code: serviceTypeValue,
-        amount: totalAmount,
-        quantity: parseInt(quantityValue),
-        phone: phoneNumberValue,
-        pin: finalPin,
-      };
-
-      console.log(payload, "payload")
-
-      // Call the API
-      const result = await purchaseWaec(payload);
-
-      // Check if successful
-      if (result.responseSuccessful) {
-        // Success - close drawers and navigate
-        setShowPinDrawer(false);
-        setShowConfirmDrawer(false);
-        setPin("");
-        reset();
-
-        // Navigate to success screen with PINs/serials
-        router.push({
-          pathname: "/transaction-success",
-          params: {
-            amount: totalAmount,
-            recipient: phoneNumberValue,
-            phoneNumber: phoneNumberValue,
-            transactionType: "waec",
-            serviceType: selectedService?.name,
-            quantity: quantityValue,
-            commission: "10",
-          },
-        });
-      } else {
-        // Handle API error
-        let errorMessage = result.responseMessage || "Transaction failed";
-        
-        if (errorMessage.toLowerCase().includes("pin")) {
-          errorMessage = "Incorrect PIN. Please try again.";
-          setPin("");
-          setTimeout(() => {
-            if (otpRef.current) otpRef.current.clear();
-          }, 100);
+        if (!selectedService) {
+          throw new Error("Please select a service type");
         }
-        
-        setPinError(errorMessage);
-      }
-    } catch (error: any) {
-      console.error("WAEC purchase error:", error);
-      
-      let errorMessage = "Transaction failed. Please try again.";
-      
-      // Handle network/API errors
-      if (error?.response?.status === 400 || error?.response?.status === 404) {
-        const apiError = error.response?.data?.responseMessage;
-        if (apiError?.toLowerCase().includes("pin")) {
-          errorMessage = "Incorrect PIN. Please try again.";
+
+        if (!quantityValue) {
+          throw new Error("Please select quantity");
+        }
+
+        if (!phoneNumberValue) {
+          throw new Error("Phone number is required");
+        }
+
+        // Prepare payload for API
+        const payload = {
+          serviceID: "waec",
+          variation_code: serviceTypeValue,
+          amount: totalAmount,
+          quantity: parseInt(quantityValue),
+          phone: phoneNumberValue,
+          pin: finalPin,
+        };
+
+        console.log(payload, "payload");
+
+        // Call the API
+        const result = await purchaseWaec(payload);
+
+        // Check if successful
+        if (result.responseSuccessful) {
+          // Success - close drawers and navigate
+          setShowPinDrawer(false);
+          setShowConfirmDrawer(false);
           setPin("");
-          setTimeout(() => {
-            if (otpRef.current) otpRef.current.clear();
-          }, 100);
+          reset();
+
+          // Navigate to success screen with PINs/serials
+          router.push({
+            pathname: "/transaction-success",
+            params: {
+              amount: totalAmount,
+              recipient: phoneNumberValue,
+              phoneNumber: phoneNumberValue,
+              transactionType: "waec",
+              serviceType: selectedService?.name,
+              quantity: quantityValue,
+              commission: "10",
+            },
+          });
         } else {
-          errorMessage = apiError || errorMessage;
+          // Handle API error
+          let errorMessage = result.responseMessage || "Transaction failed";
+
+          if (errorMessage.toLowerCase().includes("pin")) {
+            errorMessage = "Incorrect PIN. Please try again.";
+            setPin("");
+            setTimeout(() => {
+              if (otpRef.current) otpRef.current.clear();
+            }, 100);
+          }
+
+          setPinError(errorMessage);
         }
-      } else if (error?.message) {
-        errorMessage = error.message;
+      } catch (error: any) {
+        console.error("WAEC purchase error:", error);
+
+        let errorMessage = "Transaction failed. Please try again.";
+
+        // Handle network/API errors
+        if (
+          error?.response?.status === 400 ||
+          error?.response?.status === 404
+        ) {
+          const apiError = error.response?.data?.responseMessage;
+          if (apiError?.toLowerCase().includes("pin")) {
+            errorMessage = "Incorrect PIN. Please try again.";
+            setPin("");
+            setTimeout(() => {
+              if (otpRef.current) otpRef.current.clear();
+            }, 100);
+          } else {
+            errorMessage = apiError || errorMessage;
+          }
+        } else if (error?.message) {
+          errorMessage = error.message;
+        }
+
+        setPinError(errorMessage);
+      } finally {
+        setIsSubmitting(false);
       }
-      
-      setPinError(errorMessage);
-    } finally {
-      setIsSubmitting(false);
-    }
-  },
-  [
-    pin,
-    serviceTypeValue,
-    quantityValue,
-    phoneNumberValue,
-    totalAmount,
-    serviceTypes,
-    purchaseWaec,
-    reset,
-  ]
-);
-  
+    },
+    [
+      pin,
+      serviceTypeValue,
+      quantityValue,
+      phoneNumberValue,
+      totalAmount,
+      serviceTypes,
+      purchaseWaec,
+      reset,
+    ]
+  );
+
   // Continue button handler
   const handleContinue = useCallback(async () => {
     const valid = await trigger();
@@ -363,8 +368,6 @@ const totalAmount = useMemo(() => {
       router.push("/(tabs)");
     }
   }, [phoneNumberValue, serviceTypeValue]);
-
-
 
   // Format amount for display
   const formatAmount = useCallback((amount: string) => {
@@ -398,7 +401,7 @@ const totalAmount = useMemo(() => {
         keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
       >
         {/* Header */}
-         <PageHeader title="WAEC" onBack={handleBack} showBackButton={true} />
+        <PageHeader title="WAEC" onBack={handleBack} showBackButton={true} />
 
         <ScrollView
           contentContainerStyle={{ flexGrow: 1 }}
@@ -416,47 +419,49 @@ const totalAmount = useMemo(() => {
                   </FormControlLabelText>
                 </FormControlLabel>
 
-{isLoadingVariations ? (
-  <View className="w-full rounded-[99px] border border-[#D0D5DD] min-h-[48px] flex items-center justify-center">
-    <ActivityIndicator size="small" color="#132939" />
-  </View>
-) : isVariationsError ? (
-  <View className="w-full rounded-[99px] border border-red-500 min-h-[48px] flex items-center justify-center px-4">
-    <Text className="text-[12px] text-red-500">
-      Failed to load service types. Please try again.
-    </Text>
-  </View>
-) : serviceTypes.length > 0 ? (
-  <Controller
-    control={control}
-    name="serviceType"
-    render={({ field: { value } }) => (
-      <TouchableOpacity
-        onPress={() => setShowServiceDrawer(true)}
-        className={`w-full rounded-[99px] min-h-[48px] flex-row items-center justify-between px-4 ${
-          errors.serviceType
-            ? "border-2 border-red-500"
-            : "border border-[#D0D5DD]"
-        }`}
-      >
-        <Text
-          className={`text-[14px] ${
-            value ? "text-[#000000]" : "text-[#717680]"
-          }`}
-        >
-          {serviceTypes.find(s => s.id === value)?.name || "Select service type"}
-        </Text>
-        <ChevronDown size={20} color="#717680" />
-      </TouchableOpacity>
-    )}
-  />
-) : (
-  <View className="w-full rounded-[99px] border border-red-500 min-h-[48px] flex items-center justify-center px-4">
-    <Text className="text-[12px] text-red-500">
-      No service types available
-    </Text>
-  </View>
-)}
+                {isLoadingVariations ? (
+                  <View className="w-full rounded-[99px] border border-[#D0D5DD] min-h-[48px] flex-row items-center px-4">
+                    <ActivityIndicator size="small" color="#132939" />
+                    <Text className="text-black ml-3">Loading...</Text>
+                  </View>
+                ) : isVariationsError ? (
+                  <View className="w-full rounded-[99px] border border-red-500 min-h-[48px] flex items-center justify-center px-4">
+                    <Text className="text-[12px] text-red-500">
+                      Failed to load service types. Please try again.
+                    </Text>
+                  </View>
+                ) : serviceTypes.length > 0 ? (
+                  <Controller
+                    control={control}
+                    name="serviceType"
+                    render={({ field: { value } }) => (
+                      <TouchableOpacity
+                        onPress={() => setShowServiceDrawer(true)}
+                        className={`w-full rounded-[99px] min-h-[48px] flex-row items-center justify-between px-4 ${
+                          errors.serviceType
+                            ? "border-2 border-red-500"
+                            : "border border-[#D0D5DD]"
+                        }`}
+                      >
+                        <Text
+                          className={`text-[14px] ${
+                            value ? "text-[#000000]" : "text-[#717680]"
+                          }`}
+                        >
+                          {serviceTypes.find((s) => s.id === value)?.name ||
+                            "Select service type"}
+                        </Text>
+                        <ChevronDown size={20} color="#717680" />
+                      </TouchableOpacity>
+                    )}
+                  />
+                ) : (
+                  <View className="w-full rounded-[99px] border border-red-500 min-h-[48px] flex items-center justify-center px-4">
+                    <Text className="text-[12px] text-red-500">
+                      No service types available
+                    </Text>
+                  </View>
+                )}
 
                 {errors.serviceType && (
                   <FormControlError>
@@ -474,133 +479,131 @@ const totalAmount = useMemo(() => {
               {/* QUANTITY */}
               {serviceTypeValue && (
                 <VStack space="lg">
-                <FormControl isInvalid={Boolean(errors.quantity)}>
-                  <FormControlLabel>
-                    <FormControlLabelText className="text-[12px] text-[#414651] mb-[6px]">
-                      Quantity
-                    </FormControlLabelText>
-                  </FormControlLabel>
+                  <FormControl isInvalid={Boolean(errors.quantity)}>
+                    <FormControlLabel>
+                      <FormControlLabelText className="text-[12px] text-[#414651] mb-[6px]">
+                        Quantity
+                      </FormControlLabelText>
+                    </FormControlLabel>
 
-                  <Controller
-                    control={control}
-                    name="quantity"
-                    render={({ field: { value } }) => (
-                      <TouchableOpacity
-                        onPress={() => setShowQuantityDrawer(true)}
-                        className={`w-full rounded-[99px] min-h-[48px] flex-row items-center justify-between px-4 ${
-                          errors.quantity
-                            ? "border-2 border-red-500"
-                            : "border border-[#D0D5DD]"
-                        }`}
-                      >
-                        <Text
-                          className={`text-[14px] ${
-                            value ? "text-[#000000]" : "text-[#717680]"
+                    <Controller
+                      control={control}
+                      name="quantity"
+                      render={({ field: { value } }) => (
+                        <TouchableOpacity
+                          onPress={() => setShowQuantityDrawer(true)}
+                          className={`w-full rounded-[99px] min-h-[48px] flex-row items-center justify-between px-4 ${
+                            errors.quantity
+                              ? "border-2 border-red-500"
+                              : "border border-[#D0D5DD]"
                           }`}
                         >
-                          {value || "Select quantity"}
-                        </Text>
-                        <ChevronDown size={20} color="#717680" />
-                      </TouchableOpacity>
+                          <Text
+                            className={`text-[14px] ${
+                              value ? "text-[#000000]" : "text-[#717680]"
+                            }`}
+                          >
+                            {value || "Select quantity"}
+                          </Text>
+                          <ChevronDown size={20} color="#717680" />
+                        </TouchableOpacity>
+                      )}
+                    />
+
+                    {errors.quantity && (
+                      <FormControlError>
+                        <FormControlErrorIcon
+                          className="text-red-500"
+                          as={AlertCircleIcon}
+                        />
+                        <FormControlErrorText className="text-red-500">
+                          {errors.quantity?.message}
+                        </FormControlErrorText>
+                      </FormControlError>
                     )}
-                  />
+                  </FormControl>
 
-                  {errors.quantity && (
-                    <FormControlError>
-                      <FormControlErrorIcon
-                        className="text-red-500"
-                        as={AlertCircleIcon}
+                  <FormControl>
+                    <FormControlLabel>
+                      <FormControlLabelText className="text-[12px] text-[#414651] mb-[6px]">
+                        Amount
+                      </FormControlLabelText>
+                    </FormControlLabel>
+
+                    <Input
+                      variant="outline"
+                      size="xl"
+                      isReadOnly={true}
+                      className="w-full rounded-[99px] min-h-[48px] border border-[#D0D5DD] bg-[#F9FAFB]"
+                    >
+                      <InputField
+                        value={`₦${formatAmount(totalAmount)}`}
+                        className="text-[14px] text-[#000000] font-manropesemibold px-4 py-3"
+                        editable={false}
                       />
-                      <FormControlErrorText className="text-red-500">
-                        {errors.quantity?.message}
-                      </FormControlErrorText>
-                    </FormControlError>
-                  )}
-                </FormControl>
 
-<FormControl>
-  <FormControlLabel>
-    <FormControlLabelText className="text-[12px] text-[#414651] mb-[6px]">
-      Amount
-    </FormControlLabelText>
-  </FormControlLabel>
-
-  <Input
-    variant="outline"
-    size="xl"
-    isReadOnly={true}
-    className="w-full rounded-[99px] min-h-[48px] border border-[#D0D5DD] bg-[#F9FAFB]"
-  >
-    <InputField
-      value={`₦${formatAmount(totalAmount)}`}
-      className="text-[14px] text-[#000000] font-manropesemibold px-4 py-3"
-      editable={false}
-    />
-    
-    {/* Optional: Show calculation breakdown */}
-    {selectedService && selectedQuantity && (
-      <View className="absolute right-4 top3">
-        <Text className="text-[10px] text-gray-500">
-          {selectedQuantity.value} × ₦{parseFloat(selectedService.price).toLocaleString()}
-        </Text>
-      </View>
-    )}
-  </Input>
-</FormControl>
+                      {/* Optional: Show calculation breakdown */}
+                      {selectedService && selectedQuantity && (
+                        <View className="absolute right-4 top3">
+                          <Text className="text-[10px] text-gray-500">
+                            {selectedQuantity.value} × ₦
+                            {parseFloat(selectedService.price).toLocaleString()}
+                          </Text>
+                        </View>
+                      )}
+                    </Input>
+                  </FormControl>
 
                   <FormControl isInvalid={Boolean(errors.phoneNumber)}>
-                  <FormControlLabel>
-                    <FormControlLabelText className="text-[12px] text-[#414651] mb-[6px]">
-                      Phone Number
-                    </FormControlLabelText>
-                  </FormControlLabel>
+                    <FormControlLabel>
+                      <FormControlLabelText className="text-[12px] text-[#414651] mb-[6px]">
+                        Phone Number
+                      </FormControlLabelText>
+                    </FormControlLabel>
 
-                  <Controller
-                    control={control}
-                    name="phoneNumber"
-                    render={({ field: { onChange, onBlur, value } }) => (
-                      <Input
-                        variant="outline"
-                        size="xl"
-                        className={`w-full rounded-[99px] focus:border-2 focus:border-[#D0D5DD] min-h-[48px] ${
-                          errors.phoneNumber
-                            ? "border-2 border-red-500"
-                            : "border border-[#D0D5DD]"
-                        }`}
-                      >
-                        <InputField
-                          placeholder="Enter Phone Number"
-                          className="text-[14px] text-[#717680] px-4 py-3"
-                          value={value}
-                          maxLength={11}
-                          keyboardType="number-pad"
-                          onChangeText={(text) => {
-                            const cleaned = text.replace(/[^0-9]/g, "");
-                            onChange(cleaned);
-                          }}
-                          onBlur={onBlur}
-                          autoCapitalize="none"
+                    <Controller
+                      control={control}
+                      name="phoneNumber"
+                      render={({ field: { onChange, onBlur, value } }) => (
+                        <Input
+                          variant="outline"
+                          size="xl"
+                          className={`w-full rounded-[99px] focus:border-2 focus:border-[#D0D5DD] min-h-[48px] ${
+                            errors.phoneNumber
+                              ? "border-2 border-red-500"
+                              : "border border-[#D0D5DD]"
+                          }`}
+                        >
+                          <InputField
+                            placeholder="Enter Phone Number"
+                            className="text-[14px] text-[#717680] px-4 py-3"
+                            value={value}
+                            maxLength={11}
+                            keyboardType="number-pad"
+                            onChangeText={(text) => {
+                              const cleaned = text.replace(/[^0-9]/g, "");
+                              onChange(cleaned);
+                            }}
+                            onBlur={onBlur}
+                            autoCapitalize="none"
+                          />
+                        </Input>
+                      )}
+                    />
+
+                    {errors.phoneNumber && (
+                      <FormControlError>
+                        <FormControlErrorIcon
+                          className="text-red-500"
+                          as={AlertCircleIcon}
                         />
-                      </Input>
+                        <FormControlErrorText className="text-red-500">
+                          {errors.phoneNumber?.message}
+                        </FormControlErrorText>
+                      </FormControlError>
                     )}
-                  />
-
-                  {errors.phoneNumber && (
-                    <FormControlError>
-                      <FormControlErrorIcon
-                        className="text-red-500"
-                        as={AlertCircleIcon}
-                      />
-                      <FormControlErrorText className="text-red-500">
-                        {errors.phoneNumber?.message}
-                      </FormControlErrorText>
-                    </FormControlError>
-                  )}
-                </FormControl>
+                  </FormControl>
                 </VStack>
-
-                
-
               )}
             </VStack>
           </Box>
@@ -657,32 +660,32 @@ const totalAmount = useMemo(() => {
           </DrawerHeader>
 
           {/* SERVICE TYPE SELECTION DRAWER */}
-<DrawerBody className="px-6 pb-8">
-  <VStack space="sm">
-    {isLoadingVariations ? (
-      <ActivityIndicator size="small" color="#132939" />
-    ) : serviceTypes.length > 0 ? (
-      serviceTypes.map((service) => (
-        <TouchableOpacity
-          key={service.id}
-          onPress={() => handleServiceSelect(service.id)}
-          className="flex-row justify-between items-center p-4 rounded-[16px] border-b border-[#E5E7EB] bg-white"
-        >
-          <Text className="text-[14px] font-medium leading-[100%] font-manropesemibold text-[#141316]">
-            {service.name}
-          </Text>
-          <Text className="text-[14px] text-gray-500">
-            ₦{parseInt(service.price).toLocaleString()}
-          </Text>
-        </TouchableOpacity>
-      ))
-    ) : (
-      <Text className="text-center text-gray-500 py-4">
-        No service types available
-      </Text>
-    )}
-  </VStack>
-</DrawerBody>
+          <DrawerBody className="px-6 pb-8">
+            <VStack space="sm">
+              {isLoadingVariations ? (
+                <ActivityIndicator size="small" color="#132939" />
+              ) : serviceTypes.length > 0 ? (
+                serviceTypes.map((service) => (
+                  <TouchableOpacity
+                    key={service.id}
+                    onPress={() => handleServiceSelect(service.id)}
+                    className="flex-row justify-between items-center p-4 rounded-[16px] border-b border-[#E5E7EB] bg-white"
+                  >
+                    <Text className="text-[14px] font-medium leading-[100%] font-manropesemibold text-[#141316]">
+                      {service.name}
+                    </Text>
+                    <Text className="text-[14px] text-gray-500">
+                      ₦{parseInt(service.price).toLocaleString()}
+                    </Text>
+                  </TouchableOpacity>
+                ))
+              ) : (
+                <Text className="text-center text-gray-500 py-4">
+                  No service types available
+                </Text>
+              )}
+            </VStack>
+          </DrawerBody>
         </DrawerContent>
       </Drawer>
 
@@ -798,7 +801,7 @@ const totalAmount = useMemo(() => {
                       Service Type
                     </Text>
                     <Text className="text-[12px] font-medium leading-[100%] font-manropesemibold text-[#141316]">
-                        {selectedService?.name || ""}
+                      {selectedService?.name || ""}
                     </Text>
                   </HStack>
 

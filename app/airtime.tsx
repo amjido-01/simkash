@@ -44,7 +44,6 @@ import { ConfirmationDrawer } from "@/components/confirmation-drawer";
 import { PageHeader } from "@/components/page-header";
 import { QuickAmountSelector } from "@/components/quick-amount-selector";
 import { usePurchaseAirtime } from "@/hooks/use-buy-airtime";
-import { getNetworkId } from "@/utils/network.helpers";
 import { NetworkSelectionDrawer } from "@/components/network-selection-drawer";
 // Validation schema
 const schema = yup.object().shape({
@@ -75,7 +74,7 @@ export default function Airtime() {
   const insets = useSafeAreaInsets();
   const { networks, isLoading, isError } = useGetNetworks();
   const verifyPhoneMutation = useVerifyPhone();
-    const { purchaseAirtime, isLoading: isPurchasing } = usePurchaseAirtime();
+  const { purchaseAirtime, isLoading: isPurchasing } = usePurchaseAirtime();
   const [showDrawer, setShowDrawer] = useState(false);
   const [showPinDrawer, setShowPinDrawer] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -120,13 +119,11 @@ export default function Airtime() {
 
       if (mtnNetwork) {
         setValue("network", mtnNetwork.serviceID, { shouldValidate: false });
-        console.log("✅ Default network set to MTN:", mtnNetwork.serviceID);
       } else {
         // Fallback to first network if MTN not found
         setValue("network", networks[0].serviceID, { shouldValidate: false });
-        console.log("⚠️ MTN not found, using first network:", networks[0].name);
       }
-      
+
       setHasSetDefaultNetwork(true);
     }
   }, [isLoading, networks, hasSetDefaultNetwork, setValue]);
@@ -145,49 +142,45 @@ export default function Airtime() {
 
       try {
         const response = await verifyPhoneMutation.mutateAsync({ phone });
-
-        console.log("✅ Phone verified:", response);
-
         // The API returns an ARRAY: [{ id: "airtel", name: "Airtel Nigeria", status: "ACTIVE" }]
         // Extract the first item from the array
         const networkData = Array.isArray(response) ? response[0] : response;
-        
+
         if (!networkData) {
           console.warn("⚠️ No network data in response");
           return;
         }
 
-        console.log("📱 Network data extracted:", networkData);
 
         // Match with your networks using serviceID
-        const detectedNetwork = networks.find(
-          (network) => {
-            const apiId = networkData.id?.toLowerCase();
-            const serviceId = network.serviceID?.toLowerCase();
-            
-            console.log(`Comparing: API ID="${apiId}" vs Service ID="${serviceId}"`);
-            
-            // Direct match
-            if (serviceId === apiId) return true;
-            
-            // Handle 9mobile/etisalat case
-            if (apiId === "9mobile" && serviceId === "etisalat") return true;
-            if (apiId === "etisalat" && serviceId === "etisalat") return true;
-            
-            // Fallback: check if API id is contained in serviceID or name
-            return (
-              serviceId?.includes(apiId) ||
-              network.name?.toLowerCase().includes(apiId)
-            );
-          }
-        );
+        const detectedNetwork = networks.find((network) => {
+          const apiId = networkData.id?.toLowerCase();
+          const serviceId = network.serviceID?.toLowerCase();
+
+          // Direct match
+          if (serviceId === apiId) return true;
+
+          // Handle 9mobile/etisalat case
+          if (apiId === "9mobile" && serviceId === "etisalat") return true;
+          if (apiId === "etisalat" && serviceId === "etisalat") return true;
+
+          // Fallback: check if API id is contained in serviceID or name
+          return (
+            serviceId?.includes(apiId) ||
+            network.name?.toLowerCase().includes(apiId)
+          );
+        });
 
         if (detectedNetwork) {
-          setValue("network", detectedNetwork.serviceID, { shouldValidate: true });
-          console.log("✅ Network auto-detected:", detectedNetwork.name);
+          setValue("network", detectedNetwork.serviceID, {
+            shouldValidate: true,
+          });
         } else {
           console.warn("⚠️ Could not match network. API ID:", networkData.id);
-          console.warn("Available networks:", networks.map(n => ({ id: n.id, serviceID: n.serviceID })));
+          console.warn(
+            "Available networks:",
+            networks.map((n) => ({ id: n.id, serviceID: n.serviceID }))
+          );
         }
       } catch (error: any) {
         console.error("❌ Phone verification failed:", error);
@@ -202,7 +195,11 @@ export default function Airtime() {
 
   // Watch for phone number changes and verify when complete
   useEffect(() => {
-    if (phoneValue && phoneValue.length === 11 && phoneValue !== lastVerifiedPhone.current) {
+    if (
+      phoneValue &&
+      phoneValue.length === 11 &&
+      phoneValue !== lastVerifiedPhone.current
+    ) {
       // Debounce the verification to avoid too many API calls
       const timeoutId = setTimeout(() => {
         verifyAndSetNetwork(phoneValue);
@@ -210,7 +207,7 @@ export default function Airtime() {
 
       return () => clearTimeout(timeoutId);
     }
-    
+
     // Reset verification tracking if phone number is cleared or changed
     if (phoneValue.length < 11) {
       lastVerifiedPhone.current = "";
@@ -219,7 +216,6 @@ export default function Airtime() {
 
   // Form submission
   const submitForm = useCallback((data: FormData) => {
-    console.log("✔ Valid form:", data);
     setShowDrawer(true);
   }, []);
 
@@ -231,14 +227,12 @@ export default function Airtime() {
     }, 300);
   }, []);
 
- // PIN submission with API call
+  // PIN submission with API call
   const handlePinSubmit = useCallback(
     async (pin: string) => {
       setIsSubmitting(true);
 
       try {
-        console.log("🔐 PIN entered, processing purchase...");
-
         // Get the selected network data
         const selectedNetworkData = networks.find(
           (n) => n.serviceID === networkValue
@@ -247,30 +241,24 @@ export default function Airtime() {
         if (!selectedNetworkData) {
           throw new Error("Network not found. Please select a network.");
         }
-        console.log(selectedNetworkData, "data")
-        // Get network ID for API call
 
         const payload = {
           phone: phoneValue,
           amount: Number(amountValue),
-            network: selectedNetworkData?.serviceID,
+          network: selectedNetworkData?.serviceID,
           pin: pin,
         };
-
-        console.log(payload, "airtime")
-
+        console.log(payload, "from airtime")
         // Call the purchase airtime API
         const result = await purchaseAirtime(payload);
-
-        console.log("Airtime Purchase Success => ", result);
 
         // Success - close drawers and navigate
         setShowPinDrawer(false);
         setShowDrawer(false);
         reset();
 
-         await new Promise((resolve) => setTimeout(resolve, 300));
-         
+        await new Promise((resolve) => setTimeout(resolve, 300));
+
         // Reset tracking
         setHasSetDefaultNetwork(false);
         lastVerifiedPhone.current = "";
@@ -388,7 +376,11 @@ export default function Airtime() {
         keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
       >
         {/* Header */}
-        <PageHeader title="Buy Airtime" onBack={handleBack} showBackButton={true} />
+        <PageHeader
+          title="Buy Airtime"
+          onBack={handleBack}
+          showBackButton={true}
+        />
 
         <ScrollView
           contentContainerStyle={{ flexGrow: 1 }}
@@ -398,7 +390,9 @@ export default function Airtime() {
         >
           <Box className="bg-white px-4 pt-6 pb-24 flex-1">
             <VStack space="lg" className="flex-1">
-              <FormControl isInvalid={Boolean(errors.phoneNumber || errors.network)}>
+              <FormControl
+                isInvalid={Boolean(errors.phoneNumber || errors.network)}
+              >
                 <FormControlLabel>
                   <FormControlLabelText className="text-[12px] text-[#414651] mb-[6px]">
                     Phone Number
@@ -459,7 +453,10 @@ export default function Airtime() {
 
                 {(errors.phoneNumber || errors.network) && (
                   <FormControlError>
-                    <FormControlErrorIcon className="text-red-500" as={AlertCircleIcon} />
+                    <FormControlErrorIcon
+                      className="text-red-500"
+                      as={AlertCircleIcon}
+                    />
                     <FormControlErrorText className="text-red-500">
                       {errors.phoneNumber?.message || errors.network?.message}
                     </FormControlErrorText>
@@ -490,7 +487,9 @@ export default function Airtime() {
                       variant="outline"
                       size="xl"
                       className={`w-full rounded-[99px] focus:border-2 focus:border-[#D0D5DD] min-h-[48px] ${
-                        errors.amount ? "border-2 border-red-500" : "border border-[#D0D5DD]"
+                        errors.amount
+                          ? "border-2 border-red-500"
+                          : "border border-[#D0D5DD]"
                       }`}
                     >
                       <View className="absolute left-4 border-r pr-2 border-gray-200 h-full top[12px] z-10">
@@ -517,7 +516,10 @@ export default function Airtime() {
 
                 {errors.amount && (
                   <FormControlError>
-                    <FormControlErrorIcon className="text-red-500" as={AlertCircleIcon} />
+                    <FormControlErrorIcon
+                      className="text-red-500"
+                      as={AlertCircleIcon}
+                    />
                     <FormControlErrorText className="text-red-500">
                       {errors.amount?.message}
                     </FormControlErrorText>
@@ -561,15 +563,15 @@ export default function Airtime() {
 
       {/* NETWORK SELECTION DRAWER */}
       <NetworkSelectionDrawer
-  isOpen={showNetworkDrawer}
-  onClose={() => setShowNetworkDrawer(false)}
-  networks={networks}
-  selectedNetworkId={networkValue}
-  onSelectNetwork={handleNetworkSelect}
-  isLoading={isLoading}
-  isError={isError}
-  title="Choose network Provider"
-/>
+        isOpen={showNetworkDrawer}
+        onClose={() => setShowNetworkDrawer(false)}
+        networks={networks}
+        selectedNetworkId={networkValue}
+        onSelectNetwork={handleNetworkSelect}
+        isLoading={isLoading}
+        isError={isError}
+        title="Choose network Provider"
+      />
 
       {/* CONFIRMATION DRAWER */}
       <ConfirmationDrawer
@@ -581,7 +583,8 @@ export default function Airtime() {
         amount={amountValue}
         sections={[
           {
-            containerClassName: "rounded-[20px] border-[#E5E7EF] border px-4 py-2",
+            containerClassName:
+              "rounded-[20px] border-[#E5E7EF] border px-4 py-2",
             details: [
               { label: "Phone Number", value: phoneValue },
               { label: "Network", value: selectedNetwork?.name || "" },
@@ -600,7 +603,8 @@ export default function Airtime() {
                 label: "Cashback",
                 value: "+₦500",
                 icon: <Gift size={16} color="#CB30E0" />,
-                valueClassName: "text-[12px] font-medium leading-[100%] font-manropesemibold text-[#10B981]",
+                valueClassName:
+                  "text-[12px] font-medium leading-[100%] font-manropesemibold text-[#10B981]",
               },
             ],
           },

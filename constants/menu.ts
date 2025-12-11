@@ -116,13 +116,6 @@ export const moreServices: MenuOption[] = [
 ];
 
 
-export const NETWORKS = [
-  { label: "MTN", value: "mtn", icon: "📱", color: "#FFCC00" },
-  { label: "Airtel", value: "airtel", icon: "📱", color: "#FF0000" },
-  { label: "Glo", value: "glo", icon: "📱", color: "#00B140" },
-  { label: "9Mobile", value: "9mobile", icon: "📱", color: "#00923F" },
-];
-
 export const QUICK_AMOUNTS = [
   { label: "₦100", value: "100" },
   { label: "₦200", value: "200" },
@@ -135,17 +128,6 @@ export const QUICK_AMOUNTS = [
 ];
 
 export const PIN_LENGTH = 4;
-
-export const BANKS = [
-  { label: "Opay", value: "opay" },
-  { label: "Moniepoint", value: "moniepoint" },
-  { label: "Access Bank", value: "access" },
-  { label: "GTBank", value: "gtbank" },
-  { label: "Zenith Bank", value: "zenith" },
-  { label: "First Bank", value: "firstbank" },
-  { label: "UBA", value: "uba" },
-  { label: "Kuda Bank", value: "kuda" },
-];
 
 export const GENDER = [
   { label: "Male", value: "male" },

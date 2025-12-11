@@ -1,14 +1,14 @@
-import { HStack } from "@/components/ui/hstack";
 import {
   Avatar,
   AvatarFallbackText,
   AvatarImage,
 } from "@/components/ui/avatar";
-import { Button, ButtonIcon } from "@/components/ui/button";
-import React from "react";
 import { Box } from "@/components/ui/box";
-import { Search, Bell, Menu } from "lucide-react-native";
+import { Button, ButtonIcon } from "@/components/ui/button";
+import { HStack } from "@/components/ui/hstack";
 import { useAuthStore } from "@/store/auth-store";
+import { Bell } from "lucide-react-native";
+import React from "react";
 
 export default function Header() {
   const { user, signOut } = useAuthStore();
@@ -23,7 +23,7 @@ export default function Header() {
     }
   };
   return (
-    <Box className={"border-b-2 border-[#E9EAEB] px-4 py-4"}>
+    <Box className={"border-[#E9EAEB] px-6 py-4"}>
       <HStack className={"items-center justify-between"}>
         <HStack space={"sm"}>
           <Avatar size="md">
@@ -35,18 +35,9 @@ export default function Header() {
             />
           </Avatar>
         </HStack>
-        <HStack space="lg">
-          <Button action={"default"} className={"mr2 p-0"}
-          onPress={handleLogout}
-          >
-            <ButtonIcon
-              className={"text-gray-300"}
-              as={() => {
-                return <Search className=" w-[40px] h-[40px]" />;
-              }}
-            ></ButtonIcon>
-          </Button>
-          <Button action={"default"} className={"mr2 p-0"}>
+          <Button 
+            onPress={handleLogout}
+          action={"default"} className={"mr2 p-[8px] rounded-[99%] bg-[#F4F5F8]"}>
             <ButtonIcon
               className={"text-gray-300"}
               as={() => {
@@ -54,15 +45,6 @@ export default function Header() {
               }}
             ></ButtonIcon>
           </Button>
-          <Button action={"default"} className={"mr2 p-0"}>
-            <ButtonIcon
-              className={"text-gray-300"}
-              as={() => {
-                return <Menu className=" w-[40px] h-[40px]" />;
-              }}
-            ></ButtonIcon>
-          </Button>
-        </HStack>
       </HStack>
     </Box>
   );

@@ -13,7 +13,7 @@ export const useGetNetworks = () => {
       console.log("Fetched networks:", networks);
       return networks;
     },
-    staleTime: 1000 * 60 * 10, // Cache for 10 minutes
+    staleTime: 1000 * 60 * 30, // Cache for 10 minutes
     retry: 2,
   });
 

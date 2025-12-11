@@ -22,7 +22,7 @@ import {
 import { WalletBalance } from "@/components/wallet-balance";
 import { transferOptions } from "@/utils/mock";
 import { router } from "expo-router";
-import { ChevronRight, Eye, EyeOff } from "lucide-react-native";
+import { ChevronRight } from "lucide-react-native";
 import { useState } from "react";
 import {
   Platform,
@@ -37,6 +37,7 @@ import DashboardSkeleton from "@/components/dashboard-skeleton";
 import { formatAmount } from "@/utils/formatAmount.helper";
 import { formatDate } from "@/utils/formatDate.helper";
 import { useAccountDetail } from "@/hooks/use-account";
+import { Box } from "@/components/ui/box";
 
 export default function HomeScreen() {
  const {
@@ -105,7 +106,7 @@ export default function HomeScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-[#fafafa]" edges={['top']}>
       <Header />
 
       <ScrollView
@@ -113,12 +114,15 @@ export default function HomeScreen() {
       className="flex-1 pb-[20px]" showsVerticalScrollIndicator={false}>
         {/* Wallet Balance Section */}
         <View className="mt-[22px] px-4">
-          <VStack className="w-full mb-[32px] py-[32px] items-center bg-[#F9FAFB] rounded-[20px]">
+
+          <Box className="mb-[32px] bg-[#FFFFFF] rounded-[16px]">
+          <VStack className="w-full  py-[32px] items-center bg[#F9FAFB] rounded-[20px]">
             <Text className="font-manroperegular text-[14px] text-[#6B7280] mb-2">
               Wallet Balance
             </Text>
           <WalletBalance balance={wallet?.balance} size="lg"/>
           </VStack>
+          </Box>
 
           {/* Quick Actions - Top Up & Send */}
           <HStack className="gap-4 mb-10">
@@ -132,7 +136,7 @@ export default function HomeScreen() {
                   handleQuickActionPress(action);
                 }}
               >
-                <View className="w-12 h-12 items-center justify-center rounded-full mb-2">
+                <View className="h12 bg-[#FFFFFF] w-full py-[13px] px-[30px] rounded-[16px] items-center justify-center roundedfull mb-2">
                   <action.icon size={24} color={action.color} />
                 </View>
                 <Text className="font-manroperegular font-medium text-[12px] text-[#141316]">
@@ -143,7 +147,7 @@ export default function HomeScreen() {
           </HStack>
 
           {/* Payments Section */}
-          <View className="mb-10 p-[14px]">
+          <View className="mb-10 px-[16px] py-[20px] rounded-[16px] bg-[#ffffff]">
             <Text className="font-manropesemibold font-medium text-[14px] text-[#565C69] mb-6">
               Payments
             </Text>
@@ -156,7 +160,7 @@ export default function HomeScreen() {
                   onPress={() => handlePaymentOptionPress(option)}
                 >
                   <View
-                    className="w-[60px] h-[60px] items-center justify-center mb-2"
+                    className="w[60px] w-full py-[16px] px-[30px] h-[60px] bg-[#FAFAFA] rounded-[16px] items-center justify-center mb-2"
                     // style={{ backgroundColor: option.bgColor }}
                   >
                     <option.icon size={24} color={option.iconColor} />
@@ -173,7 +177,7 @@ export default function HomeScreen() {
           </View>
 
           {/* Transactions Section */}
-          <View className="mb-6 p-[14px]">
+          <View className="mb-6 px-[16px] py-[20px] bg-[#ffffff] rounded-[16px]">
             <HStack className="justify-between items-center mb-4">
               <Text className="font-manropesemibold font-medium text-[14px] text-[#565C69] mb4">
                 Transactions
@@ -188,7 +192,7 @@ export default function HomeScreen() {
             {/* Transaction List */}
              <VStack className="gap-3">
               {parsedTransactions && parsedTransactions.length > 0 ? (
-                parsedTransactions.slice(0, 5).map((transaction) => {
+                parsedTransactions.slice(0, 3).map((transaction) => {
                   const isCommission = transaction.transaction_type
                     .toLowerCase()
                     .includes("commission");
@@ -197,7 +201,7 @@ export default function HomeScreen() {
                   return (
                     <TouchableOpacity
                       key={transaction.id}
-                      className="flex-row items-center justify-between p-4 bg-[#F9FAFB] rounded-[12px]"
+                      className="flex-row items-center justify-between p-4 bg[#F9FAFB] rounded-[12px]"
                       activeOpacity={0.7}
                       onPress={() => {
                         // Navigate to transaction details if you have that screen
