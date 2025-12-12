@@ -123,7 +123,7 @@ export default function DataBundle() {
       } else {
         setValue("network", networks[0].serviceID, { shouldValidate: false });
       }
-      
+
       setHasSetDefaultNetwork(true);
     }
   }, [isLoading, networks, hasSetDefaultNetwork, setValue]);
@@ -141,17 +141,17 @@ export default function DataBundle() {
       try {
         const response = await verifyPhoneMutation.mutateAsync({ phone });
         const networkData = Array.isArray(response) ? response[0] : response;
-        
+
         if (!networkData) return;
 
         const detectedNetwork = networks.find((network) => {
           const apiId = networkData.id?.toLowerCase();
           const serviceId = network.serviceID?.toLowerCase();
-          
+
           if (serviceId === apiId) return true;
           if (apiId === "9mobile" && serviceId === "etisalat") return true;
           if (apiId === "etisalat" && serviceId === "etisalat") return true;
-          
+
           return (
             serviceId?.includes(apiId) ||
             network.name?.toLowerCase().includes(apiId)
@@ -159,7 +159,9 @@ export default function DataBundle() {
         });
 
         if (detectedNetwork) {
-          setValue("network", detectedNetwork.serviceID, { shouldValidate: true });
+          setValue("network", detectedNetwork.serviceID, {
+            shouldValidate: true,
+          });
         }
       } catch (error) {
         lastVerifiedPhone.current = "";
@@ -182,14 +184,16 @@ export default function DataBundle() {
 
       return () => clearTimeout(timeoutId);
     }
-    
+
     if (phoneValue.length < 11) {
       lastVerifiedPhone.current = "";
     }
   }, [phoneValue, verifyAndSetNetwork]);
 
   const selectedNetwork = networks.find((n) => n.serviceID === networkValue);
-  const selectedBundle = popularPlans.find((b) => b.variation_code === dataBundleValue);
+  const selectedBundle = popularPlans.find(
+    (b) => b.variation_code === dataBundleValue
+  );
 
   const submitForm = useCallback((data: FormData) => {
     setShowConfirmDrawer(true);
@@ -202,117 +206,95 @@ export default function DataBundle() {
     }, 300);
   }, []);
 
-const handlePinSubmit = useCallback(
-  async (pin: string) => {
-    setIsSubmitting(true);
+  const handlePinSubmit = useCallback(
+    async (pin: string) => {
+      setIsSubmitting(true);
 
-    try {
-      // Validate that we have all required data
-      if (!selectedBundle) {
-        throw new Error("No data bundle selected. Please select a bundle.");
-      }
-
-      if (!selectedNetwork) {
-        throw new Error("Network not found. Please select a network.");
-      }
-
-      const serviceID = `${networkValue}-data`;
-      const payload = {
-        serviceID: serviceID,
-        billersCode: phoneValue,
-        variation_code: selectedBundle.variation_code,
-        amount: Number(selectedBundle.variation_amount),
-        phone: phoneValue,
-        pin: pin,
-      };
-
-      console.log("🚀 Submitting purchase:", payload);
-
-      // Call the purchase data API
-      const result = await purchaseData(payload);
-
-      console.log("✅ Purchase result:", result);
-
-      // ✅ Add explicit success check
-      if (!result || !result.responseSuccessful) {
-        throw new Error(
-          result?.responseMessage || "Transaction failed. Please try again."
+      try {
+        // Get the selected network data
+        const selectedNetworkData = networks.find(
+          (n) => n.serviceID === networkValue
         );
+
+        if (!selectedNetworkData) {
+          throw new Error("Network not found. Please select a network.");
+        }
+
+        if (!selectedBundle) {
+          throw new Error("No data bundle selected. Please select a bundle.");
+        }
+
+        const serviceID = `${networkValue}-data`;
+        const payload = {
+          serviceID: serviceID,
+          billersCode: phoneValue,
+          variation_code: selectedBundle.variation_code,
+          amount: Number(selectedBundle.variation_amount),
+          phone: phoneValue,
+          pin: pin,
+        };
+
+        console.log(payload, "from data");
+
+        // Call the purchase data API
+        const result = await purchaseData(payload);
+
+        console.log("✅ Purchase result:", result);
+
+        // Success - close drawers and navigate
+        setShowPinDrawer(false);
+        setShowConfirmDrawer(false);
+        reset();
+
+        await new Promise((resolve) => setTimeout(resolve, 300));
+
+        // Reset tracking
+        setHasSetDefaultNetwork(false);
+        lastVerifiedPhone.current = "";
+
+        router.push({
+          pathname: "/transaction-success",
+          params: {
+            amount: selectedBundle.variation_amount,
+            recipient: phoneValue,
+            phoneNumber: phoneValue,
+            transactionType: "data",
+            network: selectedNetworkData.name,
+            dataBundle: selectedBundle.name,
+            transactionId: result.responseBody?.transactionId || "",
+            reference: result.responseBody?.reference || "",
+            message: result.responseMessage || "Data purchased successfully",
+          },
+        });
+      } catch (error: any) {
+        console.error("❌ Data purchase error:", error);
+
+        // Handle specific error messages
+        let errorMessage = "Transaction failed. Please try again.";
+
+        if (error?.message) {
+          errorMessage = error.message;
+        } else if (error?.responseMessage) {
+          errorMessage = error.responseMessage;
+        }
+
+        // Show user-friendly error messages based on content
+        if (errorMessage.toLowerCase().includes("pin")) {
+          errorMessage = "Invalid PIN. Please try again.";
+        } else if (errorMessage.toLowerCase().includes("insufficient")) {
+          errorMessage = "Insufficient balance. Please fund your wallet.";
+        } else if (errorMessage.toLowerCase().includes("network")) {
+          errorMessage = "Network error. Please check your connection.";
+        }
+
+        // Throw error to be caught by PinDrawer component
+        throw new Error(errorMessage);
+      } finally {
+        setIsSubmitting(false);
       }
-
-      // Success - close drawers and navigate
-      setShowPinDrawer(false);
-      setShowConfirmDrawer(false);
-      reset();
-
-      await new Promise((resolve) => setTimeout(resolve, 300));
-
-      // Reset tracking
-      setHasSetDefaultNetwork(false);
-      lastVerifiedPhone.current = "";
-
-      router.push({
-        pathname: "/transaction-success",
-        params: {
-          amount: selectedBundle.variation_amount,
-          recipient: phoneValue,
-          phoneNumber: phoneValue,
-          transactionType: "data",
-          network: selectedNetwork.name,
-          dataBundle: selectedBundle.name,
-          transactionId: result.responseBody?.transactionId || "",
-          reference: result.responseBody?.reference || "",
-          message: result.responseMessage || "Data purchased successfully",
-        },
-      });
-    } catch (error: any) {
-      console.error("❌ Data purchase error:", error);
-
-      // ✅ Better error message extraction
-      let errorMessage = "Transaction failed. Please try again.";
-
-      // Check if it's an actual error object
-      if (error instanceof Error) {
-        errorMessage = error.message;
-      } else if (error?.response?.data?.responseMessage) {
-        errorMessage = error.response.data.responseMessage;
-      } else if (error?.responseMessage) {
-        errorMessage = error.responseMessage;
-      } else if (typeof error === "string") {
-        errorMessage = error;
-      }
-
-      // ✅ Only modify error message if it's NOT a successful transaction
-      // Don't check for "network" string as it might be in success responses
-      if (errorMessage.toLowerCase().includes("invalid") && 
-          errorMessage.toLowerCase().includes("pin")) {
-        errorMessage = "Invalid PIN. Please try again.";
-      } else if (errorMessage.toLowerCase().includes("insufficient")) {
-        errorMessage = "Insufficient balance. Please fund your wallet.";
-      } else if (errorMessage.toLowerCase().includes("connection") || 
-                 errorMessage.toLowerCase().includes("timeout")) {
-        errorMessage = "Network error. Please check your connection.";
-      } else if (errorMessage.toLowerCase().includes("invalid phone")) {
-        errorMessage = "Invalid phone number. Please check and try again.";
-      }
-
-      console.error("📢 Final error message:", errorMessage);
-
-      // Throw error to be caught by PinDrawer component
-      throw new Error(errorMessage);
-    } finally {
-      setIsSubmitting(false);
-    }
-  },
-  [
-    phoneValue,
-    networkValue,
-    selectedBundle,
-    selectedNetwork,
-    purchaseData,
-    reset,
-  ]
-);
+    },
+    [phoneValue, networkValue, selectedBundle, networks, purchaseData, reset]
+  );
   const handleContinue = useCallback(async () => {
     const valid = await trigger();
     if (!valid) return;
@@ -365,7 +347,11 @@ const handlePinSubmit = useCallback(
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        <PageHeader title="Buy Data" onBack={handleBack} showBackButton={true} />
+        <PageHeader
+          title="Buy Data"
+          onBack={handleBack}
+          showBackButton={true}
+        />
 
         <ScrollView
           contentContainerStyle={{ flexGrow: 1 }}
@@ -375,7 +361,9 @@ const handlePinSubmit = useCallback(
         >
           <Box className="bg-white px-4 pt-6 pb-24 flex-1">
             <VStack space="lg" className="flex-1">
-              <FormControl isInvalid={Boolean(errors.phoneNumber || errors.network)}>
+              <FormControl
+                isInvalid={Boolean(errors.phoneNumber || errors.network)}
+              >
                 <FormControlLabel>
                   <FormControlLabelText className="text-[12px] text-[#414651] mb-[6px]">
                     Phone Number
@@ -434,7 +422,10 @@ const handlePinSubmit = useCallback(
 
                 {(errors.phoneNumber || errors.network) && (
                   <FormControlError>
-                    <FormControlErrorIcon className="text-red-500" as={AlertCircleIcon} />
+                    <FormControlErrorIcon
+                      className="text-red-500"
+                      as={AlertCircleIcon}
+                    />
                     <FormControlErrorText className="text-red-500">
                       {errors.phoneNumber?.message || errors.network?.message}
                     </FormControlErrorText>
@@ -450,7 +441,10 @@ const handlePinSubmit = useCallback(
 
               {/* Data Bundle Selection - NEW VERSION */}
               {networkValue && (
-                <FormControl className="mt-[32px]" isInvalid={Boolean(errors.dataBundle)}>
+                <FormControl
+                  className="mt-[32px]"
+                  isInvalid={Boolean(errors.dataBundle)}
+                >
                   <FormControlLabel>
                     <FormControlLabelText className="text-[14px] text-[#414651] mb-[6px]">
                       Popular Data Bundles
@@ -479,41 +473,50 @@ const handlePinSubmit = useCallback(
                           </View>
                         )}
 
-                        {!isLoadingPlans && !isPlansError && popularPlans.map((bundle) => (
-                          <TouchableOpacity
-                            key={bundle.variation_code}
-                            onPress={() => handleBundleSelect(bundle.variation_code)}
-                            className={`flex-row justify-between items-center p-4 rounded-[16px] border ${
-                              value === bundle.variation_code
-                                ? "border-[#132939] bg-[#F9FAFB]"
-                                : "border-[#E5E7EB] bg-white"
-                            }`}
-                          >
-                            <View className="flex-1 pr-4">
-                              <Text className="text-[14px] font-medium font-manropesemibold text-[#000000]">
-                                {bundle.name}
+                        {!isLoadingPlans &&
+                          !isPlansError &&
+                          popularPlans.map((bundle) => (
+                            <TouchableOpacity
+                              key={bundle.variation_code}
+                              onPress={() =>
+                                handleBundleSelect(bundle.variation_code)
+                              }
+                              className={`flex-row justify-between items-center p-4 rounded-[16px] border ${
+                                value === bundle.variation_code
+                                  ? "border-[#132939] bg-[#F9FAFB]"
+                                  : "border-[#E5E7EB] bg-white"
+                              }`}
+                            >
+                              <View className="flex-1 pr-4">
+                                <Text className="text-[14px] font-medium font-manropesemibold text-[#000000]">
+                                  {bundle.name}
+                                </Text>
+                              </View>
+                              <Text className="text-[16px] font-semibold font-manropebold text-[#132939]">
+                                ₦{formatAmount(bundle.variation_amount)}
+                              </Text>
+                            </TouchableOpacity>
+                          ))}
+
+                        {!isLoadingPlans &&
+                          !isPlansError &&
+                          popularPlans.length === 0 && (
+                            <View className="py-8 px-4">
+                              <Text className="text-[14px] text-[#6B7280] text-center">
+                                No data plans available for this network.
                               </Text>
                             </View>
-                            <Text className="text-[16px] font-semibold font-manropebold text-[#132939]">
-                              ₦{formatAmount(bundle.variation_amount)}
-                            </Text>
-                          </TouchableOpacity>
-                        ))}
-
-                        {!isLoadingPlans && !isPlansError && popularPlans.length === 0 && (
-                          <View className="py-8 px-4">
-                            <Text className="text-[14px] text-[#6B7280] text-center">
-                              No data plans available for this network.
-                            </Text>
-                          </View>
-                        )}
+                          )}
                       </VStack>
                     )}
                   />
 
                   {errors.dataBundle && (
                     <FormControlError>
-                      <FormControlErrorIcon className="text-red-500" as={AlertCircleIcon} />
+                      <FormControlErrorIcon
+                        className="text-red-500"
+                        as={AlertCircleIcon}
+                      />
                       <FormControlErrorText className="text-red-500">
                         {errors.dataBundle?.message}
                       </FormControlErrorText>
@@ -533,7 +536,12 @@ const handlePinSubmit = useCallback(
             className="rounded-full bg-[#132939] h-[48px] w-full"
             size="xl"
             onPress={handleContinue}
-            disabled={isSubmitting || isPurchasingData || isVerifyingPhone || isLoadingPlans}
+            disabled={
+              isSubmitting ||
+              isPurchasingData ||
+              isVerifyingPhone ||
+              isLoadingPlans
+            }
           >
             <ButtonText className="text-white text-[16px] font-medium leading-[24px]">
               Continue
@@ -564,7 +572,8 @@ const handlePinSubmit = useCallback(
         amountClassName="text-[24px] font-medium text-center mt-[18px] font-manropebold text-[#000000]"
         sections={[
           {
-            containerClassName: "rounded-[20px] border-[#E5E7EF] border px-4 py-2",
+            containerClassName:
+              "rounded-[20px] border-[#E5E7EF] border px-4 py-2",
             details: [
               { label: "Phone Number", value: phoneValue },
               { label: "Network", value: selectedNetwork?.name || "" },
@@ -600,7 +609,7 @@ const handlePinSubmit = useCallback(
         onClose={() => setShowPinDrawer(false)}
         onSubmit={handlePinSubmit}
         title="Enter PIN"
-         isSubmitting={isSubmitting || isPurchasingData}
+        isSubmitting={isSubmitting || isPurchasingData}
         loadingText="Processing transaction..."
       />
     </SafeAreaView>

@@ -51,7 +51,6 @@ import * as yup from "yup";
 import { router } from "expo-router";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 import {
-  BANKS,
   ACCOUNT_VERIFICATION_DELAY,
   PIN_LENGTH,
 } from "@/constants/menu";
@@ -207,47 +206,6 @@ export default function ToBank() {
     }, 300);
   }, []);
 
-  // PIN pad number press
-  const handleNumberPress = useCallback(
-    (num: string) => {
-      if (pin.length < PIN_LENGTH) {
-        const newPin = pin + num;
-        setPin(newPin);
-        setPinError("");
-
-        // Update OTP input
-        if (otpRef.current) {
-          otpRef.current.setValue(newPin);
-        }
-
-        // Auto-submit when complete
-        if (newPin.length === PIN_LENGTH) {
-          setTimeout(() => handlePinSubmit(newPin), 300);
-        }
-      }
-    },
-    [pin]
-  );
-
-  // Backspace handler
-  const handleBackspace = useCallback(() => {
-    if (pin.length > 0) {
-      const newPin = pin.slice(0, -1);
-      setPin(newPin);
-      setPinError("");
-
-      if (otpRef.current) {
-        otpRef.current.setValue(newPin);
-      }
-    }
-  }, [pin]);
-
-  // PIN change handler
-  const handlePinChange = useCallback((text: string) => {
-    setPin(text);
-    setPinError("");
-  }, []);
-
   const handlePinSubmit = useCallback(
     async (pinToSubmit?: string) => {
       const finalPin = pinToSubmit || pin;
@@ -259,9 +217,6 @@ export default function ToBank() {
 
       setIsSubmitting(true);
 
-      // -------------------------
-      // Extract payload here
-      // -------------------------
       const payload = {
         amount: parseInt(amountValue, 10),
         account_number: phoneValue,
@@ -283,12 +238,9 @@ export default function ToBank() {
         setPin("");
         reset();
 
-        // -------------------------
-        // Wait for drawer animation to finish (e.g., 200–300ms)
-        // -------------------------
+ 
         await new Promise((resolve) => setTimeout(resolve, 300));
 
-        // Navigate AFTER drawers close
         router.push({
           pathname: "/transaction-success",
           params: {
