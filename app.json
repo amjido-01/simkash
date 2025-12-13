@@ -9,7 +9,12 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.anonymous.simkash",
+      "associatedDomains": [
+        "applinks:simkash.com",
+        "applinks:www.simkash.com"
+      ]
     },
     "android": {
       "adaptiveIcon": {
@@ -20,7 +25,32 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.simkash"
+      "package": "com.anonymous.simkash",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "simkash.com",
+              "pathPrefix": "/successpage"
+            },
+            {
+              "scheme": "https",
+              "host": "www.simkash.com",
+              "pathPrefix": "/successpage"
+            },
+            {
+              "scheme": "simkash"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ]
     },
     "web": {
       "output": "static",
@@ -41,7 +71,7 @@
         }
       ],
       "expo-secure-store",
-       [
+      [
         "expo-web-browser",
         {
           "experimentalLauncherActivity": true

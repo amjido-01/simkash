@@ -38,6 +38,8 @@ import { formatAmount } from "@/utils/formatAmount.helper";
 import { formatDate } from "@/utils/formatDate.helper";
 import { useAccountDetail } from "@/hooks/use-account";
 import { Box } from "@/components/ui/box";
+import * as Linking from "expo-linking" 
+import { Button, ButtonText } from "@/components/ui/button";
 
 export default function HomeScreen() {
  const {
@@ -145,6 +147,15 @@ export default function HomeScreen() {
               </Pressable>
             ))}
           </HStack>
+
+
+<Button
+  onPress={() => {
+    Linking.openURL('simkash://payment-verification?reference=TEST_123&status=success');
+  }}
+>
+  <ButtonText>Test Deep Link</ButtonText>
+</Button>
 
           {/* Payments Section */}
           <View className="mb-10 px-[16px] py-[20px] rounded-[16px] bg-[#ffffff]">

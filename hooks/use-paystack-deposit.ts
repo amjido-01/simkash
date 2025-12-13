@@ -63,13 +63,16 @@ export const useVerifyPayment = () => {
 
   const verifyMutation = useMutation({
     mutationFn: async (reference: string): Promise<VerifyPaymentResponseBody> => {
+      console.log("am in")
       // apiClient already extracts responseBody, so we get the data directly
       const response = await apiClient<VerifyPaymentResponseBody>(
-        `/payment/verify/${reference}`,
+        `/payment/verify`,
         {
-          method: "GET",
+          method: "POST",
+           data: { reference },
         }
       );
+      console.log("ffff")
       console.log("Payment verification:", response);
       return response;
     },

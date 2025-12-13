@@ -1,259 +1,3 @@
-// import { Button, ButtonText } from "@/components/ui/button";
-// import {
-//   Drawer,
-//   DrawerBackdrop,
-//   DrawerBody,
-//   DrawerCloseButton,
-//   DrawerContent,
-//   DrawerHeader,
-// } from "@/components/ui/drawer";
-// import { Heading } from "@/components/ui/heading";
-// import { HStack } from "@/components/ui/hstack";
-// import { Text } from "@/components/ui/text";
-// import { VStack } from "@/components/ui/vstack";
-// import { ChevronRight, Copy } from "lucide-react-native";
-// import { Platform, TouchableOpacity, View, Alert } from "react-native";
-// import { router } from "expo-router";
-// import { useSafeAreaInsets } from "react-native-safe-area-context";
-// import { BlurView } from "expo-blur";
-// import { useState } from "react";
-// import * as Clipboard from 'expo-clipboard';
-// import { useToast, Toast, ToastTitle, ToastDescription } from '@/components/ui/toast';
-
-
-// interface TopUpWalletDrawerProps {
-//   isOpen: boolean;
-//   onClose: () => void;
-//   hasCompletedKYC?: boolean;
-//   accountNumber?: string;
-//   accountName?: string;
-//   bankName?: string;
-// }
-
-// export default function TopUpWalletDrawer({
-//   isOpen,
-//   onClose,
-//   hasCompletedKYC = false,
-//   accountNumber = "9325678767",
-//   accountName = "SIMKASH/ADAM BABA YUSUF",
-//   bankName = "WEMA BANK",
-// }: TopUpWalletDrawerProps) {
-//   const toast = useToast();
-// const [toastId, setToastId] = useState<string | null>(null);
-
-
-//   const insets = useSafeAreaInsets();
-
-// const handleCopyAccountNumber = async () => {
-//   // Ensure accountNumber is a string
-//   await Clipboard.setStringAsync(accountNumber.toString());
-
-//   // Show toast
-//   if (!toastId || !toast.isActive(toastId)) {
-//     const newId = Math.random().toString();
-//     setToastId(newId);
-//     toast.show({
-//       id: newId,
-//       placement: 'bottom',
-//       duration: 3000,
-//       render: ({ id }) => (
-//         <Toast nativeID={'toast-' + id} variant="solid" action="muted">
-//           <ToastTitle>Copied!</ToastTitle>
-//           <ToastDescription>Account number copied to clipboard</ToastDescription>
-//         </Toast>
-//       ),
-//     });
-//   }
-// };
-
-
-//   const handleUnlockAccount = () => {
-//     onClose();
-//     router.push("/kyc");
-//   };
-
-// const handleSecurePayment = async () => {
-//   onClose();
-
-//   // Example: Call your backend to create Paystack authorization URL
-//   const response = await fetch("https://your-backend.com/api/paystack/initiate", {
-//     method: "POST",
-//     headers: { "Content-Type": "application/json" },
-//     body: JSON.stringify({
-//       amount: 5000, // your amount
-//       userId: "123",
-//     }),
-//   });
-
-//   const data = await response.json();
-
-//   // Example response.data = { authorization_url: "https://checkout.paystack.com/xyz..." }
-//   const url = data.authorization_url;
-
-//   router.push({
-//     pathname: "/paystack",
-//     params: { url },
-//   });
-// };
-
-
-//   return (
-//     <Drawer
-//       className="border-t-0"
-//       isOpen={isOpen}
-//       size="md"
-//       anchor="bottom"
-//       onClose={onClose}
-//     >
-//       <DrawerBackdrop
-//         style={{
-//           backgroundColor: "#24242440",
-//           opacity: 1,
-//         }}
-//       />
-//       <DrawerContent
-//         className="rounded-t-[30px] pt-[28px] bg-[#FFFFFF]"
-//         style={{
-//           borderTopWidth: 0,
-//           borderColor: "transparent",
-//           shadowOpacity: 0,
-//           elevation: 0,
-//           paddingBottom: insets.bottom || 16,
-//         }}
-//       >
-//         <DrawerHeader className="border-b-0 pb-2">
-//           <Heading className="font-manropesemibold text-center text-[18px] text-[#000000] mb2">
-//                         Top Up Wallet
-
-//           </Heading>
-//           <DrawerCloseButton />
-//         </DrawerHeader>
-
-//         <DrawerBody className="pt-4">
-//           <VStack space="lg">
-//             {/* Personal Account Section */}
-//             {!hasCompletedKYC ? (
-//               // Blurred account with unlock button
-//               <View className="relative rounded-[16px] border border-[#E5E7EB] overflow-hidden">
-//                 <View className="p-4">
-//                   <HStack className="items-center gap-3 mb-4">
-//                     {/* Avatar with Badge */}
-//                     <View className="relative">
-//                       <View className="w-12 h-12 bg-[#3B82F6] rounded-full items-center justify-center">
-//                         <Text className="text-white text-[18px] font-manropesemibold">
-//                           A
-//                         </Text>
-//                       </View>
-//                       <View className="absolute -top-1 -right-1 w-6 h-6 bg-[#3B82F6] rounded-full items-center justify-center border-2 border-white">
-//                         <Text className="text-white text-[10px]">👤</Text>
-//                       </View>
-//                     </View>
-
-//                     <VStack className="flex-1">
-//                       <Text className="text-[16px] font-manropesemibold text-[#000000] mb-1">
-//                         ••••• •••• •
-//                       </Text>
-//                       <Text className="text-[12px] font-manroperegular text-[#6B7280]">
-//                         Your dedicated account number
-//                       </Text>
-//                     </VStack>
-//                   </HStack>
-
-//                   <Button
-//                     className="rounded-full z-10 bg-[#132939] h-[44px] w-full"
-//                     size="lg"
-//                     onPress={handleUnlockAccount}
-//                   >
-//                     <ButtonText className="text-white text-[14px] font-medium">
-//                       Unlock Personal Account
-//                     </ButtonText>
-//                   </Button>
-//                 </View>
-
-//                 {/* Blur overlay */}
-//                 {Platform.OS === "ios" ? (
-//                   <BlurView
-//                     intensity={10}
-//                     tint="light"
-//                     style={{
-//                       position: "absolute",
-//                       top: 0,
-//                       left: 0,
-//                       right: 0,
-//                       bottom: 0,
-//                     }}
-//                   />
-//                 ) : (
-//                   <View
-//                     style={{
-//                       position: "absolute",
-//                       top: 0,
-//                       left: 0,
-//                       right: 0,
-//                       bottom: 0,
-//                       backgroundColor: "rgba(255, 255, 255, 0.8)",
-//                     }}
-//                   />
-//                 )}
-//               </View>
-//             ) : (
-//               // Unlocked account with details
-//               <View className="rounded-[16px] border border-[#E5E7EB] p-4">
-//                 <HStack className="items-center justify-between mb-2">
-//                   <HStack className="items-center gap-2 flex-1">
-//                     <Text className="text-[16px] font-bold font-manropebold text-[#000000]">
-//                       {accountNumber}
-//                     </Text>
-//                     <TouchableOpacity
-//                       onPress={handleCopyAccountNumber}
-//                       className="p-1"
-//                       activeOpacity={0.7}
-//                     >
-//                       <Copy size={18} color="#1E1E1E" />
-//                     </TouchableOpacity>
-//                   </HStack>
-//                 </HStack>
-
-//                 <HStack className="items-center gap-2">
-//                   <Text className="text-[12px] font-bold font-manropesemibold text-[#000000]">
-//                     {accountName}
-//                   </Text>
-//                   <View className="w-1 h-1 rounded-full bg-[#6B7280]" />
-//                   <Text className="text-[12px] font-bold font-manropesemibold text-[#000000]">
-//                     {bankName}
-//                   </Text>
-//                 </HStack>
-//               </View>
-//             )}
-
-//             {/* OR Divider */}
-//               <Text className="text-[14px] text-center font-semibold font-manroperegular text-[#000000]">
-//                 OR
-//               </Text>
-
-//             {/* Secure Payment Channels */}
-//             <TouchableOpacity
-//               onPress={handleSecurePayment}
-//               activeOpacity={0.7}
-//               className="flex-row items-center border border-[#E5E7EF] px-4 justify-between py-4 rounded-[16px]"
-//             >
-//               <VStack className="flex-1">
-//                 <Text className="font-manropesemibold text-[14px] leading-[100%] font-bold text-[#000000] mb-1">
-//                   Secure Payment Channels
-//                 </Text>
-//                 <Text className="font-manroperegular font-medium text-[12px] text-[#303237]">
-//                   Top up using cards, USSD and more
-//                 </Text>
-//               </VStack>
-//               <ChevronRight size={20} color="#000000" />
-//             </TouchableOpacity>
-//           </VStack>
-//         </DrawerBody>
-//       </DrawerContent>
-//     </Drawer>
-//   );
-// }
-
 import { Button, ButtonText } from "@/components/ui/button";
 import {
   Drawer,
@@ -272,7 +16,7 @@ import { Platform, TouchableOpacity, View, Alert, ActivityIndicator } from "reac
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BlurView } from "expo-blur";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import * as Clipboard from 'expo-clipboard';
 import * as WebBrowser from 'expo-web-browser';
 import { useToast, Toast, ToastTitle, ToastDescription } from '@/components/ui/toast';
@@ -333,6 +77,17 @@ export default function TopUpWalletDrawer({
   
   // State for drawer views
   const [currentView, setCurrentView] = useState<DrawerView>('main');
+
+   // ✅ NEW - Works for both React Native and Node.js
+const pollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const paymentReferenceRef = useRef<string | null>(null);
+  const deepLinkHandledRef = useRef(false);
+
+   useEffect(() => {
+    return () => {
+      stopPaymentPolling();
+    };
+  }, []);
   
   // React Hook Form
   const {
@@ -392,90 +147,416 @@ export default function TopUpWalletDrawer({
     reset(); // Reset form
   };
 
+//  const handleInitiatePayment = async (data: FormData) => {
+//   const amountNum = parseInt(data.amount, 10);
+  
+//   try {
+//     setCurrentView('processing');
+    
+//     // Initiate deposit using the hook with user-entered amount
+//     const response = await initiateDeposit({
+//       amount: amountNum,
+//     });
+    
+//     console.log("Initiate deposit response:", response);
+    
+//     // response is already the responseBody (extracted by apiClient)
+//     if (response?.authorization_url) {
+//       // Open Paystack checkout in in-app browser (don't close drawer yet)
+//       const result = await WebBrowser.openBrowserAsync(
+//         response.authorization_url,
+//         {
+//           // iOS specific options
+//           dismissButtonStyle: "close",
+//           presentationStyle: WebBrowser.WebBrowserPresentationStyle.PAGE_SHEET,
+//           controlsColor: "#244155",
+//           // Android specific options
+//           toolbarColor: "#244155",
+//           showTitle: true,
+//           enableBarCollapsing: false,
+//         }
+//       );
+      
+//       // Handle the browser result
+//       if (result.type === "cancel") {
+//         Alert.alert(
+//           "Payment Cancelled",
+//           "You cancelled the payment process",
+//           [
+//             {
+//               text: "OK",
+//               onPress: () => setCurrentView('amountInput')
+//             }
+//           ]
+//         );
+//       } else if (result.type === "dismiss") {
+//         // Show processing state while verifying
+//         setCurrentView('processing');
+//         console.log("hellllllo")
+        
+//         // Verify payment status using the hook
+//         try {
+//           const verifyResponse = await verifyPayment(response.reference);
+//           console.log(verifyPayment, "lllll")
+          
+//           console.log("Verify payment response:", verifyResponse);
+          
+//           // verifyResponse is already the responseBody (extracted by apiClient)
+//           if (verifyResponse?.data?.status === "success") {
+//             // Close drawer and reset
+//             onClose();
+//             reset();
+//             setCurrentView('main');
+            
+//             // Show success message with amount
+//             Alert.alert(
+//               "Payment Successful!", 
+//               `₦${verifyResponse.data.amount.toLocaleString()} has been added to your wallet.`,
+//               [
+//                 { 
+//                   text: "View Wallet",
+//                   onPress: () => {
+//                     // Navigate to wallet/transactions if needed
+//                     // router.push("/wallet");
+//                   }
+//                 },
+//                 { 
+//                   text: "OK",
+//                   style: "cancel"
+//                 }
+//               ]
+//             );
+//           } else if (verifyResponse?.data?.status === "pending") {
+//             // Payment is still processing
+//             onClose();
+//             reset();
+//             setCurrentView('main');
+            
+//             Alert.alert(
+//               "Payment Pending", 
+//               "Your payment is being processed. Please check your transaction history in a few moments.",
+//               [
+//                 {
+//                   text: "View Transactions",
+//                   onPress: () => {
+//                     // Navigate to transactions page
+//                     router.push("/(tabs)");
+//                   }
+//                 },
+//                 {
+//                   text: "OK",
+//                   style: "cancel"
+//                 }
+//               ]
+//             );
+//           } else if (verifyResponse?.data?.status === "failed") {
+//             // Payment failed
+//             Alert.alert(
+//               "Payment Failed", 
+//               "The payment was not successful. Please try again or contact support if you were charged.",
+//               [
+//                 {
+//                   text: "Retry",
+//                   onPress: () => setCurrentView('amountInput')
+//                 },
+//                 {
+//                   text: "Cancel",
+//                   style: "cancel",
+//                   onPress: () => {
+//                     onClose();
+//                     reset();
+//                     setCurrentView('main');
+//                   }
+//                 }
+//               ]
+//             );
+//           } else {
+//             // Unknown status
+//             onClose();
+//             reset();
+//             setCurrentView('main');
+            
+//             Alert.alert(
+//               "Payment Status Unknown", 
+//               "Please check your transaction history to confirm payment status.",
+//               [
+//                 {
+//                   text: "View Transactions",
+//                   onPress: () => {
+//                     // Navigate to transactions page
+//                     router.push("/(tabs)");
+//                   }
+//                 },
+//                 {
+//                   text: "OK",
+//                   style: "cancel"
+//                 }
+//               ]
+//             );
+//           }
+//         } catch (verifyError: any) {
+//           console.error("Verification error:", verifyError);
+          
+//           // Extract error message from various possible error formats
+//           const errorMessage = 
+//             verifyError?.message || 
+//             verifyError?.response?.data?.responseMessage ||
+//             verifyError?.response?.data?.message ||
+//             "Unable to verify payment. Please check your transaction history.";
+          
+//           Alert.alert(
+//             "Verification Error", 
+//             errorMessage,
+//             [
+//               {
+//                 text: "View Transactions",
+//                 onPress: () => {
+//                   onClose();
+//                   reset();
+//                   setCurrentView('main');
+//                   // Navigate to transactions page
+//                   router.push("/(tabs)");
+//                 }
+//               },
+//               {
+//                 text: "Retry Verification",
+//                 onPress: async () => {
+//                   // Retry verification
+//                   try {
+//                     const retryResponse = await verifyPayment(response.reference);
+//                     if (retryResponse?.data?.status === "success") {
+//                       onClose();
+//                       reset();
+//                       setCurrentView('main');
+//                       Alert.alert(
+//                         "Payment Successful!", 
+//                         `₦${retryResponse.data.amount.toLocaleString()} has been added to your wallet.`
+//                       );
+//                     } else {
+//                       setCurrentView('main');
+//                       Alert.alert(
+//                         "Payment Status", 
+//                         "Please check your transaction history."
+//                       );
+//                     }
+//                   } catch (retryError) {
+//                     setCurrentView('main');
+//                     Alert.alert(
+//                       "Error", 
+//                       "Still unable to verify. Please check transactions later."
+//                     );
+//                   }
+//                 }
+//               },
+//               {
+//                 text: "OK",
+//                 style: "cancel",
+//                 onPress: () => {
+//                   onClose();
+//                   reset();
+//                   setCurrentView('main');
+//                 }
+//               }
+//             ]
+//           );
+//         }
+//       }
+//     } else {
+//       Alert.alert(
+//         "Error",
+//         "Failed to get payment URL. Please try again.",
+//         [
+//           {
+//             text: "OK",
+//             onPress: () => setCurrentView('amountInput')
+//           }
+//         ]
+//       );
+//     }
+//   } catch (error: any) {
+//     console.error("Payment initiation error:", error);
+    
+//     // Extract error message
+//     const errorMessage = 
+//       error?.message || 
+//       error?.response?.data?.responseMessage ||
+//       error?.response?.data?.message ||
+//       "Failed to initiate payment. Please try again.";
+    
+//     Alert.alert(
+//       "Payment Error", 
+//       errorMessage,
+//       [
+//         {
+//           text: "Retry",
+//           onPress: () => setCurrentView('amountInput')
+//         },
+//         {
+//           text: "Cancel",
+//           style: "cancel",
+//           onPress: () => {
+//             onClose();
+//             reset();
+//             setCurrentView('main');
+//           }
+//         }
+//       ]
+//     );
+//   }
+// };
+
   const handleInitiatePayment = async (data: FormData) => {
     const amountNum = parseInt(data.amount, 10);
     
     try {
       setCurrentView('processing');
+      console.log('💰 Initiating payment for amount:', amountNum);
       
-      // Initiate deposit using the hook with user-entered amount
-      const response = await initiateDeposit({
-        amount: amountNum, // Convert to kobo (Paystack expects amount in kobo)
-      });
-
-      console.log("Initiate deposit response:", response);
-
-      // response is already the responseBody (extracted by apiClient)
+      const response = await initiateDeposit({ amount: amountNum });
+      console.log('✅ Payment initiated:', response);
+      
       if (response?.authorization_url) {
-        // Close the drawer first
-        onClose();
-
-        // Open Paystack checkout in in-app browser
+        // Store reference for polling
+        paymentReferenceRef.current = response.reference;
+        deepLinkHandledRef.current = false;
+        
+        console.log('🔄 Starting payment polling');
+        // Start polling (fallback mechanism)
+        startPaymentPolling(response.reference, amountNum);
+        
+        console.log('🌐 Opening Paystack checkout');
+        // Open Paystack checkout
         const result = await WebBrowser.openBrowserAsync(
           response.authorization_url,
           {
-            // iOS specific options
             dismissButtonStyle: "close",
             presentationStyle: WebBrowser.WebBrowserPresentationStyle.PAGE_SHEET,
             controlsColor: "#244155",
-            // Android specific options
             toolbarColor: "#244155",
             showTitle: true,
             enableBarCollapsing: false,
           }
         );
-
-        // Handle the browser result
-        if (result.type === "cancel") {
-          Alert.alert(
-            "Payment Cancelled",
-            "You cancelled the payment process"
-          );
-          setCurrentView('amountInput');
-        } else if (result.type === "dismiss") {
-          // Verify payment status using the hook
-          try {
-            const verifyResponse = await verifyPayment(response.reference);
-            
-            console.log("Verify payment response:", verifyResponse);
-            
-            // verifyResponse is already the responseBody (extracted by apiClient)
-            if (verifyResponse?.data?.status === "success") {
-              Alert.alert("Success", "Payment completed successfully!");
-              // Reset state after successful payment
-              reset();
-              setCurrentView('main');
-            } else {
-              Alert.alert(
-                "Payment Status", 
-                "Please check your transaction history"
-              );
-              setCurrentView('main');
-            }
-          } catch (verifyError) {
-            console.error("Verification error:", verifyError);
-            Alert.alert(
-              "Verification Error", 
-              "Unable to verify payment. Please check your transaction history."
-            );
-            setCurrentView('main');
-          }
+        
+        console.log('📱 Browser result:', result.type);
+        
+        // Browser closed - stop polling
+        stopPaymentPolling();
+        
+        // If deep link already handled payment (deepLinkHandledRef will be true)
+        // then we don't need to do anything
+        if (!deepLinkHandledRef.current && paymentReferenceRef.current) {
+          console.log('🔗 Deep link did not handle, navigating manually');
+          // Deep link didn't work, navigate manually to verification
+          router.push({
+            pathname: '/payment-verification',
+            params: { reference: paymentReferenceRef.current }
+          });
+        } else {
+          console.log('✅ Deep link handled the navigation');
         }
+        
+        // Reset drawer state
+        onClose();
+        reset();
+        setCurrentView('main');
+        
       } else {
-        Alert.alert(
-          "Error",
-          "Failed to get payment URL"
-        );
+        console.error('❌ No authorization URL received');
+        Alert.alert("Error", "Failed to get payment URL. Please try again.");
         setCurrentView('amountInput');
       }
-    } catch (error) {
-      console.error("Payment error:", error);
-      Alert.alert("Error", "Failed to initiate payment. Please try again.");
+    } catch (error: any) {
+      stopPaymentPolling();
+      console.error("❌ Payment initiation error:", error);
+      
+      const errorMessage = 
+        error?.message || 
+        error?.response?.data?.responseMessage ||
+        "Failed to initiate payment. Please try again.";
+      
+      Alert.alert("Payment Error", errorMessage);
       setCurrentView('amountInput');
     }
   };
 
-  const isProcessing = isInitiating || isVerifying;
+  const startPaymentPolling = (reference: string, amount: number) => {
+    console.log('🔄 Payment polling started for:', reference);
+    
+    let pollCount = 0;
+    const MAX_POLLS = 60; // Poll for up to 3 minutes (60 * 3 seconds)
+    
+    pollingIntervalRef.current = setInterval(async () => {
+      pollCount++;
+      console.log(`📡 Polling attempt ${pollCount}/${MAX_POLLS}`);
+      
+      try {
+        const verifyResponse = await verifyPayment(reference);
+        console.log('📋 Polling result:', verifyResponse?.data?.status);
+        
+        if (verifyResponse?.data?.status === 'success') {
+          console.log('🎉 Payment successful during polling!');
+          
+          // Stop polling
+          stopPaymentPolling();
+          
+          // Mark as handled by polling
+          deepLinkHandledRef.current = true;
+          paymentReferenceRef.current = null;
+          
+          // Close drawer
+          onClose();
+          reset();
+          setCurrentView('main');
+          
+          // Show success alert
+          Alert.alert(
+            "Payment Successful!",
+            `₦${verifyResponse.data.amount.toLocaleString()} has been added to your wallet.`,
+            [
+              {
+                text: "OK",
+                onPress: () => {
+                  router.push('/(tabs)');
+                }
+              }
+            ]
+          );
+          
+        } else if (verifyResponse?.data?.status === 'failed') {
+          console.log('❌ Payment failed during polling');
+          stopPaymentPolling();
+          deepLinkHandledRef.current = true;
+          paymentReferenceRef.current = null;
+          
+          Alert.alert("Payment Failed", "The payment was not successful.");
+          setCurrentView('amountInput');
+        }
+        // If pending, continue polling
+        
+      } catch (error) {
+        console.error('❌ Polling error:', error);
+        // Continue polling even if there's an error
+      }
+      
+      // Stop polling after max attempts
+      if (pollCount >= MAX_POLLS) {
+        console.log('⏰ Max polling attempts reached');
+        stopPaymentPolling();
+      }
+      
+    }, 3000); // Poll every 3 seconds
+  };
+
+  const stopPaymentPolling = () => {
+    if (pollingIntervalRef.current) {
+      console.log('⏹️ Stopping payment polling');
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+    }
+  };
+
+const isProcessing = isInitiating || isVerifying;
 
   const renderMainView = () => (
     <VStack space="lg">

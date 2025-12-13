@@ -339,7 +339,7 @@ export default function Airtime() {
     } else {
       lastVerifiedPhone.current = "";
       setHasSetDefaultNetwork(false);
-      router.push("/(tabs)");
+      router.back();
     }
   }, [phoneValue, amountValue]);
 

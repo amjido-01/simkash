@@ -171,45 +171,6 @@ export const servicesGrid: ServiceOption[][] = [
   ],
 ];
 
-// Bottom navigation tabs - EXACTLY as shown
-const bottomTabs = [
-  {
-    id: 1,
-    icon: HomeIcon,
-    label: "Home",
-    iconColor: "#006AB1",
-    route: "/home",
-  },
-  {
-    id: 2,
-    icon: MonitorSmartphone,
-    label: "Services",
-    iconColor: "#006AB1",
-    route: "/services",
-    isActive: true,
-  },
-  {
-    id: 3,
-    icon: Smartphone,
-    label: "Device SIM",
-    iconColor: "#6B7280",
-    route: "/device-sim",
-  },
-  {
-    id: 4,
-    icon: Gift,
-    label: "Rewards",
-    iconColor: "#6B7280",
-    route: "/rewards",
-  },
-  {
-    id: 5,
-    icon: UserCircle,
-    label: "Me",
-    iconColor: "#6B7280",
-    route: "/me",
-  },
-];
 
 export default function ServicesScreen() {
   const [selectedService, setSelectedService] = useState<ServiceOption | null>(
