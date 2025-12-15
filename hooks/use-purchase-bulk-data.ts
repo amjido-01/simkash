@@ -2,22 +2,23 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/app/api/axios";
 import { dashboardKeys } from "./use-dashboard";
 
-// Recipient type for "different" plans
+// Update BulkDataRecipient to include amount
 export interface BulkDataRecipient {
   network: string;
   phone: string;
   planCode: string;
+  amount: number; // ADD THIS
 }
 
-// Request payload type for "same" plan
+// Update BulkDataSamePayload to include amount
 export interface BulkDataSamePayload {
   type: "same";
   network: string;
   plan: string;
-  recipients: string[]; // Array of phone numbers
+  amount: number; // ADD THIS
+  recipients: string[];
   pin: number | string;
 }
-
 // Request payload type for "different" plans
 export interface BulkDataDifferentPayload {
   type: "different";
@@ -64,7 +65,8 @@ export const usePurchaseBulkData = () => {
           type: "same",
           network: payload.network,
           plan: payload.plan,
-          recipients: payload.recipients, // Array of phone numbers
+          amount: payload.amount, // ADD THIS
+          recipients: payload.recipients,
           pin: payload.pin.toString(),
         };
       } else {
@@ -74,6 +76,7 @@ export const usePurchaseBulkData = () => {
             network: recipient.network,
             plan: recipient.planCode,
             phone: recipient.phone,
+            amount: recipient.amount, // ADD THIS
           })),
           pin: payload.pin.toString(),
         };
@@ -95,17 +98,17 @@ export const usePurchaseBulkData = () => {
     },
     onSuccess: (data) => {
       console.log("✅ Bulk data purchased successfully:", data);
-      
+
       // Invalidate dashboard to refresh wallet balance
       queryClient.invalidateQueries({ queryKey: dashboardKeys.info() });
-      
+
       // Optionally invalidate transaction history
       // queryClient.invalidateQueries({ queryKey: ["transactions"] });
       // queryClient.invalidateQueries({ queryKey: ["transaction-history"] });
     },
     onError: (error: any) => {
       console.error("❌ Bulk data purchase failed:", error);
-      
+
       // Enhanced error logging
       if (error?.response?.data) {
         console.error("Error details:", error.response.data);

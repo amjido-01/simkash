@@ -2,13 +2,16 @@
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { Tabs } from "expo-router";
 import { Gift, Home, User, WalletMinimal } from "lucide-react-native";
+import { Platform } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function TabsLayout() {
   return (
+    <SafeAreaView className="flex-1">
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarHideOnKeyboard: true,
+        tabBarHideOnKeyboard: Platform.OS === 'android' ? true : false,
         tabBarActiveTintColor: "#244155",
         tabBarInactiveTintColor: "#9CA3AF",
         tabBarStyle: {
@@ -17,9 +20,19 @@ export default function TabsLayout() {
           borderTopColor: "#E5E7EB",
           elevation: 0,
           shadowOpacity: 0,
-          height: 60,
-          paddingBottom: 8,
-          paddingTop: 8,
+          height: Platform.OS === 'ios' ? 88 : 60, // Increased for iOS
+          paddingBottom: Platform.OS === 'ios' ? 30 : 8, // Increased bottom padding
+          // marginBottom: 45,
+          paddingTop: 4,
+          // Fix for iOS keyboard avoidance
+          ...Platform.select({
+            ios: {
+              position: 'absolute',
+              bottom: 0,
+              left: 0,
+              right: 0,
+            },
+          }),
         },
         tabBarLabelStyle: {
           fontSize: 12,
@@ -73,5 +86,6 @@ export default function TabsLayout() {
         }}
       />
     </Tabs>
+    </SafeAreaView>
   );
 }

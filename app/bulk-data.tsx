@@ -51,7 +51,10 @@ import { router } from "expo-router";
 import { PinDrawer } from "@/components/pin-drawer";
 import { ConfirmationDrawer } from "@/components/confirmation-drawer";
 import { PageHeader } from "@/components/page-header";
-import { usePurchaseBulkData, BulkDataPayload } from "@/hooks/use-purchase-bulk-data";
+import {
+  usePurchaseBulkData,
+  BulkDataPayload,
+} from "@/hooks/use-purchase-bulk-data";
 import { NetworkSelectionDrawer } from "@/components/network-selection-drawer";
 import DataPlanSelectionDrawer from "@/components/data-plan-selection-drawer";
 import { useGetDataPlans } from "@/hooks/use-getdata-plans"; // For "same" mode - returns top 5
@@ -75,6 +78,7 @@ const recipientSchema = yup.object().shape({
     otherwise: (schema) => schema.notRequired(),
   }),
   dataPlanName: yup.string().notRequired(), // Store plan name for display
+   dataPlanAmount: yup.string().notRequired(),
 });
 
 // Main form schema
@@ -160,13 +164,14 @@ export default function BulkData() {
     );
 
   // Fetch ALL data plans for "different" mode
- const currentRecipientNetwork = recipientPlanDrawerIndex !== null 
-    ? recipients[recipientPlanDrawerIndex]?.network 
-    : "";
-    
-  const { 
-    dataPlans: differentModeAllPlans, 
-    isLoading: isLoadingDifferentPlans 
+  const currentRecipientNetwork =
+    recipientPlanDrawerIndex !== null
+      ? recipients[recipientPlanDrawerIndex]?.network
+      : "";
+
+  const {
+    dataPlans: differentModeAllPlans,
+    isLoading: isLoadingDifferentPlans,
   } = useGetAllDataPlans(
     currentRecipientNetwork || "",
     planOption === "different" && !!currentRecipientNetwork
@@ -282,24 +287,25 @@ export default function BulkData() {
     }, 300);
   }, []);
 
-  const calculateTotalAmount = useCallback(() => {
-    if (planOption === "same") {
-      const plan = sameModePopularPlans.find(
-        (p) => p.variation_code === samePlan
-      );
-      const amount = plan ? parseFloat(plan.variation_amount) : 0;
-      return amount * recipients.length;
-    } else {
-      return recipients.reduce((total, recipient) => {
-        // For different mode, we need to find the plan from the recipient's network
-        // Since we can't fetch all networks at once, we'll use a placeholder
-        // In reality, you'd need to store the plan amounts when they're selected
-        return total;
-      }, 0);
-    }
-  }, [planOption, samePlan, recipients, sameModePopularPlans]);
+const calculateTotalAmount = useCallback(() => {
+  if (planOption === "same") {
+    const plan = sameModePopularPlans.find(
+      (p) => p.variation_code === samePlan
+    );
+    const amount = plan ? parseFloat(plan.variation_amount) : 0;
+    return amount * recipients.length;
+  } 
+  else {
+  return recipients.reduce((total, recipient) => {
+    const amount = recipient.dataPlanAmount 
+      ? parseFloat(recipient.dataPlanAmount) 
+      : 0;
+    return total + amount;
+  }, 0);
+}
+}, [planOption, samePlan, recipients, sameModePopularPlans]);
 
- const handlePinSubmit = useCallback(
+  const handlePinSubmit = useCallback(
     async (pin: string) => {
       setIsSubmitting(true);
 
@@ -323,35 +329,48 @@ export default function BulkData() {
             throw new Error("Please select a data plan.");
           }
 
-          const selectedPlan = sameModePopularPlans.find((p) => p.variation_code === samePlan);
+          const selectedPlan = sameModePopularPlans.find(
+            (p) => p.variation_code === samePlan
+          );
           if (!selectedPlan) {
             throw new Error("Data plan not found.");
           }
 
           payload = {
-            type: "same" as const,
-            network: selectedNetworkData.serviceID,
-            plan: samePlan,
-            recipients: recipients.map((r) => r.phoneNumber),
-            pin: pin,
-          };
+    type: "same" as const,
+    network: selectedNetworkData.serviceID,
+    plan: samePlan,
+    amount: parseFloat(selectedPlan.variation_amount), // ADD THIS
+    recipients: recipients.map((r) => r.phoneNumber),
+    pin: pin,
+  };
         } else {
-          const invalidRecipients = recipients.filter((r) => !r.network || !r.dataPlan);
+          const invalidRecipients = recipients.filter(
+            (r) => !r.network || !r.dataPlan
+          );
           if (invalidRecipients.length > 0) {
             throw new Error(
               "Please ensure all phone numbers have networks and data plans selected."
             );
           }
 
-          payload = {
-            type: "different" as const,
-            recipients: recipients.map((r) => ({
-              network: r.network!,
-              phone: r.phoneNumber,
-              planCode: r.dataPlan!,
-            })),
-            pin: pin,
-          };
+        payload = {
+    type: "different" as const,
+    recipients: recipients.map((r) => {
+      // Find the plan to get the amount
+      const recipientPlan = differentModeAllPlans.find(
+        (p) => p.variation_code === r.dataPlan
+      );
+      
+      return {
+        network: r.network!,
+        phone: r.phoneNumber,
+        planCode: r.dataPlan!,
+        amount: recipientPlan ? parseFloat(recipientPlan.variation_amount) : 0, // ADD THIS
+      };
+    }),
+    pin: pin,
+  };
         }
 
         const result = await purchaseBulkData(payload);
@@ -394,17 +413,7 @@ export default function BulkData() {
         setIsSubmitting(false);
       }
     },
-    [
-      planOption,
-      samePlan,
-      recipients,
-      networkValue,
-      networks,
-      sameModePopularPlans,
-      purchaseBulkData,
-      reset,
-      calculateTotalAmount,
-    ]
+    [recipients, planOption, purchaseBulkData, reset, calculateTotalAmount, networks, samePlan, sameModePopularPlans, networkValue, differentModeAllPlans]
   );
   const handleContinue = useCallback(async () => {
     if (planOption === "different") {
@@ -486,28 +495,31 @@ export default function BulkData() {
     [setValue]
   );
 
-  const handleRecipientPlanSelect = useCallback(
-    (index: number, planCode: string) => {
-      // Find the plan details to store the name
-      const selectedPlan = differentModeAllPlans.find(
-        (p) => p.variation_code === planCode
-      );
-
-      setValue(`recipients.${index}.dataPlan`, planCode, {
-        shouldValidate: true,
+// In handleRecipientPlanSelect, also store the amount:
+const handleRecipientPlanSelect = useCallback(
+  (index: number, planCode: string) => {
+    const selectedPlan = differentModeAllPlans.find(
+      (p) => p.variation_code === planCode
+    );
+    
+    setValue(`recipients.${index}.dataPlan`, planCode, {
+      shouldValidate: true,
+    });
+    
+    if (selectedPlan) {
+      setValue(`recipients.${index}.dataPlanName`, selectedPlan.name, {
+        shouldValidate: false,
       });
-
-      // Store the plan name for display
-      if (selectedPlan) {
-        setValue(`recipients.${index}.dataPlanName`, selectedPlan.name, {
-          shouldValidate: false,
-        });
-      }
-
-      setRecipientPlanDrawerIndex(null);
-    },
-    [setValue, differentModeAllPlans]
-  );
+      // ADD THIS - store the amount too
+      setValue(`recipients.${index}.dataPlanAmount`, selectedPlan.variation_amount, {
+        shouldValidate: false,
+      });
+    }
+    
+    setRecipientPlanDrawerIndex(null);
+  },
+  [setValue, differentModeAllPlans]
+);
 
   const handleRecipientPlanClick = useCallback(
     (index: number) => {
@@ -1001,10 +1013,20 @@ export default function BulkData() {
         title="Confirm Transaction"
         subtitle="Please review details carefully. Transactions are irreversible."
         amount={calculateTotalAmount().toString()}
+        scrollable={true}
+        confirmButtonFixed={true}
+        confirmButtonClassName="
+    rounded-full 
+    bg-gradient-to-r from-[#244155] to-[#132939]
+    h-[52px] 
+    w-full
+    shadow-lg
+  "
+        contentClassName="h-[85%]"
         sections={[
           {
             containerClassName:
-              "rounded-[20px] border-[#E5E7EF] border px-4 py-2",
+              "rounded-[20px] border-[#E5E7EF] border px-4 py2",
             details: [
               {
                 label: "Number of Beneficiary",
@@ -1044,11 +1066,11 @@ export default function BulkData() {
             ],
           },
           {
-            containerClassName: "p-4",
+            containerClassName: "p4",
             details: [
               {
                 label: "Wallet Balance",
-                value: "₦50,000",
+                value: "₦50,00",
                 icon: <Wallet size={16} color="#FF8D28" />,
               },
               {
