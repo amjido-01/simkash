@@ -2,36 +2,34 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/app/api/axios";
 import { dashboardKeys } from "./use-dashboard";
 
-// Recipient type for "different" amounts
-export interface BulkRecipient {
+// Recipient type for "different" plans
+export interface BulkDataRecipient {
   network: string;
   phone: string;
-  amount: number;
+  planCode: string;
 }
 
-// Request payload type for "same" amount
-export interface BulkAirtimeSamePayload {
+// Request payload type for "same" plan
+export interface BulkDataSamePayload {
   type: "same";
   network: string;
-  amount: number;
+  plan: string;
   recipients: string[]; // Array of phone numbers
   pin: number | string;
 }
 
-// Request payload type for "different" amounts
-export interface BulkAirtimeDifferentPayload {
+// Request payload type for "different" plans
+export interface BulkDataDifferentPayload {
   type: "different";
-  recipients: BulkRecipient[]; // Array of recipient objects
+  recipients: BulkDataRecipient[]; // Array of recipient objects
   pin: number | string;
 }
 
 // Union type for both payload types
-export type BulkAirtimePayload =
-  | BulkAirtimeSamePayload
-  | BulkAirtimeDifferentPayload;
+export type BulkDataPayload = BulkDataSamePayload | BulkDataDifferentPayload;
 
 // Response type
-export interface BulkAirtimeResponse {
+export interface BulkDataResponse {
   responseSuccessful: boolean;
   responseMessage: string;
   responseBody?: {
@@ -42,7 +40,8 @@ export interface BulkAirtimeResponse {
     failedCount?: number;
     recipients?: {
       phone: string;
-      amount: number;
+      network?: string;
+      plan?: string;
       status: string;
       transactionId?: string;
       reference?: string;
@@ -52,13 +51,11 @@ export interface BulkAirtimeResponse {
   };
 }
 
-export const usePurchaseBulkAirtime = () => {
+export const usePurchaseBulkData = () => {
   const queryClient = useQueryClient();
 
-  const purchaseBulkAirtimeMutation = useMutation({
-    mutationFn: async (
-      payload: BulkAirtimePayload
-    ): Promise<BulkAirtimeResponse> => {
+  const purchaseBulkDataMutation = useMutation({
+    mutationFn: async (payload: BulkDataPayload): Promise<BulkDataResponse> => {
       // Format the payload based on type
       let formattedPayload: any;
 
@@ -66,7 +63,7 @@ export const usePurchaseBulkAirtime = () => {
         formattedPayload = {
           type: "same",
           network: payload.network,
-          amount: payload.amount,
+          plan: payload.plan,
           recipients: payload.recipients, // Array of phone numbers
           pin: payload.pin.toString(),
         };
@@ -75,39 +72,40 @@ export const usePurchaseBulkAirtime = () => {
           type: "different",
           recipients: payload.recipients.map((recipient) => ({
             network: recipient.network,
+            plan: recipient.planCode,
             phone: recipient.phone,
-            amount: recipient.amount,
           })),
           pin: payload.pin.toString(),
         };
       }
 
-      console.log("📤 Bulk airtime purchase payload:", formattedPayload);
+      console.log("📤 Bulk data purchase payload:", formattedPayload);
 
-      const response = await apiClient<BulkAirtimeResponse>(
-        "/billpayment/airtime/bulk/purchase",
+      const response = await apiClient<BulkDataResponse>(
+        "/billpayment/data/bulk/purchase",
         {
           method: "POST",
           data: formattedPayload,
         }
       );
 
-      console.log("✅ Bulk airtime purchase response:", response);
+      console.log("✅ Bulk data purchase response:", response);
+
       return response;
     },
     onSuccess: (data) => {
-      console.log("✅ Bulk airtime purchased successfully:", data);
-
+      console.log("✅ Bulk data purchased successfully:", data);
+      
       // Invalidate dashboard to refresh wallet balance
       queryClient.invalidateQueries({ queryKey: dashboardKeys.info() });
-
+      
       // Optionally invalidate transaction history
       // queryClient.invalidateQueries({ queryKey: ["transactions"] });
       // queryClient.invalidateQueries({ queryKey: ["transaction-history"] });
     },
     onError: (error: any) => {
-      console.error("❌ Bulk airtime purchase failed:", error);
-
+      console.error("❌ Bulk data purchase failed:", error);
+      
       // Enhanced error logging
       if (error?.response?.data) {
         console.error("Error details:", error.response.data);
@@ -116,12 +114,12 @@ export const usePurchaseBulkAirtime = () => {
   });
 
   return {
-    purchaseBulkAirtime: purchaseBulkAirtimeMutation.mutateAsync,
-    isLoading: purchaseBulkAirtimeMutation.isPending,
-    isError: purchaseBulkAirtimeMutation.isError,
-    error: purchaseBulkAirtimeMutation.error,
-    isSuccess: purchaseBulkAirtimeMutation.isSuccess,
-    data: purchaseBulkAirtimeMutation.data,
-    reset: purchaseBulkAirtimeMutation.reset,
+    purchaseBulkData: purchaseBulkDataMutation.mutateAsync,
+    isLoading: purchaseBulkDataMutation.isPending,
+    isError: purchaseBulkDataMutation.isError,
+    error: purchaseBulkDataMutation.error,
+    isSuccess: purchaseBulkDataMutation.isSuccess,
+    data: purchaseBulkDataMutation.data,
+    reset: purchaseBulkDataMutation.reset,
   };
 };

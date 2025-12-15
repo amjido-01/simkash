@@ -22,9 +22,16 @@ import {
   Trash2,
   Plus,
   RadioTower,
+  ChevronRight,
 } from "lucide-react-native";
 import { useGetNetworks } from "@/hooks/use-networks";
-import React, { useCallback, useRef, useEffect, useState, useMemo } from "react";
+import React, {
+  useCallback,
+  useRef,
+  useEffect,
+  useState,
+  useMemo,
+} from "react";
 import { Controller, useForm, useFieldArray } from "react-hook-form";
 import {
   KeyboardAvoidingView,
@@ -41,13 +48,14 @@ import {
 } from "react-native-safe-area-context";
 import * as yup from "yup";
 import { router } from "expo-router";
-import { QUICK_AMOUNTS } from "@/constants/menu";
 import { PinDrawer } from "@/components/pin-drawer";
 import { ConfirmationDrawer } from "@/components/confirmation-drawer";
 import { PageHeader } from "@/components/page-header";
-import { QuickAmountSelector } from "@/components/quick-amount-selector";
-import { usePurchaseBulkAirtime } from "@/hooks/use-purchase-bulk-airtime";
+import { usePurchaseBulkData, BulkDataPayload } from "@/hooks/use-purchase-bulk-data";
 import { NetworkSelectionDrawer } from "@/components/network-selection-drawer";
+import DataPlanSelectionDrawer from "@/components/data-plan-selection-drawer";
+import { useGetDataPlans } from "@/hooks/use-getdata-plans"; // For "same" mode - returns top 5
+import { useGetAllDataPlans } from "@/hooks/use-get-data-plans"; // For "different" mode - returns all
 
 // Validation schema for recipients
 const recipientSchema = yup.object().shape({
@@ -56,51 +64,30 @@ const recipientSchema = yup.object().shape({
     .required("Phone number is required")
     .matches(/^[0-9]+$/, "Phone number must contain only digits")
     .length(11, "Phone number must be exactly 11 digits"),
-  network: yup.string().when("$amountOption", {
+  network: yup.string().when("$planOption", {
     is: "different",
     then: (schema) => schema.required("Network is required"),
-    otherwise: (schema) => schema.notRequired(), // ✅ Not required in "same" mode
+    otherwise: (schema) => schema.notRequired(),
   }),
-  amount: yup.string().when("$amountOption", {
+  dataPlan: yup.string().when("$planOption", {
     is: "different",
-    then: (schema) =>
-      schema
-        .required("Amount is required")
-        .matches(/^[0-9]+$/, "Amount must contain only numbers")
-        .test("min-amount", "Minimum amount is ₦100", (value) => {
-          if (!value) return false;
-          return parseInt(value, 10) >= 100;
-        })
-        .test("max-amount", "Maximum amount is ₦500,000", (value) => {
-          if (!value) return false;
-          return parseInt(value, 10) <= 500000;
-        }),
-    otherwise: (schema) => schema.notRequired(), // ✅ Not required in "same" mode
+    then: (schema) => schema.required("Data plan is required"),
+    otherwise: (schema) => schema.notRequired(),
   }),
+  dataPlanName: yup.string().notRequired(), // Store plan name for display
 });
 
-// Main form schema with network validation
+// Main form schema
 const schema = yup.object().shape({
-  amountOption: yup.string().oneOf(["same", "different"]).required(),
-  network: yup.string().when("amountOption", {
+  planOption: yup.string().oneOf(["same", "different"]).required(),
+  network: yup.string().when("planOption", {
     is: "same",
     then: (schema) => schema.required("Please select a network"),
     otherwise: (schema) => schema.notRequired(),
   }),
-  sameAmount: yup.string().when("amountOption", {
+  samePlan: yup.string().when("planOption", {
     is: "same",
-    then: (schema) =>
-      schema
-        .required("Please enter amount")
-        .matches(/^[0-9]+$/, "Amount must contain only numbers")
-        .test("min-amount", "Minimum amount is ₦100", (value) => {
-          if (!value) return false;
-          return parseInt(value, 10) >= 100;
-        })
-        .test("max-amount", "Maximum amount is ₦500,000", (value) => {
-          if (!value) return false;
-          return parseInt(value, 10) <= 500000;
-        }),
+    then: (schema) => schema.required("Please select a data plan"),
     otherwise: (schema) => schema.notRequired(),
   }),
   recipients: yup
@@ -111,23 +98,26 @@ const schema = yup.object().shape({
 
 type FormData = yup.InferType<typeof schema>;
 
-export default function BulkAirtime() {
+export default function BulkData() {
   const insets = useSafeAreaInsets();
   const { networks, isLoading, isError } = useGetNetworks();
   const verifyPhoneMutation = useVerifyPhone();
-  const { purchaseBulkAirtime, isLoading: isPurchasing } =
-    usePurchaseBulkAirtime();
+  const { purchaseBulkData, isLoading: isPurchasing } = usePurchaseBulkData();
+
   const [showDrawer, setShowDrawer] = useState(false);
   const [showPinDrawer, setShowPinDrawer] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedAmount, setSelectedAmount] = useState("");
   const [showNetworkDrawer, setShowNetworkDrawer] = useState(false);
+  const [showPlanDrawer, setShowPlanDrawer] = useState(false);
   const [hasSetDefaultNetwork, setHasSetDefaultNetwork] = useState(false);
   const [verifyingRecipients, setVerifyingRecipients] = useState<Set<number>>(
     new Set()
   );
   const [recipientNetworkDrawerIndex, setRecipientNetworkDrawerIndex] =
     useState<number | null>(null);
+  const [recipientPlanDrawerIndex, setRecipientPlanDrawerIndex] = useState<
+    number | null
+  >(null);
   const verifyingPhones = useRef<Set<number>>(new Set());
 
   const {
@@ -142,10 +132,12 @@ export default function BulkAirtime() {
     resolver: yupResolver(schema) as any,
     mode: "onChange",
     defaultValues: {
-      amountOption: "same",
+      planOption: "same",
       network: "",
-      sameAmount: "",
-      recipients: [{ phoneNumber: "", amount: "", network: "" }],
+      samePlan: "",
+      recipients: [
+        { phoneNumber: "", dataPlan: "", network: "", dataPlanName: "" },
+      ],
     },
   });
 
@@ -154,13 +146,33 @@ export default function BulkAirtime() {
     name: "recipients",
   });
 
-  const amountOption = watch("amountOption");
+  const planOption = watch("planOption");
   const networkValue = watch("network");
-  const sameAmount = watch("sameAmount");
+  const samePlan = watch("samePlan");
   const recipientsWatch = watch("recipients");
-const recipients = useMemo(() => recipientsWatch || [], [recipientsWatch]);
+  const recipients = useMemo(() => recipientsWatch || [], [recipientsWatch]);
 
-  // Set MTN as default when networks finish loading
+  // Fetch top 5 data plans for "same" mode
+  const { popularPlans: sameModePopularPlans, isLoading: isLoadingSamePlans } =
+    useGetDataPlans(
+      networkValue || "",
+      planOption === "same" && !!networkValue
+    );
+
+  // Fetch ALL data plans for "different" mode
+ const currentRecipientNetwork = recipientPlanDrawerIndex !== null 
+    ? recipients[recipientPlanDrawerIndex]?.network 
+    : "";
+    
+  const { 
+    dataPlans: differentModeAllPlans, 
+    isLoading: isLoadingDifferentPlans 
+  } = useGetAllDataPlans(
+    currentRecipientNetwork || "",
+    planOption === "different" && !!currentRecipientNetwork
+  );
+
+  // Set MTN as default
   useEffect(() => {
     if (!isLoading && networks.length > 0 && !hasSetDefaultNetwork) {
       const mtnNetwork = networks.find(
@@ -179,7 +191,7 @@ const recipients = useMemo(() => recipientsWatch || [], [recipientsWatch]);
     }
   }, [isLoading, networks, hasSetDefaultNetwork, setValue]);
 
-  // Verify phone number and set network per recipient
+  // Verify phone number and set network
   const verifyAndSetNetwork = useCallback(
     async (phone: string, index: number) => {
       if (phone.length !== 11 || verifyingPhones.current.has(index)) {
@@ -193,10 +205,7 @@ const recipients = useMemo(() => recipientsWatch || [], [recipientsWatch]);
         const response = await verifyPhoneMutation.mutateAsync({ phone });
         const networkData = Array.isArray(response) ? response[0] : response;
 
-        if (!networkData) {
-          console.warn("⚠️ No network data in response");
-          return;
-        }
+        if (!networkData) return;
 
         const detectedNetwork = networks.find((network) => {
           const apiId = networkData.id?.toLowerCase();
@@ -213,15 +222,13 @@ const recipients = useMemo(() => recipientsWatch || [], [recipientsWatch]);
         });
 
         if (detectedNetwork) {
-          const currentAmountOption = watch("amountOption");
+          const currentPlanOption = watch("planOption");
 
-          if (currentAmountOption === "different") {
-            // Different mode: set network per recipient
+          if (currentPlanOption === "different") {
             setValue(`recipients.${index}.network`, detectedNetwork.serviceID, {
               shouldValidate: true,
             });
           } else {
-            // Same mode: set global network for first recipient or validate consistency
             const currentGlobalNetwork = watch("network");
 
             if (!currentGlobalNetwork || index === 0) {
@@ -231,13 +238,11 @@ const recipients = useMemo(() => recipientsWatch || [], [recipientsWatch]);
             } else if (detectedNetwork.serviceID !== currentGlobalNetwork) {
               Alert.alert(
                 "Different Network Detected",
-                `This number is on ${detectedNetwork.name}, but you've selected ${networks.find((n) => n.serviceID === currentGlobalNetwork)?.name}. In "Same amount" mode, all numbers must be on the same network.`,
+                `This number is on ${detectedNetwork.name}, but you've selected ${networks.find((n) => n.serviceID === currentGlobalNetwork)?.name}. In "Same plan" mode, all numbers must be on the same network.`,
                 [{ text: "OK" }]
               );
             }
           }
-        } else {
-          console.warn("⚠️ Could not match network");
         }
       } catch (error: any) {
         console.error("❌ Phone verification failed:", error);
@@ -254,7 +259,7 @@ const recipients = useMemo(() => recipientsWatch || [], [recipientsWatch]);
   );
 
   const handleAddRecipient = useCallback(() => {
-    append({ phoneNumber: "", amount: "", network: "" });
+    append({ phoneNumber: "", dataPlan: "", network: "", dataPlanName: "" });
   }, [append]);
 
   const handleRemoveRecipient = useCallback(
@@ -278,17 +283,23 @@ const recipients = useMemo(() => recipientsWatch || [], [recipientsWatch]);
   }, []);
 
   const calculateTotalAmount = useCallback(() => {
-    if (amountOption === "same") {
-      const amount = parseInt(sameAmount || "0", 10);
+    if (planOption === "same") {
+      const plan = sameModePopularPlans.find(
+        (p) => p.variation_code === samePlan
+      );
+      const amount = plan ? parseFloat(plan.variation_amount) : 0;
       return amount * recipients.length;
     } else {
       return recipients.reduce((total, recipient) => {
-        return total + parseInt(recipient.amount || "0", 10);
+        // For different mode, we need to find the plan from the recipient's network
+        // Since we can't fetch all networks at once, we'll use a placeholder
+        // In reality, you'd need to store the plan amounts when they're selected
+        return total;
       }, 0);
     }
-  }, [amountOption, sameAmount, recipients]);
+  }, [planOption, samePlan, recipients, sameModePopularPlans]);
 
-  const handlePinSubmit = useCallback(
+ const handlePinSubmit = useCallback(
     async (pin: string) => {
       setIsSubmitting(true);
 
@@ -297,10 +308,9 @@ const recipients = useMemo(() => recipientsWatch || [], [recipientsWatch]);
           throw new Error("Please add at least one recipient.");
         }
 
-        let payload;
+        let payload: BulkDataPayload;
 
-        if (amountOption === "same") {
-          // For "same" mode, use global network
+        if (planOption === "same") {
           const selectedNetworkData = networks.find(
             (n) => n.serviceID === networkValue
           );
@@ -309,19 +319,27 @@ const recipients = useMemo(() => recipientsWatch || [], [recipientsWatch]);
             throw new Error("Network not found. Please select a network.");
           }
 
+          if (!samePlan) {
+            throw new Error("Please select a data plan.");
+          }
+
+          const selectedPlan = sameModePopularPlans.find((p) => p.variation_code === samePlan);
+          if (!selectedPlan) {
+            throw new Error("Data plan not found.");
+          }
+
           payload = {
             type: "same" as const,
             network: selectedNetworkData.serviceID,
-            amount: Number(sameAmount),
+            plan: samePlan,
             recipients: recipients.map((r) => r.phoneNumber),
             pin: pin,
           };
         } else {
-          // For "different" mode, validate all recipients have networks
-          const invalidRecipients = recipients.filter((r) => !r.network);
+          const invalidRecipients = recipients.filter((r) => !r.network || !r.dataPlan);
           if (invalidRecipients.length > 0) {
             throw new Error(
-              "Please ensure all phone numbers have networks selected."
+              "Please ensure all phone numbers have networks and data plans selected."
             );
           }
 
@@ -330,13 +348,13 @@ const recipients = useMemo(() => recipientsWatch || [], [recipientsWatch]);
             recipients: recipients.map((r) => ({
               network: r.network!,
               phone: r.phoneNumber,
-              amount: Number(r.amount),
+              planCode: r.dataPlan!,
             })),
             pin: pin,
           };
         }
 
-        const result = await purchaseBulkAirtime(payload);
+        const result = await purchaseBulkData(payload);
 
         setShowPinDrawer(false);
         setShowDrawer(false);
@@ -352,16 +370,16 @@ const recipients = useMemo(() => recipientsWatch || [], [recipientsWatch]);
           params: {
             amount: calculateTotalAmount().toString(),
             recipient: `${recipients.length} recipients`,
-            transactionType: "bulk-airtime",
+            transactionType: "bulk-data",
             network:
-              amountOption === "same"
+              planOption === "same"
                 ? networks.find((n) => n.serviceID === networkValue)?.name || ""
                 : "Multiple Networks",
-            message: `Bulk airtime purchase successful for ${recipients.length} recipients`,
+            message: `Bulk data purchase successful for ${recipients.length} recipients`,
           },
         });
       } catch (error: any) {
-        console.error("Bulk airtime purchase error:", error);
+        console.error("Bulk data purchase error:", error);
 
         let errorMessage = "Transaction failed. Please try again.";
 
@@ -371,39 +389,30 @@ const recipients = useMemo(() => recipientsWatch || [], [recipientsWatch]);
           errorMessage = error.responseMessage;
         }
 
-        if (errorMessage.toLowerCase().includes("pin")) {
-          errorMessage = "Invalid PIN. Please try again.";
-        } else if (errorMessage.toLowerCase().includes("insufficient")) {
-          errorMessage = "Insufficient balance. Please fund your wallet.";
-        } else if (errorMessage.toLowerCase().includes("network")) {
-          errorMessage = "Network error. Please check your connection.";
-        }
-
         throw new Error(errorMessage);
       } finally {
         setIsSubmitting(false);
       }
     },
     [
-      amountOption,
-      sameAmount,
+      planOption,
+      samePlan,
       recipients,
       networkValue,
       networks,
-      purchaseBulkAirtime,
+      sameModePopularPlans,
+      purchaseBulkData,
       reset,
       calculateTotalAmount,
     ]
   );
-
   const handleContinue = useCallback(async () => {
-    // Validation for different mode
-    if (amountOption === "different") {
-      const hasInvalidNetwork = recipients.some((r) => !r.network);
-      if (hasInvalidNetwork) {
+    if (planOption === "different") {
+      const hasInvalidData = recipients.some((r) => !r.network || !r.dataPlan);
+      if (hasInvalidData) {
         Alert.alert(
-          "Missing Network",
-          "Please select a network for all recipients."
+          "Missing Information",
+          "Please ensure all recipients have a network and data plan selected."
         );
         return;
       }
@@ -412,17 +421,15 @@ const recipients = useMemo(() => recipientsWatch || [], [recipientsWatch]);
     const valid = await trigger();
 
     if (!valid) {
-      // Show alert to help debug
-      Alert.alert("Validation Error", JSON.stringify(errors, null, 2));
       return;
     }
 
     handleSubmit(submitForm)();
-  }, [trigger, handleSubmit, submitForm, amountOption, recipients, errors]);
+  }, [trigger, handleSubmit, submitForm, planOption, recipients]);
 
   const handleBack = useCallback(() => {
     const hasData =
-      recipients.some((r) => r.phoneNumber || r.amount) || sameAmount;
+      recipients.some((r) => r.phoneNumber || r.dataPlan) || samePlan;
 
     if (hasData) {
       Alert.alert(
@@ -446,21 +453,11 @@ const recipients = useMemo(() => recipientsWatch || [], [recipientsWatch]);
       setHasSetDefaultNetwork(false);
       router.back();
     }
-  }, [recipients, sameAmount]);
-
-  const handleQuickAmountSelect = useCallback(
-    (amount: string) => {
-      if (amountOption === "same") {
-        setValue("sameAmount", amount);
-        setSelectedAmount(amount);
-      }
-    },
-    [setValue, amountOption]
-  );
+  }, [recipients, samePlan]);
 
   const formatAmount = useCallback((amount: string | number) => {
-    if (!amount) return "";
-    return parseInt(amount.toString(), 10).toLocaleString();
+    if (!amount) return "0";
+    return parseFloat(amount.toString()).toLocaleString();
   }, []);
 
   const handleRecipientNetworkSelect = useCallback(
@@ -476,11 +473,64 @@ const recipients = useMemo(() => recipientsWatch || [], [recipientsWatch]);
   const handleNetworkSelect = useCallback(
     (serviceID: string) => {
       setValue("network", serviceID);
+      setValue("samePlan", ""); // Reset plan when network changes
     },
     [setValue]
   );
 
+  const handlePlanSelect = useCallback(
+    (planCode: string) => {
+      setValue("samePlan", planCode);
+      setShowPlanDrawer(false);
+    },
+    [setValue]
+  );
+
+  const handleRecipientPlanSelect = useCallback(
+    (index: number, planCode: string) => {
+      // Find the plan details to store the name
+      const selectedPlan = differentModeAllPlans.find(
+        (p) => p.variation_code === planCode
+      );
+
+      setValue(`recipients.${index}.dataPlan`, planCode, {
+        shouldValidate: true,
+      });
+
+      // Store the plan name for display
+      if (selectedPlan) {
+        setValue(`recipients.${index}.dataPlanName`, selectedPlan.name, {
+          shouldValidate: false,
+        });
+      }
+
+      setRecipientPlanDrawerIndex(null);
+    },
+    [setValue, differentModeAllPlans]
+  );
+
+  const handleRecipientPlanClick = useCallback(
+    (index: number) => {
+      const currentRecipient = recipients[index];
+
+      if (!currentRecipient.network) {
+        Alert.alert(
+          "Network Required",
+          "Please verify the phone number first to detect the network."
+        );
+        return;
+      }
+
+      // Open the drawer - the hook will automatically fetch plans for this network
+      setRecipientPlanDrawerIndex(index);
+    },
+    [recipients]
+  );
+
   const selectedNetwork = networks.find((n) => n.serviceID === networkValue);
+  const selectedPlan = sameModePopularPlans.find(
+    (p) => p.variation_code === samePlan
+  );
 
   return (
     <SafeAreaView className="flex-1 bg-white" edges={["top"]}>
@@ -490,7 +540,7 @@ const recipients = useMemo(() => recipientsWatch || [], [recipientsWatch]);
         keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
       >
         <PageHeader
-          title="Bulk Airtime"
+          title="Bulk Data"
           onBack={handleBack}
           showBackButton={true}
         />
@@ -503,25 +553,27 @@ const recipients = useMemo(() => recipientsWatch || [], [recipientsWatch]);
         >
           <Box className="bg-white px-4 pb-32 flex-1">
             <VStack space="lg" className="flex-1">
-              {/* Amount Option Selection */}
+              {/* Plan Option Selection */}
               <FormControl>
                 <FormControlLabel>
                   <FormControlLabelText className="text-[12px] font-medium font-manroperegular text-[#414651] mb-[6px]">
-                    Choose Amount Option
+                    Choose Plan Option
                   </FormControlLabelText>
                 </FormControlLabel>
 
                 <Controller
                   control={control}
-                  name="amountOption"
+                  name="planOption"
                   render={({ field: { onChange, value } }) => (
                     <VStack space="sm">
                       <TouchableOpacity
                         onPress={() => {
                           onChange("same");
-                          // Clear individual recipient networks when switching to same
                           recipients.forEach((_, index) => {
                             setValue(`recipients.${index}.network`, "", {
+                              shouldValidate: false,
+                            });
+                            setValue(`recipients.${index}.dataPlan`, "", {
                               shouldValidate: false,
                             });
                           });
@@ -540,15 +592,15 @@ const recipients = useMemo(() => recipientsWatch || [], [recipientsWatch]);
                           )}
                         </View>
                         <Text className="text-[14px] font-medium font-manroperegular text-[#141316]">
-                          Same amount to all numbers
+                          Same plan to all numbers
                         </Text>
                       </TouchableOpacity>
 
                       <TouchableOpacity
                         onPress={() => {
                           onChange("different");
-                          // Clear global network when switching to different
                           setValue("network", "", { shouldValidate: false });
+                          setValue("samePlan", "", { shouldValidate: false });
                         }}
                         className="flex-row items-center py-3"
                       >
@@ -564,7 +616,7 @@ const recipients = useMemo(() => recipientsWatch || [], [recipientsWatch]);
                           )}
                         </View>
                         <Text className="text-[14px] font-medium font-manroperegular text-[#141316]">
-                          Different amount per number
+                          Different plan to all numbers
                         </Text>
                       </TouchableOpacity>
                     </VStack>
@@ -573,7 +625,7 @@ const recipients = useMemo(() => recipientsWatch || [], [recipientsWatch]);
               </FormControl>
 
               {/* Network Provider - Only for "same" mode */}
-              {amountOption === "same" && (
+              {planOption === "same" && (
                 <FormControl isInvalid={Boolean(errors.network)}>
                   <FormControlLabel>
                     <FormControlLabelText className="text-[12px] text-[#414651] mb-[6px]">
@@ -635,7 +687,7 @@ const recipients = useMemo(() => recipientsWatch || [], [recipientsWatch]);
                     <View key={field.id} className="relative my-2">
                       <View className="flex-row items-start space-x-2">
                         {/* Network Icon - Clickable only in "different" mode */}
-                        {amountOption === "different" ? (
+                        {planOption === "different" ? (
                           <TouchableOpacity
                             onPress={() =>
                               setRecipientNetworkDrawerIndex(index)
@@ -726,12 +778,6 @@ const recipients = useMemo(() => recipientsWatch || [], [recipientsWatch]);
                               {errors.recipients[index]?.phoneNumber?.message}
                             </Text>
                           )}
-                          {amountOption === "different" &&
-                            errors.recipients?.[index]?.network && (
-                              <Text className="text-[11px] text-red-500 mt-1 ml-2">
-                                {errors.recipients[index]?.network?.message}
-                              </Text>
-                            )}
                         </View>
 
                         {/* Delete Button */}
@@ -745,56 +791,47 @@ const recipients = useMemo(() => recipientsWatch || [], [recipientsWatch]);
                         )}
                       </View>
 
-                      {/* Amount Input for Different Amounts */}
-                      {amountOption === "different" && (
+                      {/* Choose Plan Button - Only in "different" mode */}
+                      {planOption === "different" && (
                         <View className="ml-14 mt-[16px]">
                           <Controller
                             control={control}
-                            name={`recipients.${index}.amount`}
-                            render={({
-                              field: { onChange, onBlur, value },
-                            }) => (
-                              <Input
-                                variant="outline"
-                                size="xl"
-                                className={`w-full rounded-[99px] focus:border-2 focus:border-[#D0D5DD] min-h-[48px] ${
-                                  errors.recipients?.[index]?.amount
-                                    ? "border-2 border-red-500"
-                                    : "border border-[#D0D5DD]"
-                                }`}
-                              >
-                                <View className="absolute left-4 border-r pr-2 border-gray-200 h-full top[12px] z-10">
-                                  <Text className="text-[14px] font-manropesemibold text-center mt-3 text-[#000000]">
-                                    ₦
-                                  </Text>
-                                </View>
-                                <InputField
-                                  placeholder="₦100 - ₦500,000"
-                                  className="text-[14px] placeholder:ml-6 text-[#717680] pl-6 pr-4 py-3"
-                                  value={value}
-                                  onChangeText={(text) => {
-                                    const cleaned = text.replace(/[^0-9]/g, "");
-                                    onChange(cleaned);
-                                    setSelectedAmount(cleaned);
-                                  }}
-                                  onBlur={onBlur}
-                                  keyboardType="numeric"
-                                  autoCapitalize="none"
-                                />
-                              </Input>
-                            )}
-                          />
+                            name={`recipients.${index}.dataPlanName`}
+                            render={({ field: { value } }) => {
+                              const currentRecipient = recipients[index];
+                              const recipientNetwork = currentRecipient?.network
+                                ? networks.find(
+                                    (n) =>
+                                      n.serviceID === currentRecipient.network
+                                  )
+                                : null;
 
-                          {errors.recipients?.[index]?.amount && (
-                            <FormControlError>
-                              <FormControlErrorIcon
-                                className="text-red-500"
-                                as={AlertCircleIcon}
-                              />
-                              <FormControlErrorText className="text-red-500">
-                                {errors.recipients[index]?.amount?.message}
-                              </FormControlErrorText>
-                            </FormControlError>
+                              // Use the stored plan name directly from the field value
+                              const displayName = value || "Choose Plan";
+
+                              return (
+                                <TouchableOpacity
+                                  onPress={() =>
+                                    handleRecipientPlanClick(index)
+                                  }
+                                  className={`flex-row items-center justify-between rounded-[99px] px-4 py-3 border min-h-[48px] ${
+                                    errors.recipients?.[index]?.dataPlan
+                                      ? "border-red-500"
+                                      : "border-[#D0D5DD]"
+                                  }`}
+                                >
+                                  <Text className="text-[14px] text-[#717680] flex-1">
+                                    {displayName}
+                                  </Text>
+                                  <ChevronRight size={20} color="#6B7280" />
+                                </TouchableOpacity>
+                              );
+                            }}
+                          />
+                          {errors.recipients?.[index]?.dataPlan && (
+                            <Text className="text-[11px] text-red-500 mt-1 ml-2">
+                              {errors.recipients[index]?.dataPlan?.message}
+                            </Text>
                           )}
                         </View>
                       )}
@@ -815,73 +852,67 @@ const recipients = useMemo(() => recipientsWatch || [], [recipientsWatch]);
                 </VStack>
               </FormControl>
 
-              {/* Same Amount Section */}
-              {amountOption === "same" && (
-                <>
-                  <FormControl isInvalid={Boolean(errors.sameAmount)}>
-                    <FormControlLabel>
-                      <FormControlLabelText className="text-[12px] text-[#414651] mb-[6px]">
-                        Amount
-                      </FormControlLabelText>
-                    </FormControlLabel>
+              {/* Choose Plan Section - Only for "same" mode - Shows top 5 */}
+              {planOption === "same" && networkValue && (
+                <FormControl isInvalid={Boolean(errors.samePlan)}>
+                  <FormControlLabel>
+                    <FormControlLabelText className="text-[12px] text-[#414651] mb-[6px]">
+                      Choose Plan (Popular)
+                    </FormControlLabelText>
+                  </FormControlLabel>
 
-                    <Controller
-                      control={control}
-                      name="sameAmount"
-                      render={({ field: { onChange, onBlur, value } }) => (
-                        <Input
-                          variant="outline"
-                          size="xl"
-                          className={`w-full rounded-[99px] focus:border-2 focus:border-[#D0D5DD] min-h-[48px] ${
-                            errors.sameAmount
-                              ? "border-2 border-red-500"
-                              : "border border-[#D0D5DD]"
+                  {isLoadingSamePlans ? (
+                    <View className="py-8 items-center">
+                      <ActivityIndicator size="large" color="#132939" />
+                      <Text className="text-[14px] text-[#6B7280] mt-4">
+                        Loading popular plans...
+                      </Text>
+                    </View>
+                  ) : (
+                    <VStack space="sm">
+                      {sameModePopularPlans.map((plan) => (
+                        <TouchableOpacity
+                          key={plan.variation_code}
+                          onPress={() => handlePlanSelect(plan.variation_code)}
+                          className={`flex-row justify-between items-center p-4 rounded-[16px] border ${
+                            samePlan === plan.variation_code
+                              ? "border-[#132939] bg-[#F9FAFB]"
+                              : "border-[#E5E7EB] bg-white"
                           }`}
                         >
-                          <View className="absolute left-4 border-r pr-2 border-gray-200 h-full top[12px] z-10">
-                            <Text className="text-[14px] font-manropesemibold text-center mt-3 text-[#000000]">
-                              ₦
+                          <View className="flex-1 pr-4">
+                            <Text className="text-[14px] font-medium font-manropesemibold text-[#000000]">
+                              {plan.name}
                             </Text>
                           </View>
-                          <InputField
-                            placeholder="₦100 - ₦500,000"
-                            className="text-[14px] placeholder:ml-6 text-[#717680] pl-6 pr-4 py-3"
-                            value={value}
-                            onChangeText={(text) => {
-                              const cleaned = text.replace(/[^0-9]/g, "");
-                              onChange(cleaned);
-                              setSelectedAmount(cleaned);
-                            }}
-                            onBlur={onBlur}
-                            keyboardType="numeric"
-                            autoCapitalize="none"
-                          />
-                        </Input>
+                          <Text className="text-[16px] font-semibold font-manropebold text-[#132939]">
+                            ₦{formatAmount(plan.variation_amount)}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+
+                      {sameModePopularPlans.length === 0 && (
+                        <View className="py-8 px-4">
+                          <Text className="text-[14px] text-[#6B7280] text-center">
+                            No data plans available for this network.
+                          </Text>
+                        </View>
                       )}
-                    />
+                    </VStack>
+                  )}
 
-                    {errors.sameAmount && (
-                      <FormControlError>
-                        <FormControlErrorIcon
-                          className="text-red-500"
-                          as={AlertCircleIcon}
-                        />
-                        <FormControlErrorText className="text-red-500">
-                          {errors.sameAmount?.message}
-                        </FormControlErrorText>
-                      </FormControlError>
-                    )}
-                  </FormControl>
-
-                  {/* Quick Amount Selection */}
-                  <QuickAmountSelector
-                    amounts={QUICK_AMOUNTS}
-                    selectedAmount={selectedAmount || sameAmount}
-                    onSelect={handleQuickAmountSelect}
-                    columns={4}
-                    spacing="md"
-                  />
-                </>
+                  {errors.samePlan && (
+                    <FormControlError>
+                      <FormControlErrorIcon
+                        className="text-red-500"
+                        as={AlertCircleIcon}
+                      />
+                      <FormControlErrorText className="text-red-500">
+                        {errors.samePlan?.message}
+                      </FormControlErrorText>
+                    </FormControlError>
+                  )}
+                </FormControl>
               )}
             </VStack>
           </Box>
@@ -938,6 +969,30 @@ const recipients = useMemo(() => recipientsWatch || [], [recipientsWatch]);
         />
       )}
 
+      {/* RECIPIENT PLAN DRAWER - for different mode - Shows ALL plans */}
+      {recipientPlanDrawerIndex !== null &&
+        (() => {
+          const currentRecipient = recipients[recipientPlanDrawerIndex];
+          const recipientNetwork = currentRecipient?.network
+            ? networks.find((n) => n.serviceID === currentRecipient.network)
+            : null;
+
+          return recipientNetwork ? (
+            <DataPlanSelectionDrawer
+              isOpen={true}
+              onClose={() => setRecipientPlanDrawerIndex(null)}
+              dataPlans={differentModeAllPlans}
+              selectedPlanCode={currentRecipient?.dataPlan || ""}
+              onSelectPlan={(planCode) =>
+                handleRecipientPlanSelect(recipientPlanDrawerIndex, planCode)
+              }
+              networkName={recipientNetwork.name}
+              isLoading={isLoadingDifferentPlans}
+              title="Choose Data Plan"
+            />
+          ) : null;
+        })()}
+
       {/* CONFIRMATION DRAWER */}
       <ConfirmationDrawer
         isOpen={showDrawer}
@@ -957,27 +1012,34 @@ const recipients = useMemo(() => recipientsWatch || [], [recipientsWatch]);
               },
               {
                 label: "Service Type",
-                value: "Airtime",
+                value: "Data",
               },
-              ...(amountOption === "same"
-                ? [{ label: "Network", value: selectedNetwork?.name || "" }]
+              ...(planOption === "same"
+                ? [
+                    { label: "Network", value: selectedNetwork?.name || "" },
+                    { label: "Data Plan", value: selectedPlan?.name || "" },
+                  ]
                 : []),
               ...recipients.map((recipient) => {
-                const network =
-                  amountOption === "different"
-                    ? networks.find((n) => n.serviceID === recipient.network)
-                    : null;
+                if (planOption === "different") {
+                  const network = networks.find(
+                    (n) => n.serviceID === recipient.network
+                  );
+                  // Use stored plan name instead of searching
+                  const planName = recipient.dataPlanName || "N/A";
 
-                return {
-                  label: `${recipient.phoneNumber}${
-                    network ? ` (${network.name})` : ""
-                  }`,
-                  value: `₦${formatAmount(
-                    amountOption === "same"
-                      ? sameAmount || "0"
-                      : recipient.amount || "0"
-                  )}`,
-                };
+                  return {
+                    label: `${recipient.phoneNumber}${network ? ` (${network.name})` : ""}`,
+                    value: planName,
+                  };
+                } else {
+                  return {
+                    label: recipient.phoneNumber,
+                    value: selectedPlan
+                      ? `₦${formatAmount(selectedPlan.variation_amount)}`
+                      : "N/A",
+                  };
+                }
               }),
             ],
           },

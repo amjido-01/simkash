@@ -22,17 +22,11 @@ import {
   Clock,
   BookOpen,
   Cpu,
-  Home as HomeIcon,
-  MonitorSmartphone,
-  Gift,
-  UserCircle,
 } from "lucide-react-native";
 
-import Header from "@/components/header";
 import { Pressable } from "@/components/ui/pressable";
 import { HStack } from "@/components/ui/hstack";
 import { VStack } from "@/components/ui/vstack";
-import { Box } from "@/components/ui/box";
 import {
   Drawer,
   DrawerBackdrop,
