@@ -251,7 +251,7 @@ import { Heading } from "@/components/ui/heading";
 import { HStack } from "@/components/ui/hstack";
 import { Text } from "@/components/ui/text";
 import { VStack } from "@/components/ui/vstack";
-import { View, ViewStyle, ScrollView, Platform } from "react-native";
+import { View, ViewStyle, ScrollView } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export interface ConfirmationDetail {
@@ -360,197 +360,209 @@ export const ConfirmationDrawer: React.FC<ConfirmationDrawerProps> = ({
         }}
       />
       <DrawerContent
-        className={`rounded-t-[30px] pt-[28px] bg-[#FFFFFF] ${contentClassName}`}
+        className={`rounded-t-[30px] pt-[28px] bg-[#FFFFFF] flex-1 max-h[85%] ${contentClassName}`}
         style={{
           borderTopWidth: 0,
           borderColor: "transparent",
           shadowOpacity: 0,
           elevation: 0,
-          height: "85%", // Fixed height for better scroll experience
           paddingBottom: confirmButtonFixed ? 0 : insets.bottom || 16,
           ...contentStyle,
         }}
       >
-        <DrawerHeader
-          className={`border-b-0 pb-2 px6 ${headerClassName}`}
-          style={headerStyle}
-        >
-          <VStack>
-            <VStack>
-              <Heading
-                className={
-                  titleClassName ||
-                  "font-manropesemibold text-center text-[18px] text-[#000000] mb-2"
-                }
-              >
-                {title}
-              </Heading>
-              {subtitle && (
-                <Text
+        <View className="flex-1">
+          <DrawerHeader
+            className={`border-b-0 pb-2 px6 ${headerClassName}`}
+            style={headerStyle}
+          >
+            <VStack className="flex-1">
+              <VStack>
+                <Heading
                   className={
-                    subtitleClassName ||
-                    "text-center text-[12px] font-manroperegular text-[#6B7280] px-2"
+                    titleClassName ||
+                    "font-manropesemibold text-center text-[18px] text-[#000000] mb-2"
                   }
                 >
-                  {subtitle}
-                </Text>
-              )}
-            </VStack>
-            {showAmount && amount && (
-              <Heading
-                className={
-                  amountClassName ||
-                  "text-[28px] font-medium text-center mt-[20px] font-manropebold text-[#000000]"
-                }
-              >
-                ₦{formatAmount(amount)}
-              </Heading>
-            )}
-          </VStack>
-          <DrawerCloseButton />
-        </DrawerHeader>
-
-        <DrawerBody
-          className={`pt-4 px-1 ${bodyClassName}`}
-          style={bodyStyle}
-        >
-          {scrollable ? (
-            <ScrollView
-              className={scrollViewClassName || "flex-1"}
-              showsVerticalScrollIndicator={true}
-              contentContainerStyle={{ 
-                paddingBottom: confirmButtonFixed ? 100 : 24,
-                paddingHorizontal: 12 
-              }}
-            >
-              <VStack space="md">
-                {sections.map((section, sectionIndex) => (
-                  <View
-                    key={sectionIndex}
+                  {title}
+                </Heading>
+                {subtitle && (
+                  <Text
                     className={
-                      section.containerClassName ||
-                      "rounded-[20px] border-[#E5E7EF] border px-4 py-2"
+                      subtitleClassName ||
+                      "text-center text-[12px] font-manroperegular text-[#6B7280] px-2"
                     }
                   >
-                    <VStack space="sm" className={section.className}>
-                      {section.details.map((detail, detailIndex) => (
-                        <React.Fragment key={detailIndex}>
-                          <HStack className="justify-between items-center py-3">
-                            <HStack space="sm" className="items-center">
-                              {detail.icon}
-                              <Text
-                                className={
-                                  detail.labelClassName ||
-                                  "text-[12px] font-manroperegular text-[#303237]"
-                                }
-                              >
-                                {detail.label}
-                              </Text>
-                            </HStack>
-                            <Text
-                              className={
-                                detail.valueClassName ||
-                                "text-[12px] font-medium leading-[100%] font-manropesemibold text-[#141316]"
-                              }
-                            >
-                              {detail.value}
-                            </Text>
-                          </HStack>
-
-                          {section.showDividers !== false &&
-                            detailIndex < section.details.length - 1 && (
-                              <View className="h-[1px] bg-[#E5E7EB]" />
-                            )}
-                        </React.Fragment>
-                      ))}
-                    </VStack>
-                  </View>
-                ))}
+                    {subtitle}
+                  </Text>
+                )}
               </VStack>
-            </ScrollView>
-          ) : (
-            <VStack space="md">
-              {sections.map((section, sectionIndex) => (
-                <View
-                  key={sectionIndex}
+              {showAmount && amount && (
+                <Heading
                   className={
-                    section.containerClassName ||
-                    "rounded-[20px] border-[#E5E7EF] border px-4 py-2"
+                    amountClassName ||
+                    "text-[28px] font-medium text-center mt-[20px] font-manropebold text-[#000000]"
                   }
                 >
-                  <VStack space="sm" className={section.className}>
-                    {section.details.map((detail, detailIndex) => (
-                      <React.Fragment key={detailIndex}>
-                        <HStack className="justify-between items-center py-3">
-                          <HStack space="sm" className="items-center">
-                            {detail.icon}
-                            <Text
-                              className={
-                                detail.labelClassName ||
-                                "text-[12px] font-manroperegular text-[#303237]"
-                              }
-                            >
-                              {detail.label}
-                            </Text>
-                          </HStack>
-                          <Text
-                            className={
-                              detail.valueClassName ||
-                              "text-[12px] font-medium leading-[100%] font-manropesemibold text-[#141316]"
-                            }
-                          >
-                            {detail.value}
-                          </Text>
-                        </HStack>
-
-                        {section.showDividers !== false &&
-                          detailIndex < section.details.length - 1 && (
-                            <View className="h-[1px] bg-[#E5E7EB]" />
-                          )}
-                      </React.Fragment>
-                    ))}
-                  </VStack>
-                </View>
-              ))}
+                  ₦{formatAmount(amount)}
+                </Heading>
+              )}
             </VStack>
-          )}
-        </DrawerBody>
+            <DrawerCloseButton />
+          </DrawerHeader>
 
-        {/* Conditional button rendering */}
-        {!confirmButtonFixed ? (
-          <DrawerFooter
-            className={`px-4 pt-4 pb-0 ${footerClassName}`}
-            style={footerStyle}
+          <DrawerBody
+            className={`pt-4 px1 flex-1 ${bodyClassName}`}
+            style={bodyStyle}
           >
-            <Button
-              className={
-                confirmButtonClassName ||
-                "rounded-full bg-[#132939] h-[48px] w-full"
-              }
-              size="xl"
-              onPress={onConfirm}
+            {scrollable ? (
+              <ScrollView
+                className="flex-1"
+                showsVerticalScrollIndicator={true}
+                contentContainerStyle={{
+                  paddingBottom: confirmButtonFixed ? 100 : 24,
+                  paddingHorizontal: 12,
+                }}
+              >
+                <VStack space="md" className="pb-4">
+                  {sections.map((section, sectionIndex) => (
+                    <View
+                      key={sectionIndex}
+                      className={
+                        section.containerClassName ||
+                        "rounded-[20px] border-[#E5E7EF] border px-4 py-2"
+                      }
+                    >
+                      <VStack space="sm" className={section.className}>
+                        {section.details.map((detail, detailIndex) => (
+                          <React.Fragment key={detailIndex}>
+                            <HStack className="justify-between items-center py-3">
+                              <HStack
+                                space="sm"
+                                className="items-center flex-1"
+                              >
+                                {detail.icon}
+                                <Text
+                                  className={
+                                    detail.labelClassName ||
+                                    "text-[12px] font-manroperegular text-[#303237] flex-1"
+                                  }
+                                  numberOfLines={2}
+                                  ellipsizeMode="tail"
+                                >
+                                  {detail.label}
+                                </Text>
+                              </HStack>
+                              <View className="flex-shrink-0 ml-3">
+                                <Text
+                                  className={
+                                    detail.valueClassName ||
+                                    "text-[12px] font-medium leading-[100%] font-manropesemibold text-[#141316] text-right"
+                                  }
+                                  numberOfLines={1}
+                                  ellipsizeMode="tail"
+                                >
+                                  {detail.value}
+                                </Text>
+                              </View>
+                            </HStack>
+
+                            {section.showDividers !== false &&
+                              detailIndex < section.details.length - 1 && (
+                                <View className="h-[1px] bg-[#E5E7EB]" />
+                              )}
+                          </React.Fragment>
+                        ))}
+                      </VStack>
+                    </View>
+                  ))}
+                </VStack>
+              </ScrollView>
+            ) : (
+              <View className="flex-1">
+                <VStack space="md">
+                  {sections.map((section, sectionIndex) => (
+                    <View
+                      key={sectionIndex}
+                      className={
+                        section.containerClassName ||
+                        "rounded-[20px] border-[#E5E7EF] border px-4 py-2"
+                      }
+                    >
+                      <VStack space="sm" className={section.className}>
+                        {section.details.map((detail, detailIndex) => (
+                          <React.Fragment key={detailIndex}>
+                            <HStack className="justify-between items-center py-3">
+                              <HStack space="sm" className="items-center">
+                                {detail.icon}
+                                <Text
+                                  className={
+                                    detail.labelClassName ||
+                                    "text-[12px] font-manroperegular text-[#303237]"
+                                  }
+                                >
+                                  {detail.label}
+                                </Text>
+                              </HStack>
+                              <Text
+                                className={
+                                  detail.valueClassName ||
+                                  "text-[12px] font-medium leading-[100%] font-manropesemibold text-[#141316]"
+                                }
+                              >
+                                {detail.value}
+                              </Text>
+                            </HStack>
+
+                            {section.showDividers !== false &&
+                              detailIndex < section.details.length - 1 && (
+                                <View className="h-[1px] bg-[#E5E7EB]" />
+                              )}
+                          </React.Fragment>
+                        ))}
+                      </VStack>
+                    </View>
+                  ))}
+                </VStack>
+              </View>
+            )}
+          </DrawerBody>
+
+          {/* Conditional button rendering */}
+          {!confirmButtonFixed ? (
+            <DrawerFooter
+              className={`px-4 pt-4 pb-0 ${footerClassName}`}
+              style={footerStyle}
             >
-              <ButtonText className="text-white text-[16px] font-medium leading-[24px]">
-                {confirmButtonText}
-              </ButtonText>
-            </Button>
-          </DrawerFooter>
-        ) : (
-          <View className="absolute bottom-0 left-0 right-0 bg-white px-4 py-4 border-t border-[#E5E7EB] shadow-lg">
-            <Button
-              className={
-                confirmButtonClassName ||
-                "rounded-full bg-[#132939] h-[52px] w-full shadow"
-              }
-              size="xl"
-              onPress={onConfirm}
-            >
-              <ButtonText className="text-white text-[16px] font-medium leading-[24px]">
-                {confirmButtonText}
-              </ButtonText>
-            </Button>
-          </View>
-        )}
+              <Button
+                className={
+                  confirmButtonClassName ||
+                  "rounded-full bg-[#132939] h-[48px] w-full"
+                }
+                size="xl"
+                onPress={onConfirm}
+              >
+                <ButtonText className="text-white text-[16px] font-medium leading-[24px]">
+                  {confirmButtonText}
+                </ButtonText>
+              </Button>
+            </DrawerFooter>
+          ) : (
+            <View className="absolute bottom-0 left-0 right-0 bg-white px-4 py-4 border-t border-gray-100">
+              <Button
+                className={
+                  confirmButtonClassName ||
+                  "rounded-full bg-[#132939] h-[52px] w-full shadow"
+                }
+                size="xl"
+                onPress={onConfirm}
+              >
+                <ButtonText className="text-white text-[16px] font-medium leading-[24px]">
+                  {confirmButtonText}
+                </ButtonText>
+              </Button>
+            </View>
+          )}
+        </View>
       </DrawerContent>
     </Drawer>
   );

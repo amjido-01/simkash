@@ -1015,18 +1015,10 @@ const handleRecipientPlanSelect = useCallback(
         amount={calculateTotalAmount().toString()}
         scrollable={true}
         confirmButtonFixed={true}
-        confirmButtonClassName="
-    rounded-full 
-    bg-gradient-to-r from-[#244155] to-[#132939]
-    h-[52px] 
-    w-full
-    shadow-lg
-  "
-        contentClassName="h-[85%]"
         sections={[
           {
             containerClassName:
-              "rounded-[20px] border-[#E5E7EF] border px-4 py2",
+              "rounded-[20px] border-[#E5E7EF] border px-4 py-2",
             details: [
               {
                 label: "Number of Beneficiary",
