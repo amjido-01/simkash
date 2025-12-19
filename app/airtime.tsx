@@ -45,6 +45,7 @@ import { PageHeader } from "@/components/page-header";
 import { QuickAmountSelector } from "@/components/quick-amount-selector";
 import { usePurchaseAirtime } from "@/hooks/use-buy-airtime";
 import { NetworkSelectionDrawer } from "@/components/network-selection-drawer";
+import { useDashboard } from "@/hooks/use-dashboard";
 // Validation schema
 const schema = yup.object().shape({
   phoneNumber: yup
@@ -83,6 +84,11 @@ export default function Airtime() {
   const [isVerifyingPhone, setIsVerifyingPhone] = useState(false);
   const [hasSetDefaultNetwork, setHasSetDefaultNetwork] = useState(false);
   const lastVerifiedPhone = useRef<string>("");
+      const {
+    wallet, // Wallet balance data
+  } = useDashboard();
+
+  console.log(wallet)
 
   // Form setup
   const {
@@ -358,6 +364,19 @@ export default function Airtime() {
     return parseInt(amount, 10).toLocaleString();
   }, []);
 
+  const formatCurrency = (value?: string) => {
+  if (!value) return "₦0.00";
+
+  const num = Number(value);
+  if (isNaN(num)) return "₦0.00";
+
+  return `₦ ${num.toLocaleString("en-NG", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+};
+
+
   const handleNetworkSelect = useCallback(
     (serviceID: string) => {
       setValue("network", serviceID);
@@ -596,7 +615,7 @@ export default function Airtime() {
             details: [
               {
                 label: "Wallet Balance",
-                value: "₦50,000",
+                value: formatCurrency(wallet?.balance),
                 icon: <Wallet size={16} color="#FF8D28" />,
               },
               {

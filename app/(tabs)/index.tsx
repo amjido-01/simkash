@@ -113,6 +113,7 @@ export default function HomeScreen() {
   if (isLoading || isFetching) {
     return (
       <SafeAreaView className="flex-1 bg-white">
+        <Header />
         <DashboardSkeleton />
       </SafeAreaView>
     );

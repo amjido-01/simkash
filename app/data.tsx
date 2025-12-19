@@ -53,6 +53,7 @@ import { useVerifyPhone } from "@/hooks/use-verify-phone";
 import { PageHeader } from "@/components/page-header";
 import { ConfirmationDrawer } from "@/components/confirmation-drawer";
 import { usePurchaseData } from "@/hooks/use-purchase-data";
+import { useDashboard } from "@/hooks/use-dashboard";
 
 // Validation schema
 const schema = yup.object().shape({
@@ -70,6 +71,10 @@ type FormData = yup.InferType<typeof schema>;
 export default function DataBundle() {
   const insets = useSafeAreaInsets();
   const { networks, isLoading, isError } = useGetNetworks();
+      const {
+      wallet, // Wallet balance data
+    } = useDashboard();
+  
   const verifyPhoneMutation = useVerifyPhone();
   const { purchaseData, isLoading: isPurchasingData } = usePurchaseData();
   const [showNetworkDrawer, setShowNetworkDrawer] = useState(false);
@@ -341,6 +346,19 @@ export default function DataBundle() {
     [setValue]
   );
 
+  
+    const formatCurrency = (value?: string) => {
+    if (!value) return "₦0.00";
+  
+    const num = Number(value);
+    if (isNaN(num)) return "₦0.00";
+  
+    return `₦ ${num.toLocaleString("en-NG", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
+  };
+
   return (
     <SafeAreaView className="flex-1 bg-white" edges={["top"]}>
       <KeyboardAvoidingView
@@ -589,7 +607,7 @@ export default function DataBundle() {
             details: [
               {
                 label: "Wallet Balance",
-                value: "₦50,000",
+                value: formatCurrency(wallet?.balance),
                 icon: <Wallet size={16} color="#FF8D28" />,
               },
               {

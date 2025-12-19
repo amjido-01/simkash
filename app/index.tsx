@@ -74,7 +74,7 @@
 //       {showSplash ? (
 //         <Splash />
 //       ) : isFirstLaunch ? (
-//         <OnboardingScreens /> 
+//         <OnboardingScreens />
 //       ) : (
 //         <SignIn />       // <---- RETURNING USER
 //       )}
@@ -82,9 +82,62 @@
 //   );
 // }
 // app/index.tsx
-import { Redirect } from 'expo-router';
+// import { Redirect } from 'expo-router';
+
+// export default function Index() {
+//   // This is now just a redirect to the proper entry point
+//   return <Redirect href="/splash" />;
+// }
+
+// app/index.tsx
+import { useEffect, useState } from "react";
+import { router } from "expo-router";
+import { useAuthStore } from "@/store/auth-store";
+import { onboardingStorage } from "@/utils/onboardingStorage";
 
 export default function Index() {
-  // This is now just a redirect to the proper entry point
-  return <Redirect href="/splash" />;
+  const { isAuthenticated, isInitialized } = useAuthStore();
+  const [isOnboardingComplete, setIsOnboardingComplete] = useState<
+    boolean | null
+  >(null);
+
+  useEffect(() => {
+    const checkAndRedirect = async () => {
+      try {
+        const completed = await onboardingStorage.isOnboardingComplete();
+        console.log("📱 Onboarding status:", { completed });
+        setIsOnboardingComplete(completed);
+
+        // Wait for auth to initialize
+        if (!isInitialized) {
+          console.log("⏳ Waiting for auth initialization...");
+          return;
+        }
+
+        console.log("🚀 Redirecting from index...", {
+          isAuthenticated,
+          isOnboardingComplete: completed,
+        });
+
+        if (!completed) {
+          console.log("👋 First-time user, redirecting to onboarding");
+          router.replace("/onboarding");
+        } else if (isAuthenticated) {
+          console.log("✅ User is authenticated, redirecting to home");
+          router.replace("/(tabs)");
+        } else {
+          console.log("❌ User is not authenticated, redirecting to sign in");
+          router.replace("/(auth)/signin");
+        }
+      } catch (error) {
+        console.error("❌ Error in index redirect:", error);
+        router.replace("/onboarding");
+      }
+    };
+
+    checkAndRedirect();
+  }, [isAuthenticated, isInitialized]);
+
+  // Return null while determining where to navigate
+  return null;
 }

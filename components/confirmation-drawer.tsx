@@ -253,7 +253,7 @@ import { Text } from "@/components/ui/text";
 import { VStack } from "@/components/ui/vstack";
 import { View, ViewStyle, ScrollView } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-
+import { useDashboard } from "@/hooks/use-dashboard";
 export interface ConfirmationDetail {
   label: string;
   value: string;
@@ -335,6 +335,7 @@ export const ConfirmationDrawer: React.FC<ConfirmationDrawerProps> = ({
   subtitleClassName,
 }) => {
   const insets = useSafeAreaInsets();
+
 
   const formatAmount = (amt: string) => {
     if (!amt) return "0";
