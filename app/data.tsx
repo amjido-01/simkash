@@ -316,12 +316,18 @@ export default function DataBundle() {
           {
             text: "Discard",
             style: "destructive",
-            onPress: () => router.push("/(tabs)"),
+            onPress: () => {
+              lastVerifiedPhone.current = "";
+              setHasSetDefaultNetwork(false);
+              router.push("/(tabs)");
+            },
           },
         ]
       );
     } else {
-      router.push("/(tabs)");
+      lastVerifiedPhone.current = "";
+      setHasSetDefaultNetwork(false);
+      router.back();
     }
   }, [phoneValue, dataBundleValue]);
 

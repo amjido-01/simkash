@@ -104,14 +104,14 @@ export const moreServices: MenuOption[] = [
     icon: Banknote,
     label: "Virtual Number",
     iconColor: "#1400C5",
-    route: "/jamb",
+    route: "/virtual-number",
   },
   {
     id: 7,
     icon: LayoutDashboard,
     label: "Pay Later",
     iconColor: "#D7561EDB",
-    route: "/waec",
+    route: "/pay-later",
   },
 ];
 

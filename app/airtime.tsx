@@ -84,11 +84,11 @@ export default function Airtime() {
   const [isVerifyingPhone, setIsVerifyingPhone] = useState(false);
   const [hasSetDefaultNetwork, setHasSetDefaultNetwork] = useState(false);
   const lastVerifiedPhone = useRef<string>("");
-      const {
+  const {
     wallet, // Wallet balance data
   } = useDashboard();
 
-  console.log(wallet)
+  console.log(wallet);
 
   // Form setup
   const {
@@ -156,7 +156,6 @@ export default function Airtime() {
           console.warn("⚠️ No network data in response");
           return;
         }
-
 
         // Match with your networks using serviceID
         const detectedNetwork = networks.find((network) => {
@@ -254,7 +253,7 @@ export default function Airtime() {
           network: selectedNetworkData?.serviceID,
           pin: pin,
         };
-        console.log(payload, "from airtime")
+        console.log(payload, "from airtime");
         // Call the purchase airtime API
         const result = await purchaseAirtime(payload);
 
@@ -365,17 +364,16 @@ export default function Airtime() {
   }, []);
 
   const formatCurrency = (value?: string) => {
-  if (!value) return "₦0.00";
+    if (!value) return "₦0.00";
 
-  const num = Number(value);
-  if (isNaN(num)) return "₦0.00";
+    const num = Number(value);
+    if (isNaN(num)) return "₦0.00";
 
-  return `₦ ${num.toLocaleString("en-NG", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
-};
-
+    return `₦ ${num.toLocaleString("en-NG", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
+  };
 
   const handleNetworkSelect = useCallback(
     (serviceID: string) => {

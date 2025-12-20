@@ -226,7 +226,7 @@ export default function HomeScreen() {
             {/* Transaction List */}
             <VStack className="gap-3">
               {parsedTransactions && parsedTransactions.length > 0 ? (
-                parsedTransactions.slice(0,4).map((transaction) => {
+                parsedTransactions.slice(0, 4).map((transaction) => {
                   const isCommission = transaction.transaction_type
                     .toLowerCase()
                     .includes("commission");

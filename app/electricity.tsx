@@ -59,6 +59,7 @@ import * as yup from "yup";
 import ElectricitySelector from "@/components/electricity-selector";
 import { useVerifyMeter } from "@/hooks/use-verify-metre";
 import { OtpInput } from "react-native-otp-entry";
+import { useDashboard } from "@/hooks/use-dashboard";
 
 // Mock electricity providers
 const ELECTRICITY_PROVIDERS = [
@@ -105,6 +106,9 @@ type Stage = "company" | "details";
 export default function Electricity() {
   // State management
   const insets = useSafeAreaInsets();
+   const {
+      wallet, // Wallet balance data
+    } = useDashboard();
   const { electricityProviders, isLoading, isError } = useGetElectricity();
   const { mutateAsync: verifyMeter, isPending: isVerifyingMeter } =
     useVerifyMeter();
@@ -498,7 +502,7 @@ const handlePinSubmit = useCallback(
           ]
         );
       } else {
-        router.push("/(tabs)");
+         router.back();
       }
     }
   }, [stage, companyValue, meterNumberValue, amountValue]);
@@ -508,6 +512,19 @@ const handlePinSubmit = useCallback(
     if (!amount) return "";
     return parseInt(amount, 10).toLocaleString();
   }, []);
+
+    const formatCurrency = (value?: string) => {
+    if (!value) return "₦0.00";
+
+    const num = Number(value);
+    if (isNaN(num)) return "₦0.00";
+
+    return `₦ ${num.toLocaleString("en-NG", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
+  };
+
 
   return (
     <SafeAreaView className="flex-1 bg-white" edges={["top"]}>
@@ -1053,7 +1070,7 @@ const handlePinSubmit = useCallback(
             details: [
               {
                 label: "Wallet Balance",
-                value: "₦50,000",
+                 value: formatCurrency(wallet?.balance),
                 icon: <Wallet size={16} color="#FF8D28" />,
               },
               {
