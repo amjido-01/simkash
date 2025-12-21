@@ -8,7 +8,7 @@ import {
   DrawerBody,
   DrawerCloseButton,
   DrawerContent,
-  DrawerFooter,
+  // DrawerFooter,
   DrawerHeader,
 } from "@/components/ui/drawer";
 import { usePurchaseElectricity } from "@/hooks/use-purchase-electricity";
@@ -186,7 +186,7 @@ export default function Electricity() {
 
     if (
       meterNumberValue &&
-      meterNumberValue.length >= 10 &&
+      meterNumberValue.length >= 11 &&
       companyValue &&
       meterTypeValue
     ) {

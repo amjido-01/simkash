@@ -48,6 +48,7 @@ import { PageHeader } from "@/components/page-header";
 import { QuickAmountSelector } from "@/components/quick-amount-selector";
 import { usePurchaseBulkAirtime } from "@/hooks/use-purchase-bulk-airtime";
 import { NetworkSelectionDrawer } from "@/components/network-selection-drawer";
+import { useDashboard } from "@/hooks/use-dashboard";
 
 // Validation schema for recipients
 const recipientSchema = yup.object().shape({
@@ -114,6 +115,9 @@ type FormData = yup.InferType<typeof schema>;
 export default function BulkAirtime() {
   const insets = useSafeAreaInsets();
   const { networks, isLoading, isError } = useGetNetworks();
+     const {
+        wallet, // Wallet balance data
+      } = useDashboard();
   const verifyPhoneMutation = useVerifyPhone();
   const { purchaseBulkAirtime, isLoading: isPurchasing } =
     usePurchaseBulkAirtime();
@@ -462,6 +466,18 @@ const recipients = useMemo(() => recipientsWatch || [], [recipientsWatch]);
     if (!amount) return "";
     return parseInt(amount.toString(), 10).toLocaleString();
   }, []);
+
+    const formatCurrency = (value?: string) => {
+      if (!value) return "₦0.00";
+  
+      const num = Number(value);
+      if (isNaN(num)) return "₦0.00";
+  
+      return `₦ ${num.toLocaleString("en-NG", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })}`;
+    };
 
   const handleRecipientNetworkSelect = useCallback(
     (index: number, serviceID: string) => {
@@ -986,7 +1002,7 @@ const recipients = useMemo(() => recipientsWatch || [], [recipientsWatch]);
             details: [
               {
                 label: "Wallet Balance",
-                value: "₦50,000",
+                value: formatCurrency(wallet?.balance),
                 icon: <Wallet size={16} color="#FF8D28" />,
               },
               {

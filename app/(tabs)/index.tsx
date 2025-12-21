@@ -67,6 +67,8 @@ export default function HomeScreen() {
   const [showTopUpDrawer, setShowTopUpDrawer] = useState(false);
   // const [hasCompletedKYC, setHasCompletedKYC] = useState(false);
 
+  console.log(parsedTransactions, "hello");
+
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     refetch().finally(() => {
@@ -128,7 +130,7 @@ export default function HomeScreen() {
         className="flex-1 pb-[20px]"
         showsVerticalScrollIndicator={false}
         contentInsetAdjustmentBehavior="automatic"
-         refreshControl={
+        refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
@@ -227,7 +229,10 @@ export default function HomeScreen() {
             <VStack className="gap-3">
               {parsedTransactions && parsedTransactions.length > 0 ? (
                 parsedTransactions.slice(0, 4).map((transaction) => {
-                  const isCommission = transaction.transaction_type
+                  // Add null checks for transaction_type
+                  const transactionType =
+                    transaction?.transaction_type || "Unknown";
+                  const isCommission = transactionType
                     .toLowerCase()
                     .includes("commission");
                   const metadata = transaction.metadata;
@@ -238,7 +243,6 @@ export default function HomeScreen() {
                       className="flex-row items-center justify-between p-4 bg[#F9FAFB] rounded-[12px]"
                       activeOpacity={0.7}
                       onPress={() => {
-                        // Navigate to transaction details if you have that screen
                         console.log("Transaction:", transaction.id);
                       }}
                     >
@@ -257,14 +261,12 @@ export default function HomeScreen() {
                               color: isCommission ? "#022742" : "#022742",
                             }}
                           >
-                            {transaction.transaction_type
-                              .charAt(0)
-                              .toUpperCase()}
+                            {transactionType.charAt(0).toUpperCase()}
                           </Text>
                         </View>
                         <VStack className="flex-1">
                           <Text className="font-manropesemibold font-medium text-[14px] text-[#000000]">
-                            {transaction.transaction_type}
+                            {transactionType}
                           </Text>
                           <Text className="font-manroperegular font-medium text-[12px] text-[#5A5A5A]">
                             {formatDate(transaction.processed_at)}
@@ -303,7 +305,7 @@ export default function HomeScreen() {
                                   : "#DC2626",
                             }}
                           >
-                            {transaction.status.toUpperCase()}
+                            {transaction?.status?.toUpperCase() || "PENDING"}
                           </Text>
                         </View>
                       </VStack>
