@@ -11,13 +11,17 @@ import { VStack } from "@/components/ui/vstack";
 import { useAuthStore } from "@/store/auth-store";
 import { Bell, Award } from "lucide-react-native";
 import React from "react";
+import { View, ActivityIndicator } from "react-native";
 
 export default function Header() {
   const { user, userProfile, signOut } = useAuthStore();
   
+  // Check if profile is loaded
+  const isProfileLoaded = !!userProfile?.fullname;
+  
   // Get user initials from fullname
   const getUserInitials = () => {
-    if (!userProfile?.fullname) return "JD";
+    if (!userProfile?.fullname) return "";
     
     const names = userProfile.fullname.trim().split(" ");
     if (names.length >= 2) {
@@ -28,7 +32,7 @@ export default function Header() {
 
   // Get display name
   const getDisplayName = () => {
-    return userProfile?.fullname || "John Doe";
+    return userProfile?.fullname || "";
   };
 
   const handleLogout = async () => {
@@ -41,15 +45,19 @@ export default function Header() {
 
   return (
     <Box className="border-[#E9EAEB] px-6 py-4">
-      <HStack className="items-center justify-between border2">
+      <HStack className="items-center justify-between">
         <HStack space="md" className="items-center">
           <Avatar size="md" className="bg-[#D7EFF6]">
-            <AvatarFallbackText className="text-[#0066CC] font-manropesemibold">
-              {getUserInitials()}
-            </AvatarFallbackText>
+            {isProfileLoaded ? (
+              <AvatarFallbackText className="text-[#0066CC] font-manropesemibold">
+                {getUserInitials()}
+              </AvatarFallbackText>
+            ) : (
+              <ActivityIndicator size="small" color="#0066CC" />
+            )}
           </Avatar>
           
-          <VStack className="" space="sm">
+          <VStack space="sm">
             <Badge 
               size="sm" 
               variant="solid" 
@@ -66,9 +74,13 @@ export default function Header() {
               </BadgeText>
             </Badge>
             
-            <Text className="text-sm font-semibold font-manropesemibold text-[#000000]">
-              {getDisplayName()}
-            </Text>
+            {isProfileLoaded ? (
+              <Text className="text-sm font-semibold font-manropesemibold text-[#000000]">
+                {getDisplayName()}
+              </Text>
+            ) : (
+              <View className="h-4 w-24 bg-gray-200 rounded animate-pulse" />
+            )}
           </VStack>
         </HStack>
 

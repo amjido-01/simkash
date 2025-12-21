@@ -59,6 +59,7 @@ import { NetworkSelectionDrawer } from "@/components/network-selection-drawer";
 import DataPlanSelectionDrawer from "@/components/data-plan-selection-drawer";
 import { useGetDataPlans } from "@/hooks/use-getdata-plans"; // For "same" mode - returns top 5
 import { useGetAllDataPlans } from "@/hooks/use-get-data-plans"; // For "different" mode - returns all
+import { useDashboard } from "@/hooks/use-dashboard";
 
 // Validation schema for recipients
 const recipientSchema = yup.object().shape({
@@ -107,7 +108,9 @@ export default function BulkData() {
   const { networks, isLoading, isError } = useGetNetworks();
   const verifyPhoneMutation = useVerifyPhone();
   const { purchaseBulkData, isLoading: isPurchasing } = usePurchaseBulkData();
-
+    const {
+        wallet, // Wallet balance data
+      } = useDashboard();
   const [showDrawer, setShowDrawer] = useState(false);
   const [showPinDrawer, setShowPinDrawer] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);

@@ -170,7 +170,7 @@ export default function HomeScreen() {
             ))}
           </HStack>
 
-          <Button
+          {/* <Button
             onPress={() => {
               Linking.openURL(
                 "simkash://payment-verification?reference=TEST_123&status=success"
@@ -178,7 +178,7 @@ export default function HomeScreen() {
             }}
           >
             <ButtonText>Test Deep Link</ButtonText>
-          </Button>
+          </Button> */}
 
           {/* Payments Section */}
           <View className="mb-10 px-[16px] py-[20px] rounded-[16px] bg-[#ffffff]">

@@ -88,8 +88,6 @@ export default function Airtime() {
     wallet, // Wallet balance data
   } = useDashboard();
 
-  console.log(wallet);
-
   // Form setup
   const {
     control,

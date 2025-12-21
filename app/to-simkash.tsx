@@ -1,15 +1,6 @@
 import { Box } from "@/components/ui/box";
 import { Button, ButtonText } from "@/components/ui/button";
 import {
-  Drawer,
-  DrawerBackdrop,
-  DrawerBody,
-  DrawerCloseButton,
-  DrawerContent,
-  DrawerFooter,
-  DrawerHeader,
-} from "@/components/ui/drawer";
-import {
   FormControl,
   FormControlError,
   FormControlErrorIcon,
@@ -17,7 +8,6 @@ import {
   FormControlLabel,
   FormControlLabelText,
 } from "@/components/ui/form-control";
-import { Heading } from "@/components/ui/heading";
 import { HStack } from "@/components/ui/hstack";
 import { Input, InputField } from "@/components/ui/input";
 import { Text } from "@/components/ui/text";
@@ -31,7 +21,7 @@ import {
   Gift,
   Wallet,
 } from "lucide-react-native";
-import React, { useCallback, useRef, useState, useEffect } from "react";
+import React, { useCallback, useState, useEffect } from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
   KeyboardAvoidingView,
@@ -43,17 +33,18 @@ import {
   Alert,
 } from "react-native";
 import { PinDrawer } from "@/components/pin-drawer";
+import { ConfirmationDrawer } from "@/components/confirmation-drawer";
 import {
   SafeAreaView,
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
-import { OtpInput } from "react-native-otp-entry";
 import * as yup from "yup";
 import { router } from "expo-router";
 import Animated, { FadeIn } from "react-native-reanimated";
-import { PIN_LENGTH, ACCOUNT_VERIFICATION_DELAY } from "@/constants/menu";
+import { ACCOUNT_VERIFICATION_DELAY } from "@/constants/menu";
 import { useTransfer } from "@/hooks/use-transfer";
 import { useVerifySimkashAccount } from "@/hooks/use-verify-simkash-account";
+import { useDashboard } from "@/hooks/use-dashboard";
 
 // Validation schema
 const schema = yup.object().shape({
@@ -85,22 +76,17 @@ type FormData = yup.InferType<typeof schema>;
 export default function ToSimkash() {
   // State management
   const insets = useSafeAreaInsets();
+    const {
+      wallet, // Wallet balance data
+    } = useDashboard();
   const { mutateAsync: verifySimkashAccount, isPending: isVerifyingAccount } =
     useVerifySimkashAccount();
-  const { transfer, data, isLoading: isTransferring } = useTransfer();
+  const { transfer, isLoading: isTransferring } = useTransfer();
   const [showDrawer, setShowDrawer] = useState(false);
   const [showPinDrawer, setShowPinDrawer] = useState(false);
   const [accountName, setAccountName] = useState("");
   const [phoneVerified, setPhoneVerified] = useState(false);
-  // const [isVerifyingAccount, setIsVerifyingAccount] = useState(false);
-  const [pin, setPin] = useState("");
-  const [pinError, setPinError] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const otpRef = useRef<any>(null);
-  const verificationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
-    null
-  );
+  const verificationTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Form setup
   const {
@@ -134,7 +120,6 @@ export default function ToSimkash() {
   }, []);
 
   // Account verification with debouncing
-
   const handlePhoneBlur = useCallback(async () => {
     if (verificationTimeoutRef.current) {
       clearTimeout(verificationTimeoutRef.current);
@@ -186,70 +171,19 @@ export default function ToSimkash() {
   // Continue to PIN entry
   const handleContinueToPin = useCallback(() => {
     setShowDrawer(true);
-    // Small delay for smooth transition
     setTimeout(() => {
       setShowPinDrawer(true);
     }, 300);
   }, []);
 
-  // PIN pad number press
-  const handleNumberPress = useCallback(
-    (num: string) => {
-      if (pin.length < PIN_LENGTH) {
-        const newPin = pin + num;
-        setPin(newPin);
-        setPinError("");
-
-        // Update OTP input
-        if (otpRef.current) {
-          otpRef.current.setValue(newPin);
-        }
-
-        // Auto-submit when complete
-        if (newPin.length === PIN_LENGTH) {
-          setTimeout(() => handlePinSubmit(newPin), 300);
-        }
-      }
-    },
-    [pin]
-  );
-
-  // Backspace handler
-  const handleBackspace = useCallback(() => {
-    if (pin.length > 0) {
-      const newPin = pin.slice(0, -1);
-      setPin(newPin);
-      setPinError("");
-
-      if (otpRef.current) {
-        otpRef.current.setValue(newPin);
-      }
-    }
-  }, [pin]);
-
-  // PIN change handler
-  const handlePinChange = useCallback((text: string) => {
-    setPin(text);
-    setPinError("");
-  }, []);
-
   // PIN submission
   const handlePinSubmit = useCallback(
-    async (pinToSubmit?: string) => {
-      const finalPin = pinToSubmit || pin;
-
-      if (finalPin.length !== PIN_LENGTH) {
-        setPinError("Please enter your 4-digit PIN");
-        return;
-      }
-
-      setIsSubmitting(true);
-
+    async (pin: string) => {
       try {
         const payload = {
           account: phoneValue,
           amount: Number(amountValue),
-          pin: finalPin,
+          pin: pin,
           narration: narrationValue || undefined,
         };
 
@@ -260,7 +194,6 @@ export default function ToSimkash() {
         // Close drawers and navigate
         setShowPinDrawer(false);
         setShowDrawer(false);
-        setPin("");
         reset();
 
         await new Promise((resolve) => setTimeout(resolve, 300));
@@ -278,7 +211,6 @@ export default function ToSimkash() {
       } catch (error: any) {
         console.error("Transfer error:", error);
 
-        // Handle specific error messages
         let errorMessage = "Transaction failed. Please try again.";
 
         if (error?.message) {
@@ -287,16 +219,10 @@ export default function ToSimkash() {
           errorMessage = error.responseMessage;
         }
 
-        setPinError(errorMessage);
-        setPin("");
-        if (otpRef.current) {
-          otpRef.current.clear();
-        }
-      } finally {
-        setIsSubmitting(false);
+        throw new Error(errorMessage);
       }
     },
-    [pin, phoneValue, amountValue, narrationValue, transfer, reset, accountName]
+    [phoneValue, amountValue, narrationValue, transfer, reset, accountName]
   );
 
   // Continue button handler
@@ -328,7 +254,6 @@ export default function ToSimkash() {
 
   // Back navigation handler
   const handleBack = useCallback(() => {
-    // Confirm before leaving if form has data
     if (phoneValue || amountValue) {
       Alert.alert(
         "Discard Changes?",
@@ -343,15 +268,27 @@ export default function ToSimkash() {
         ]
       );
     } else {
-      router.push("/(tabs)");
+      router.back();
     }
   }, [phoneValue, amountValue]);
 
-  // Format amount for display
-  const formatAmount = useCallback((amount: string) => {
-    if (!amount) return "";
-    return parseInt(amount, 10).toLocaleString();
-  }, []);
+   // Format amount for display
+    const formatAmount = useCallback((amount: string) => {
+      if (!amount) return "";
+      return parseInt(amount, 10).toLocaleString();
+    }, []);
+  
+    const formatCurrency = (value?: string) => {
+      if (!value) return "₦0.00";
+  
+      const num = Number(value);
+      if (isNaN(num)) return "₦0.00";
+  
+      return `₦ ${num.toLocaleString("en-NG", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })}`;
+    };
 
   return (
     <SafeAreaView className="flex-1 bg-white" edges={["top"]}>
@@ -376,7 +313,7 @@ export default function ToSimkash() {
           </Text>
         </HStack>
 
-        <ScrollView
+       <ScrollView
           contentContainerStyle={{ flexGrow: 1 }}
           keyboardShouldPersistTaps="handled"
           bounces={false}
@@ -580,7 +517,6 @@ export default function ToSimkash() {
           className="absolute bottom-0 left-0 right-0 bg-white px-4 py-4"
           style={{
             paddingBottom: Math.max(insets.bottom, 16),
-            // paddingTop: 16
           }}
         >
           <Button
@@ -596,153 +532,54 @@ export default function ToSimkash() {
       </KeyboardAvoidingView>
 
       {/* CONFIRMATION DRAWER */}
-      <Drawer
-        className="border-t-0"
+      <ConfirmationDrawer
         isOpen={showDrawer}
-        size="lg"
-        anchor="bottom"
         onClose={() => setShowDrawer(false)}
-      >
-        <DrawerBackdrop
-          style={{
-            backgroundColor: "#24242440",
-            opacity: 1,
-          }}
-        />
-        <DrawerContent
-          className="rounded-t-[30px] pt-[39px] bg-[#FFFFFF]"
-          style={{
-            borderTopWidth: 0,
-            borderColor: "transparent",
-            shadowOpacity: 0,
-            elevation: 0,
-            // paddingBottom: Platform.OS === "ios" ? 34 : 16,
-            paddingBottom: insets.bottom || 16,
-          }}
-        >
-          <DrawerHeader className="border-b-0 pb2 px-6">
-            <VStack>
-              <VStack>
-                <Heading className="font-manropesemibold text-center text-[18px] text-[#000000] mb-2">
-                  Confirm Transaction
-                </Heading>
-                <Text className="text-center text-[12px] font-manroperegular text-[#6B7280] px-2">
-                  Please review details carefully. Transactions are
-                  irreversible.
-                </Text>
-              </VStack>
-              <Heading className="text-[28px] font-medium text-center mt-[24px] font-manropebold text-[#000000]">
-                ₦{formatAmount(amountValue)}
-              </Heading>
-            </VStack>
-            <DrawerCloseButton />
-          </DrawerHeader>
-
-          <DrawerBody className="pt-4 px-1 pb2">
-            <VStack space="md">
-              {/* Transaction Details */}
-              <View className="rounded-[20px] border-[#E5E7EF] border px-4 py-2">
-                <VStack space="sm">
-                  <HStack className="justify-between items-center py-3">
-                    <Text className="text-[12px] font-manroperegular text-[#303237]">
-                      Recipient
-                    </Text>
-                    <Text className="text-[12px] font-medium leading-[100%] font-manropesemibold text-[#141316]">
-                      {accountName}
-                    </Text>
-                  </HStack>
-
-                  <View className="h-[1px] bg-[#E5E7EB]" />
-
-                  <HStack className="justify-between items-center py-3">
-                    <Text className="text-[12px] font-manroperegular text-[#303237]">
-                      Phone Number
-                    </Text>
-                    <Text className="text-[12px] font-medium leading-[100%] font-manropesemibold text-[#141316]">
-                      {phoneValue}
-                    </Text>
-                  </HStack>
-
-                  <View className="h-[1px] bg-[#E5E7EB]" />
-
-                  <HStack className="justify-between items-center py-3">
-                    <Text className="text-[12px] font-manroperegular text-[#303237]">
-                      Amount
-                    </Text>
-                    <Text className="text-[12px] font-medium leading-[100%] font-manropesemibold text-[#141316]">
-                      ₦{formatAmount(amountValue)}
-                    </Text>
-                  </HStack>
-
-                  {narrationValue && (
-                    <>
-                      <View className="h-[1px] bg-[#E5E7EB]" />
-                      <HStack className="justify-between items-start py-3">
-                        <Text className="text-[12px] font-manroperegular text-[#303237]">
-                          Narration
-                        </Text>
-                        <Text className="text-[12px] font-medium leading-[100%] font-manropesemibold text-[#141316] text-right flex-1 ml-4">
-                          {narrationValue}
-                        </Text>
-                      </HStack>
-                    </>
-                  )}
-                </VStack>
-              </View>
-
-              {/* Wallet & Cashback */}
-              <View className="p-4">
-                <VStack space="sm">
-                  <HStack className="justify-between items-center py-3">
-                    <HStack space="sm" className="items-center">
-                      <Wallet size={16} color="#FF8D28" />
-                      <Text className="text-[12px] font-manroperegular text-[#303237]">
-                        Wallet Balance
-                      </Text>
-                    </HStack>
-                    <Text className="text-[12px] font-medium leading-[100%] font-manropesemibold text-[#141316]">
-                      ₦50,000
-                    </Text>
-                  </HStack>
-
-                  <View className="h-[1px] bg-[#E5E7EB]" />
-
-                  <HStack className="justify-between items-center py-3">
-                    <HStack space="sm" className="items-center">
-                      <Gift size={16} color="#CB30E0" />
-                      <Text className="text-[12px] font-manroperegular text-[#303237]">
-                        Cashback
-                      </Text>
-                    </HStack>
-                    <Text className="text-[12px] font-medium leading-[100%] font-manropesemibold text-[#10B981]">
-                      +₦500
-                    </Text>
-                  </HStack>
-                </VStack>
-              </View>
-            </VStack>
-          </DrawerBody>
-
-          <DrawerFooter className="px-4 pt-4 pb-0">
-            <Button
-              className="rounded-full bg-[#132939] h-[48px] w-full"
-              size="xl"
-              onPress={handleContinueToPin}
-            >
-              <ButtonText className="text-white text-[16px] font-medium leading-[24px]">
-                Continue
-              </ButtonText>
-            </Button>
-          </DrawerFooter>
-        </DrawerContent>
-      </Drawer>
+        onConfirm={handleContinueToPin}
+        title="Confirm Transaction"
+        subtitle="Please review details carefully. Transactions are irreversible."
+        amount={amountValue}
+        showAmount={true}
+        confirmButtonText="Continue"
+        sections={[
+          {
+            details: [
+              { label: "Recipient", value: accountName },
+              { label: "Phone Number", value: phoneValue },
+               { label: "Amount", value: `₦${formatAmount(amountValue)}` },
+              ...(narrationValue
+                ? [{ label: "Narration", value: narrationValue }]
+                : []),
+            ],
+            showDividers: true,
+          },
+          {
+            containerClassName: "p-4",
+            details: [
+              {
+                label: "Wallet Balance",
+                value: formatCurrency(wallet?.balance),
+                icon: <Wallet size={16} color="#FF8D28" />,
+              },
+              {
+                label: "Cashback",
+                value: "+₦500",
+                icon: <Gift size={16} color="#CB30E0" />,
+                valueClassName:
+                  "text-[12px] font-medium leading-[100%] font-manropesemibold text-[#10B981]",
+              },
+            ],
+            showDividers: true,
+          },
+        ]}
+      />
 
       <PinDrawer
         isOpen={showPinDrawer}
         onClose={() => setShowPinDrawer(false)}
         onSubmit={handlePinSubmit}
         title="Enter PIN"
-        isSubmitting={isSubmitting}
+        isSubmitting={isTransferring}
         loadingText="Processing transaction..."
       />
     </SafeAreaView>
