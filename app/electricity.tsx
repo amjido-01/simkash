@@ -210,13 +210,11 @@ export default function Electricity() {
             type: meterTypeValue as "prepaid" | "postpaid",
           });
 
-          console.log("✅ Meter verified:", response);
 
           // Set customer details from API response
           setCustomerName(response.Customer_Name);
           setCustomerVerified(true);
         } catch (error: any) {
-          console.error("❌ Meter verification failed:", error);
 
           Alert.alert(
             "Verification Failed",
