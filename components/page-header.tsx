@@ -1,5 +1,5 @@
 import React from "react";
-import { TouchableOpacity, ViewStyle } from "react-native";
+import { TouchableOpacity, View, ViewStyle } from "react-native";
 import { HStack } from "@/components/ui/hstack";
 import { Text } from "@/components/ui/text";
 import { ChevronLeft } from "lucide-react-native";
@@ -46,7 +46,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
       )}
       
       {leftComponent && (
-        <div className="absolute left-4">{leftComponent}</div>
+        <View className="absolute left-4">{leftComponent}</View>
       )}
 
       {/* Title */}
