@@ -61,7 +61,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
 
       {/* Right Side - Custom Component */}
       {rightComponent && (
-        <div className="absolute right-4">{rightComponent}</div>
+        <View className="absolute right-4">{rightComponent}</View>
       )}
     </HStack>
   );
