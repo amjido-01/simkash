@@ -8,35 +8,19 @@ import {
   FormControlLabel,
   FormControlLabelText,
 } from "@/components/ui/form-control";
-import {
-  Drawer,
-  DrawerBackdrop,
-  DrawerBody,
-  DrawerCloseButton,
-  DrawerContent,
-  DrawerHeader,
-} from "@/components/ui/drawer";
 import { Heading } from "@/components/ui/heading";
-import { Input, InputField } from "@/components/ui/input";
 import { Text } from "@/components/ui/text";
 import { VStack } from "@/components/ui/vstack";
 import { yupResolver } from "@hookform/resolvers/yup";
-import {
-  AlertCircleIcon,
-  ChevronDownIcon,
-  Gift,
-  Wallet,
-} from "lucide-react-native";
+import { Gift, Wallet } from "lucide-react-native";
 import React, { useCallback, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  TouchableOpacity,
   View,
   Alert,
-  ActivityIndicator,
 } from "react-native";
 import {
   SafeAreaView,
@@ -44,61 +28,14 @@ import {
 } from "react-native-safe-area-context";
 import * as yup from "yup";
 import { router } from "expo-router";
-import { PinDrawer } from "@/components/pin-drawer";
 import { ConfirmationDrawer } from "@/components/confirmation-drawer";
 import { PageHeader } from "@/components/page-header";
 import { useDashboard } from "@/hooks/use-dashboard";
-
-// Nigerian states
-const NIGERIAN_STATES = [
-  "Abia",
-  "Adamawa",
-  "Akwa Ibom",
-  "Anambra",
-  "Bauchi",
-  "Bayelsa",
-  "Benue",
-  "Borno",
-  "Cross River",
-  "Delta",
-  "Ebonyi",
-  "Edo",
-  "Ekiti",
-  "Enugu",
-  "FCT",
-  "Gombe",
-  "Imo",
-  "Jigawa",
-  "Kaduna",
-  "Kano",
-  "Katsina",
-  "Kebbi",
-  "Kogi",
-  "Kwara",
-  "Lagos",
-  "Nasarawa",
-  "Niger",
-  "Ogun",
-  "Ondo",
-  "Osun",
-  "Oyo",
-  "Plateau",
-  "Rivers",
-  "Sokoto",
-  "Taraba",
-  "Yobe",
-  "Zamfara",
-];
-
-// Sample LGAs - you can make this dynamic based on selected state
-const SAMPLE_LGAS = [
-  "Abaji",
-  "Abuja Municipal",
-  "Bwari",
-  "Gwagwalada",
-  "Kuje",
-  "Kwali",
-];
+import { useGetCountry } from "@/hooks/use-country";
+import { useGetCities } from "@/hooks/use-cities";
+import { useGetStates } from "@/hooks/use-states";
+import { useSimRequest } from "@/hooks/use-sim-request";
+import SearchableSelector from "@/components/searchable-selector";
 
 // Validation schema
 const schema = yup.object().shape({
@@ -112,13 +49,10 @@ type FormData = yup.InferType<typeof schema>;
 export default function BuySIM() {
   const insets = useSafeAreaInsets();
   const { wallet } = useDashboard();
-  
-  const [showCountryDrawer, setShowCountryDrawer] = useState(false);
-  const [showStateDrawer, setShowStateDrawer] = useState(false);
-  const [showLGADrawer, setShowLGADrawer] = useState(false);
+
   const [showConfirmationDrawer, setShowConfirmationDrawer] = useState(false);
-  const [showPinDrawer, setShowPinDrawer] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedCountryCode, setSelectedCountryCode] = useState<string>("");
+  const [selectedStateCode, setSelectedStateCode] = useState<string>("");
 
   const SIM_PRICE = 8500;
   const CASHBACK = 500;
@@ -145,26 +79,38 @@ export default function BuySIM() {
   const stateValue = watch("state");
   const lgaValue = watch("lga");
 
+  // Fetch location data
+  const { countries, isLoading: isLoadingCountries } = useGetCountry();
+  const { states, isLoading: isLoadingStates } =
+    useGetStates(selectedCountryCode);
+  const { cities: lgas, isLoading: isLoadingLGAs } = useGetCities(stateValue);
+
+  // SIM Request mutation
+  const { mutateAsync: requestSim, isPending: isSubmitting } = useSimRequest();
+
   const handleCountrySelect = useCallback(
-    (country: string) => {
-      setValue("country", country);
-      setValue("state", ""); // Reset state when country changes
-      setValue("lga", ""); // Reset LGA when country changes
+    (countryCode: string, countryName: string) => {
+      setValue("country", countryName);
+      setValue("state", "");
+      setValue("lga", "");
+      setSelectedCountryCode(countryCode);
+      setSelectedStateCode("");
     },
     [setValue]
   );
 
   const handleStateSelect = useCallback(
-    (state: string) => {
-      setValue("state", state);
-      setValue("lga", ""); // Reset LGA when state changes
+    (stateCode: string, stateName: string) => {
+      setValue("state", stateName);
+      setValue("lga", "");
+      setSelectedStateCode(stateCode);
     },
     [setValue]
   );
 
   const handleLGASelect = useCallback(
-    (lga: string) => {
-      setValue("lga", lga);
+    (lgaId: string, lgaName: string) => {
+      setValue("lga", lgaName);
     },
     [setValue]
   );
@@ -178,47 +124,56 @@ export default function BuySIM() {
     })();
   }, [trigger, handleSubmit]);
 
-  const handleContinueToPin = useCallback(() => {
-    setShowConfirmationDrawer(false);
-    setTimeout(() => {
-      setShowPinDrawer(true);
-    }, 300);
-  }, []);
+  const handleConfirmRequest = useCallback(async () => {
+    try {
 
-  const handlePinSubmit = useCallback(
-    async (pin: string) => {
-      setIsSubmitting(true);
+      // Make API call with proper payload format
+      const response = await requestSim({
+        country: countryValue.toLowerCase(),
+        state: stateValue.toLowerCase(),
+        lga: lgaValue.toLowerCase(),
+      });
 
-      try {
-        console.log("🔐 PIN entered, processing SIM request...");
 
-        // API call will go here
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-
-        setShowPinDrawer(false);
+      // Response is the agent object, so if we get a response, it's successful
+      if (response && response.id) {
+        setShowConfirmationDrawer(false);
         reset();
 
-        // Generate random request ID
-        const requestId = `${Math.floor(Math.random() * 90000000000) + 10000000000}`;
+        // Small delay for smooth transition
+        await new Promise((resolve) => setTimeout(resolve, 300));
 
         router.push({
-          pathname: "/transaction-success",
+          pathname: "/sim-request-success",
           params: {
-            requestId,
+            requestId: response.id.toString(),
+            status: response.status,
             amount: SIM_PRICE.toString(),
-            country: countryValue,
-            state: stateValue,
-            lga: lgaValue,
+
+            // Agent info
+            partnerName: response.fullname,
+            partnerPhone: response.phone,
+            partnerRole: response.role,
+
+            // Location
+            country: response.country,
+            state: response.state,
+            lga: response.lga,
           },
         });
-      } catch (error: any) {
+      } else {
         throw new Error("Request failed. Please try again.");
-      } finally {
-        setIsSubmitting(false);
       }
-    },
-    [countryValue, stateValue, lgaValue, reset]
-  );
+    } catch (error: any) {
+      console.error("SIM Request Error:", error);
+      Alert.alert(
+        "Request Failed",
+        error?.message ||
+          error?.responseMessage ||
+          "Unable to process your request. Please try again."
+      );
+    }
+  }, [countryValue, stateValue, lgaValue, requestSim, reset]);
 
   const handleBack = useCallback(() => {
     if (countryValue || stateValue || lgaValue) {
@@ -241,8 +196,11 @@ export default function BuySIM() {
     }
   }, [countryValue, stateValue, lgaValue]);
 
-  const formatCurrency = (value: number) => {
-    return `₦${value.toLocaleString("en-NG", {
+  const formatCurrency = (value?: number | string) => {
+    if (!value) return "₦0.00";
+    const numValue = typeof value === "string" ? parseFloat(value) : value;
+    if (isNaN(numValue)) return "₦0.00";
+    return `₦${numValue.toLocaleString("en-NG", {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     })}`;
@@ -254,11 +212,7 @@ export default function BuySIM() {
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        <PageHeader
-          title="Buy SIM"
-          onBack={handleBack}
-          showBackButton={true}
-        />
+        <PageHeader title="Buy SIM" onBack={handleBack} showBackButton={true} />
 
         <ScrollView
           contentContainerStyle={{ flexGrow: 1 }}
@@ -280,32 +234,25 @@ export default function BuySIM() {
                   control={control}
                   name="country"
                   render={({ field: { value } }) => (
-                    <TouchableOpacity
-                      onPress={() => setShowCountryDrawer(true)}
-                      className={`w-full rounded-[99px] border min-h-[48px] flex-row items-center justify-between px-4 ${
-                        errors.country
-                          ? "border-2 border-red-500"
-                          : "border border-[#D0D5DD]"
-                      }`}
-                    >
-                      <Text
-                        className={`text-[14px] ${
-                          value ? "text-[#132939]" : "text-[#717680]"
-                        }`}
-                      >
-                        {value || "Choose Country"}
-                      </Text>
-                      <ChevronDownIcon size={20} color="#6B7280" />
-                    </TouchableOpacity>
+                    <SearchableSelector
+                      value={selectedCountryCode}
+                      onValueChange={handleCountrySelect}
+                      items={countries.map((c) => ({
+                        id: c.isoCode,
+                        name: c.name,
+                      }))}
+                      placeholder="Choose Country"
+                      title="Select Country"
+                      error={Boolean(errors.country)}
+                      isLoading={isLoadingCountries}
+                      searchPlaceholder="Search countries..."
+                    />
                   )}
                 />
 
                 {errors.country && (
                   <FormControlError>
-                    <FormControlErrorIcon
-                      className="text-red-500"
-                      as={AlertCircleIcon}
-                    />
+                    <FormControlErrorIcon className="text-red-500" />
                     <FormControlErrorText className="text-red-500">
                       {errors.country?.message}
                     </FormControlErrorText>
@@ -328,33 +275,26 @@ export default function BuySIM() {
                   control={control}
                   name="state"
                   render={({ field: { value } }) => (
-                    <TouchableOpacity
-                      onPress={() => countryValue && setShowStateDrawer(true)}
+                    <SearchableSelector
+                      value={selectedStateCode}
+                      onValueChange={handleStateSelect}
+                      items={states.map((s) => ({
+                        id: s.isoCode,
+                        name: s.name,
+                      }))}
+                      placeholder="Choose State"
+                      title="Select State"
+                      error={Boolean(errors.state)}
+                      isLoading={isLoadingStates}
                       disabled={!countryValue}
-                      className={`w-full rounded-[99px] border min-h-[48px] flex-row items-center justify-between px-4 ${
-                        errors.state
-                          ? "border-2 border-red-500"
-                          : "border border-[#D0D5DD]"
-                      } ${!countryValue ? "opacity-50" : ""}`}
-                    >
-                      <Text
-                        className={`text-[14px] ${
-                          value ? "text-[#132939]" : "text-[#717680]"
-                        }`}
-                      >
-                        {value || "Choose State"}
-                      </Text>
-                      <ChevronDownIcon size={20} color="#6B7280" />
-                    </TouchableOpacity>
+                      searchPlaceholder="Search states..."
+                    />
                   )}
                 />
 
                 {errors.state && (
                   <FormControlError>
-                    <FormControlErrorIcon
-                      className="text-red-500"
-                      as={AlertCircleIcon}
-                    />
+                    <FormControlErrorIcon className="text-red-500" />
                     <FormControlErrorText className="text-red-500">
                       {errors.state?.message}
                     </FormControlErrorText>
@@ -377,33 +317,26 @@ export default function BuySIM() {
                   control={control}
                   name="lga"
                   render={({ field: { value } }) => (
-                    <TouchableOpacity
-                      onPress={() => stateValue && setShowLGADrawer(true)}
+                    <SearchableSelector
+                      value={lgaValue}
+                      onValueChange={handleLGASelect}
+                      items={lgas.map((c) => ({
+                        id: c.name,
+                        name: c.name,
+                      }))}
+                      placeholder="Choose LGA"
+                      title="Select LGA"
+                      error={Boolean(errors.lga)}
+                      isLoading={isLoadingLGAs}
                       disabled={!stateValue}
-                      className={`w-full rounded-[99px] border min-h-[48px] flex-row items-center justify-between px-4 ${
-                        errors.lga
-                          ? "border-2 border-red-500"
-                          : "border border-[#D0D5DD]"
-                      } ${!stateValue ? "opacity-50" : ""}`}
-                    >
-                      <Text
-                        className={`text-[14px] ${
-                          value ? "text-[#132939]" : "text-[#717680]"
-                        }`}
-                      >
-                        {value || "Choose LGA"}
-                      </Text>
-                      <ChevronDownIcon size={20} color="#6B7280" />
-                    </TouchableOpacity>
+                      searchPlaceholder="Search LGAs..."
+                    />
                   )}
                 />
 
                 {errors.lga && (
                   <FormControlError>
-                    <FormControlErrorIcon
-                      className="text-red-500"
-                      as={AlertCircleIcon}
-                    />
+                    <FormControlErrorIcon className="text-red-500" />
                     <FormControlErrorText className="text-red-500">
                       {errors.lga?.message}
                     </FormControlErrorText>
@@ -427,58 +360,20 @@ export default function BuySIM() {
             className="rounded-full bg-[#132939] h-[48px] w-full"
             size="xl"
             onPress={handleContinue}
+            disabled={isSubmitting}
           >
             <ButtonText className="text-white text-[16px] font-medium leading-[24px]">
-              Continue
+              {isSubmitting ? "Processing..." : "Continue"}
             </ButtonText>
           </Button>
         </View>
       </KeyboardAvoidingView>
 
-      {/* Country Drawer */}
-      <SelectionDrawer
-        isOpen={showCountryDrawer}
-        onClose={() => setShowCountryDrawer(false)}
-        title="Select Country"
-        items={["Nigeria"]}
-        selectedItem={countryValue}
-        onSelectItem={(item) => {
-          handleCountrySelect(item);
-          setShowCountryDrawer(false);
-        }}
-      />
-
-      {/* State Drawer */}
-      <SelectionDrawer
-        isOpen={showStateDrawer}
-        onClose={() => setShowStateDrawer(false)}
-        title="Select State"
-        items={NIGERIAN_STATES}
-        selectedItem={stateValue}
-        onSelectItem={(item) => {
-          handleStateSelect(item);
-          setShowStateDrawer(false);
-        }}
-      />
-
-      {/* LGA Drawer */}
-      <SelectionDrawer
-        isOpen={showLGADrawer}
-        onClose={() => setShowLGADrawer(false)}
-        title="Select LGA"
-        items={SAMPLE_LGAS}
-        selectedItem={lgaValue}
-        onSelectItem={(item) => {
-          handleLGASelect(item);
-          setShowLGADrawer(false);
-        }}
-      />
-
       {/* Confirmation Drawer */}
       <ConfirmationDrawer
         isOpen={showConfirmationDrawer}
         onClose={() => setShowConfirmationDrawer(false)}
-        onConfirm={handleContinueToPin}
+        onConfirm={handleConfirmRequest}
         title="Need a SIM to Get Started?"
         subtitle="The SIM comes bundled with a 1-year data plan so you can start using it immediately after activation."
         amount={SIM_PRICE.toString()}
@@ -499,7 +394,7 @@ export default function BuySIM() {
             details: [
               {
                 label: "Wallet Balance",
-                value: formatCurrency(wallet?.balance || 50000),
+                value: formatCurrency(wallet?.balance),
                 icon: <Wallet size={16} color="#FF8D28" />,
               },
               {
@@ -512,102 +407,8 @@ export default function BuySIM() {
             ],
           },
         ]}
-        confirmButtonText="Confirm"
-      />
-
-      {/* PIN Drawer */}
-      <PinDrawer
-        isOpen={showPinDrawer}
-        onClose={() => setShowPinDrawer(false)}
-        onSubmit={handlePinSubmit}
-        title="Enter PIN"
-        isSubmitting={isSubmitting}
-        loadingText="Processing request..."
+        confirmButtonText="Confirm Request"
       />
     </SafeAreaView>
-  );
-}
-
-// Selection Drawer Component
-interface SelectionDrawerProps {
-  isOpen: boolean;
-  onClose: () => void;
-  title: string;
-  items: string[];
-  selectedItem: string;
-  onSelectItem: (item: string) => void;
-}
-
-function SelectionDrawer({
-  isOpen,
-  onClose,
-  title,
-  items,
-  selectedItem,
-  onSelectItem,
-}: SelectionDrawerProps) {
-  const insets = useSafeAreaInsets();
-
-  return (
-    <Drawer
-      className="border-t-0"
-      isOpen={isOpen}
-      size="lg"
-      anchor="bottom"
-      onClose={onClose}
-    >
-      <DrawerBackdrop
-        style={{
-          backgroundColor: "#24242440",
-          opacity: 1,
-        }}
-      />
-      <DrawerContent
-        className="rounded-t-[30px] pt-[28px] bg-[#FFFFFF]"
-        style={{
-          borderTopWidth: 0,
-          borderColor: "transparent",
-          shadowOpacity: 0,
-          elevation: 0,
-          paddingBottom: insets.bottom || 16,
-        }}
-      >
-        <DrawerHeader className="border-b-0 pb-4 px-6">
-          <Heading className="font-manropesemibold text-center text-[18px] text-[#000000]">
-            {title}
-          </Heading>
-          <DrawerCloseButton />
-        </DrawerHeader>
-
-        <DrawerBody className="pt-0 px-4">
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            style={{ maxHeight: 400 }}
-          >
-            <VStack space="xs">
-              {items.map((item, index) => (
-                <TouchableOpacity
-                  key={index}
-                  onPress={() => onSelectItem(item)}
-                  className={`py-4 px-4 rounded-[12px] ${
-                    selectedItem === item ? "bg-[#F3F4F6]" : ""
-                  }`}
-                >
-                  <Text
-                    className={`text-[14px] ${
-                      selectedItem === item
-                        ? "font-manropesemibold text-[#132939]"
-                        : "font-manroperegular text-[#303237]"
-                    }`}
-                  >
-                    {item}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </VStack>
-          </ScrollView>
-        </DrawerBody>
-      </DrawerContent>
-    </Drawer>
   );
 }

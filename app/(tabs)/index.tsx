@@ -56,10 +56,11 @@ export default function HomeScreen() {
   } = useDashboard();
   const {
     accountDetail,
-    isFetchingAccountDetail,
-    isAccountDetailError,
-    accountDetailError,
+    // isFetchingAccountDetail,
+    // isAccountDetailError,
+    // accountDetailError,
   } = useAccountDetail();
+  console.log("Account Detail:", accountDetail);
   const [refreshing, setRefreshing] = useState(false);
   const [showDrawer, setShowDrawer] = useState(false);
   const [showQuickActionDrawer, setShowQuickActionDrawer] = useState(false);
