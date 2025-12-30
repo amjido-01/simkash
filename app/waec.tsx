@@ -365,7 +365,7 @@ export default function WaecPurchase() {
         ]
       );
     } else {
-      router.push("/(tabs)");
+      router.back();
     }
   }, [phoneNumberValue, serviceTypeValue]);
 

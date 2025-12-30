@@ -46,6 +46,7 @@ import { ConfirmationDrawer } from "@/components/confirmation-drawer";
 import { PageHeader } from "@/components/page-header";
 import CableServiceDrawer from "@/components/cable-service-drawer";
 import { ACCOUNT_VERIFICATION_DELAY } from "@/constants/menu";
+import { useDashboard } from "@/hooks/use-dashboard";
 
 // Validation schema
 const schema = yup.object().shape({
@@ -63,6 +64,9 @@ type FormData = yup.InferType<typeof schema>;
 
 export default function CableTV() {
   const insets = useSafeAreaInsets();
+  const {
+    wallet, // Wallet balance data
+  } = useDashboard();
   const { cableServices, isLoading, isError } = useGetCableServices();
   const { mutateAsync: verifyCard, isPending: isVerifyingCard } =
     useVerifyCard();
@@ -248,14 +252,29 @@ export default function CableTV() {
           {
             text: "Discard",
             style: "destructive",
-            onPress: () => router.push("/(tabs)"),
+            onPress: () => {
+              router.push("/(tabs)");
+            },
           },
         ]
       );
     } else {
-      router.push("/(tabs)");
+      router.back();
     }
-  }, [smartCardValue, packageValue]);
+  }, [packageValue, smartCardValue]);
+
+
+  const formatCurrency = (value?: string) => {
+    if (!value) return "₦0.00";
+
+    const num = Number(value);
+    if (isNaN(num)) return "₦0.00";
+
+    return `₦ ${num.toLocaleString("en-NG", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
+  };
 
   return (
     <SafeAreaView className="flex-1 bg-white" edges={["top"]}>
@@ -531,7 +550,7 @@ export default function CableTV() {
             details: [
               {
                 label: "Wallet Balance",
-                value: "₦50,000",
+                value: formatCurrency(wallet?.balance),
                 icon: <Wallet size={16} color="#FF8D28" />,
               },
               {

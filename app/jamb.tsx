@@ -50,7 +50,6 @@ import { OtpInput } from "react-native-otp-entry";
 import * as yup from "yup";
 import { router } from "expo-router";
 import { PIN_LENGTH } from "@/constants/menu";
-import { transferOptions } from "@/utils/mock";
 import { JambVariation, useJambVariations } from "@/hooks/use-jamb-variations";
 import { PageHeader } from "@/components/page-header";
 
@@ -249,7 +248,7 @@ console.log(jambData, "jamb")
         ]
       );
     } else {
-      router.push("/(tabs)");
+      router.back();
     }
   }, [phoneNumberValue, serviceTypeValue]);
 

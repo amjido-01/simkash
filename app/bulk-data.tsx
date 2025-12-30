@@ -59,6 +59,7 @@ import { NetworkSelectionDrawer } from "@/components/network-selection-drawer";
 import DataPlanSelectionDrawer from "@/components/data-plan-selection-drawer";
 import { useGetDataPlans } from "@/hooks/use-getdata-plans"; // For "same" mode - returns top 5
 import { useGetAllDataPlans } from "@/hooks/use-get-data-plans"; // For "different" mode - returns all
+import { useDashboard } from "@/hooks/use-dashboard";
 
 // Validation schema for recipients
 const recipientSchema = yup.object().shape({
@@ -78,7 +79,7 @@ const recipientSchema = yup.object().shape({
     otherwise: (schema) => schema.notRequired(),
   }),
   dataPlanName: yup.string().notRequired(), // Store plan name for display
-   dataPlanAmount: yup.string().notRequired(),
+  dataPlanAmount: yup.string().notRequired(),
 });
 
 // Main form schema
@@ -107,7 +108,9 @@ export default function BulkData() {
   const { networks, isLoading, isError } = useGetNetworks();
   const verifyPhoneMutation = useVerifyPhone();
   const { purchaseBulkData, isLoading: isPurchasing } = usePurchaseBulkData();
-
+  const {
+    wallet, // Wallet balance data
+  } = useDashboard();
   const [showDrawer, setShowDrawer] = useState(false);
   const [showPinDrawer, setShowPinDrawer] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -287,23 +290,22 @@ export default function BulkData() {
     }, 300);
   }, []);
 
-const calculateTotalAmount = useCallback(() => {
-  if (planOption === "same") {
-    const plan = sameModePopularPlans.find(
-      (p) => p.variation_code === samePlan
-    );
-    const amount = plan ? parseFloat(plan.variation_amount) : 0;
-    return amount * recipients.length;
-  } 
-  else {
-  return recipients.reduce((total, recipient) => {
-    const amount = recipient.dataPlanAmount 
-      ? parseFloat(recipient.dataPlanAmount) 
-      : 0;
-    return total + amount;
-  }, 0);
-}
-}, [planOption, samePlan, recipients, sameModePopularPlans]);
+  const calculateTotalAmount = useCallback(() => {
+    if (planOption === "same") {
+      const plan = sameModePopularPlans.find(
+        (p) => p.variation_code === samePlan
+      );
+      const amount = plan ? parseFloat(plan.variation_amount) : 0;
+      return amount * recipients.length;
+    } else {
+      return recipients.reduce((total, recipient) => {
+        const amount = recipient.dataPlanAmount
+          ? parseFloat(recipient.dataPlanAmount)
+          : 0;
+        return total + amount;
+      }, 0);
+    }
+  }, [planOption, samePlan, recipients, sameModePopularPlans]);
 
   const handlePinSubmit = useCallback(
     async (pin: string) => {
@@ -337,13 +339,13 @@ const calculateTotalAmount = useCallback(() => {
           }
 
           payload = {
-    type: "same" as const,
-    network: selectedNetworkData.serviceID,
-    plan: samePlan,
-    amount: parseFloat(selectedPlan.variation_amount), // ADD THIS
-    recipients: recipients.map((r) => r.phoneNumber),
-    pin: pin,
-  };
+            type: "same" as const,
+            network: selectedNetworkData.serviceID,
+            plan: samePlan,
+            amount: parseFloat(selectedPlan.variation_amount), // ADD THIS
+            recipients: recipients.map((r) => r.phoneNumber),
+            pin: pin,
+          };
         } else {
           const invalidRecipients = recipients.filter(
             (r) => !r.network || !r.dataPlan
@@ -354,23 +356,25 @@ const calculateTotalAmount = useCallback(() => {
             );
           }
 
-        payload = {
-    type: "different" as const,
-    recipients: recipients.map((r) => {
-      // Find the plan to get the amount
-      const recipientPlan = differentModeAllPlans.find(
-        (p) => p.variation_code === r.dataPlan
-      );
-      
-      return {
-        network: r.network!,
-        phone: r.phoneNumber,
-        planCode: r.dataPlan!,
-        amount: recipientPlan ? parseFloat(recipientPlan.variation_amount) : 0, // ADD THIS
-      };
-    }),
-    pin: pin,
-  };
+          payload = {
+            type: "different" as const,
+            recipients: recipients.map((r) => {
+              // Find the plan to get the amount
+              const recipientPlan = differentModeAllPlans.find(
+                (p) => p.variation_code === r.dataPlan
+              );
+
+              return {
+                network: r.network!,
+                phone: r.phoneNumber,
+                planCode: r.dataPlan!,
+                amount: recipientPlan
+                  ? parseFloat(recipientPlan.variation_amount)
+                  : 0, // ADD THIS
+              };
+            }),
+            pin: pin,
+          };
         }
 
         const result = await purchaseBulkData(payload);
@@ -413,7 +417,18 @@ const calculateTotalAmount = useCallback(() => {
         setIsSubmitting(false);
       }
     },
-    [recipients, planOption, purchaseBulkData, reset, calculateTotalAmount, networks, samePlan, sameModePopularPlans, networkValue, differentModeAllPlans]
+    [
+      recipients,
+      planOption,
+      purchaseBulkData,
+      reset,
+      calculateTotalAmount,
+      networks,
+      samePlan,
+      sameModePopularPlans,
+      networkValue,
+      differentModeAllPlans,
+    ]
   );
   const handleContinue = useCallback(async () => {
     if (planOption === "different") {
@@ -495,31 +510,46 @@ const calculateTotalAmount = useCallback(() => {
     [setValue]
   );
 
-// In handleRecipientPlanSelect, also store the amount:
-const handleRecipientPlanSelect = useCallback(
-  (index: number, planCode: string) => {
-    const selectedPlan = differentModeAllPlans.find(
-      (p) => p.variation_code === planCode
-    );
+      const formatCurrency = (value?: string) => {
+        if (!value) return "₦0.00";
     
-    setValue(`recipients.${index}.dataPlan`, planCode, {
-      shouldValidate: true,
-    });
+        const num = Number(value);
+        if (isNaN(num)) return "₦0.00";
     
-    if (selectedPlan) {
-      setValue(`recipients.${index}.dataPlanName`, selectedPlan.name, {
-        shouldValidate: false,
+        return `₦ ${num.toLocaleString("en-NG", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        })}`;
+      };
+  // In handleRecipientPlanSelect, also store the amount:
+  const handleRecipientPlanSelect = useCallback(
+    (index: number, planCode: string) => {
+      const selectedPlan = differentModeAllPlans.find(
+        (p) => p.variation_code === planCode
+      );
+
+      setValue(`recipients.${index}.dataPlan`, planCode, {
+        shouldValidate: true,
       });
-      // ADD THIS - store the amount too
-      setValue(`recipients.${index}.dataPlanAmount`, selectedPlan.variation_amount, {
-        shouldValidate: false,
-      });
-    }
-    
-    setRecipientPlanDrawerIndex(null);
-  },
-  [setValue, differentModeAllPlans]
-);
+
+      if (selectedPlan) {
+        setValue(`recipients.${index}.dataPlanName`, selectedPlan.name, {
+          shouldValidate: false,
+        });
+        // ADD THIS - store the amount too
+        setValue(
+          `recipients.${index}.dataPlanAmount`,
+          selectedPlan.variation_amount,
+          {
+            shouldValidate: false,
+          }
+        );
+      }
+
+      setRecipientPlanDrawerIndex(null);
+    },
+    [setValue, differentModeAllPlans]
+  );
 
   const handleRecipientPlanClick = useCallback(
     (index: number) => {
@@ -1062,7 +1092,7 @@ const handleRecipientPlanSelect = useCallback(
             details: [
               {
                 label: "Wallet Balance",
-                value: "₦50,00",
+                value: formatCurrency(wallet?.balance),
                 icon: <Wallet size={16} color="#FF8D28" />,
               },
               {
