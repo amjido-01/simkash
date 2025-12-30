@@ -1,5 +1,11 @@
 import { useState, useCallback, useEffect } from "react";
-import { View, ScrollView, TouchableOpacity, Alert } from "react-native";
+import {
+  View,
+  ScrollView,
+  TouchableOpacity,
+  Alert,
+  RefreshControl,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { PageHeader } from "@/components/page-header";
 import { Text } from "@/components/ui/text";
@@ -9,10 +15,6 @@ import { VStack } from "@/components/ui/vstack";
 import { Button, ButtonText } from "@/components/ui/button";
 import { router } from "expo-router";
 import {
-  Zap,
-  PhoneMissed,
-  Wifi,
-  Tv,
   Banknote,
   WalletCards,
   ClockFading,
@@ -25,69 +27,71 @@ import { WalletBalance } from "@/components/wallet-balance";
 import { PinDrawer } from "@/components/pin-drawer";
 import { ConfirmationDrawer } from "@/components/confirmation-drawer";
 import { useDashboard } from "@/hooks/use-dashboard";
-
-// Mock BNPL data - replace with API hook
-const bnplData = {
-  loanBalance: 1000,
-  availableLimit: 4500,
-  totalCreditLimit: 5000,
-  dueDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000), // 2 days from now
-  service: "Airtime",
-  dueAmount: 1100,
-  fee: "10%",
-};
+import { usePayLaterDashboard } from "@/hooks/use-paylater-dashboard";
+import { SkeletonLoader } from "@/components/paylater-skeleton-loader";
+import { paymentCategories, PaymentCategory } from "@/constants/menu";
+import { usePayLaterCredits } from "@/hooks/use-paylater-credits";
+import { usePayLaterRepay } from "@/hooks/use-paylater-repay";
 
 const TERMS_ACCEPTED_KEY = "@bnpl_terms_accepted";
 
-const paymentCategories = [
-  {
-    id: "airtime",
-    name: "Airtime",
-    icon: PhoneMissed,
-    iconColor: "#EC4899",
-  },
-  {
-    id: "data",
-    name: "Data Bundle",
-    icon: Wifi,
-    iconColor: "#10B981",
-  },
-  {
-    id: "electricity",
-    name: "Electricity",
-    icon: Zap,
-    iconColor: "#F59E0B",
-  },
-  {
-    id: "tv",
-    name: "TV",
-    icon: Tv,
-    iconColor: "#3B82F6",
-  },
-];
-
 export default function BuyNowPayLater() {
+  const {
+    balance,
+    availableLimit,
+    creditLimit,
+    repayment,
+    hasOutstandingLoan,
+    hasAvailableCredit,
+    isLoading: isLoadingPayLater,
+    isError,
+    refetch,
+  } = usePayLaterDashboard();
+  const {
+    unpaidCredits,
+    totalAmountDue,
+    // hasUnpaidCredits,
+    formatAmount: formatCreditAmount,
+    formatDate: formatCreditDate,
+    // isOverdue,
+  } = usePayLaterCredits();
+  const { wallet } = useDashboard();
+  const { repay, isRepaying } = usePayLaterRepay();
+
   const [showTermsDrawer, setShowTermsDrawer] = useState(false);
   const [showConfirmDrawer, setShowConfirmDrawer] = useState(false);
   const [showPinDrawer, setShowPinDrawer] = useState(false);
   const [hasAcceptedTerms, setHasAcceptedTerms] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingTerms, setIsLoadingTerms] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [refreshing, setRefreshing] = useState(false); 
   const [countdown, setCountdown] = useState({
     days: 0,
     hours: 0,
     minutes: 0,
   });
 
-  const { wallet } = useDashboard();
+  // ✅ Get the FIRST unpaid credit (oldest due date)
+  const currentCredit = unpaidCredits[0];
+  console.log(unpaidCredits, "unpaidCredits");
 
-  // Calculate countdown
+  // ✅ Show total unpaid in the main screen
+  const showUnpaidSummary = unpaidCredits.length > 1;
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    refetch().finally(() => {
+      setRefreshing(false);
+    });
+  }, [refetch]);
+
+  // Calculate countdown if repayment exists
   useEffect(() => {
-    if (bnplData.loanBalance <= 0) return;
+    if (!repayment?.dueDate || balance <= 0) return;
 
     const calculateCountdown = () => {
       const now = new Date().getTime();
-      const dueTime = bnplData.dueDate.getTime();
+      const dueTime = new Date(repayment.dueDate!).getTime();
       const diff = dueTime - now;
 
       if (diff <= 0) {
@@ -96,28 +100,32 @@ export default function BuyNowPayLater() {
       }
 
       const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const hours = Math.floor(
+        (diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)
+      );
       const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
 
       setCountdown({ days, hours, minutes });
     };
 
     calculateCountdown();
-    const interval = setInterval(calculateCountdown, 60000); // Update every minute
+    const interval = setInterval(calculateCountdown, 60000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [repayment?.dueDate, balance]);
 
   // Check terms status
   useEffect(() => {
-    checkTermsStatus();
-  }, []);
+    if (!isLoadingPayLater) {
+      checkTermsStatus();
+    }
+  }, [isLoadingPayLater, balance]);
 
   const checkTermsStatus = async () => {
     try {
       const termsAccepted = await AsyncStorage.getItem(TERMS_ACCEPTED_KEY);
 
-      if (!termsAccepted && bnplData.loanBalance === 0) {
+      if (!termsAccepted && balance === 0) {
         setShowTermsDrawer(true);
         setHasAcceptedTerms(false);
       } else {
@@ -126,7 +134,7 @@ export default function BuyNowPayLater() {
     } catch (error) {
       console.error("Error checking terms status:", error);
     } finally {
-      setIsLoading(false);
+      setIsLoadingTerms(false);
     }
   };
 
@@ -153,69 +161,131 @@ export default function BuyNowPayLater() {
     }
   }, []);
 
-  const handleCategoryPress = (categoryId: string) => {
-    if (!hasAcceptedTerms) {
-      setShowTermsDrawer(true);
-      return;
-    }
+const handleCategoryPress = (category: PaymentCategory) => {
+  if (!hasAcceptedTerms) {
+    setShowTermsDrawer(true);
+    return;
+  }
 
-    if (bnplData.availableLimit <= 0) {
-      Alert.alert(
-        "No Credit Available",
-        "You have reached your credit limit. Please repay existing loans to continue."
-      );
-      return;
-    }
+  if (!hasAvailableCredit) {
+    Alert.alert(
+      "No Credit Available",
+      "You have reached your credit limit. Please repay existing loans to continue."
+    );
+    return;
+  }
 
-    // router.push({
-    //   pathname: "/bnpl-repayment",
-    //   params: { category: categoryId },
-    // });
-  };
+  // Navigate using route + params
+  if (category.params) {
+    router.push({
+      pathname: category.route as any,
+      params: category.params,
+    });
+  } else {
+    router.push(category.route as any);
+  }
+};
+
 
   const handleRepayNow = () => {
-    if (bnplData.loanBalance <= 0) {
+    if (!hasOutstandingLoan) {
       Alert.alert("No Outstanding Loan", "You have no loans to repay.");
       return;
     }
-    // Show confirmation drawer
     setShowConfirmDrawer(true);
   };
 
-   const handleContinueToPin = () => {
-    setShowConfirmDrawer(false);
+  const handleContinueToPin = () => {
+    setShowConfirmDrawer(true);
     setTimeout(() => {
       setShowPinDrawer(true);
     }, 300);
   };
 
-  const handlePinSubmit = async (pin: string) => {
-    setIsSubmitting(true);
+const handlePinSubmit = async (pin: string) => {
+  setIsSubmitting(true);
 
-    try {
-      // API call will go here
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+  try {
+    console.log("🔐 PIN entered, processing repayment...");
 
-      setShowPinDrawer(false);
-
-      router.push({
-        pathname: "/bnpl-repayment-success",
-        params: {
-          amount: bnplData.loanBalance.toString(),
-          dueDate: formatDate(bnplData.dueDate),
-          dueAmount: bnplData.dueAmount.toString(),
-          fee: bnplData.fee,
-          service: bnplData.service,
-        },
-      });
-    } catch (error: any) {
-      throw new Error("Repayment failed. Please try again.");
-    } finally {
-      setIsSubmitting(false);
+    // Validate current credit exists
+    if (!currentCredit) {
+      throw new Error("No unpaid credit found. Please refresh and try again.");
     }
-  };
 
-    const handleInfoPress = () => {
+    // Validate wallet balance
+    const walletBalance = Number(wallet?.balance) || 0;
+    const amountDue = parseFloat(currentCredit.amount_due);
+
+    if (walletBalance < amountDue) {
+      throw new Error(
+        `Insufficient balance. You need ₦${amountDue.toLocaleString()} but have ₦${walletBalance.toLocaleString()}.`
+      );
+    }
+
+    // Call the repay API
+    const repaymentResult = await repay({
+      repaymentAmount: amountDue,
+      billId: currentCredit.bill_id,
+      paymentMethod: "wallet",
+    });
+
+    console.log("✅ Repayment successful:", repaymentResult);
+
+    // Close PIN drawer
+    setShowPinDrawer(false);
+
+    // Small delay for smooth transition
+    await new Promise((resolve) => setTimeout(resolve, 300));
+
+    // Navigate to success screen
+    router.push({
+      pathname: "/bnpl-repayment-success",
+      params: {
+        amount: currentCredit.amount_due,
+        dueDate: formatCreditDate(currentCredit.due_date),
+        dueAmount: currentCredit.amount_due,
+        fee: repayment?.fee || "0%",
+        service: repayment?.service || "Pay Later",
+        transactionId: repaymentResult.transactionId || "",
+        reference: repaymentResult.reference || "",
+        billId: currentCredit.bill_id.toString(),
+        message: repaymentResult.message || "Repayment successful!",
+        newBalance: repaymentResult.newBalance?.toString() || "",
+        remainingCredits: (unpaidCredits.length - 1).toString(),
+      },
+    });
+  } catch (error: any) {
+    console.error("❌ Repayment error:", error);
+
+    // Extract and format error message
+    let errorMessage = "Repayment failed. Please try again.";
+
+    if (error?.message) {
+      errorMessage = error.message;
+    } else if (error?.response?.data?.responseMessage) {
+      errorMessage = error.response.data.responseMessage;
+    } else if (error?.response?.data?.message) {
+      errorMessage = error.response.data.message;
+    }
+
+    // Handle specific error types
+    if (errorMessage.toLowerCase().includes("insufficient")) {
+      errorMessage = "Insufficient wallet balance. Please top up your wallet.";
+    } else if (errorMessage.toLowerCase().includes("pin")) {
+      errorMessage = "Invalid PIN. Please try again.";
+    } else if (errorMessage.toLowerCase().includes("bill")) {
+      errorMessage = "Invalid bill. Please refresh and try again.";
+    }
+
+    // Throw error to be caught by PinDrawer
+    throw new Error(errorMessage);
+  } finally {
+    setIsSubmitting(false);
+  }
+};
+
+  const handleInfoPress = () => {
     setShowTermsDrawer(true);
   };
 
@@ -223,15 +293,24 @@ export default function BuyNowPayLater() {
     return `₦${amount.toLocaleString()}`;
   };
 
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString("en-US", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
-  };
+  // Show skeleton loader
+  if (isLoadingPayLater || isLoadingTerms) {
+    return (
+      <SafeAreaView className="flex-1 bg-[#fafafa]" edges={["top"]}>
+        <PageHeader
+          title="Buy Now, Pay Later"
+          onBack={handleBack}
+          showBackButton={true}
+        />
+        <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+          <SkeletonLoader />
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
 
-  if (isLoading) {
+  // Show error state
+  if (isError) {
     return (
       <SafeAreaView className="flex-1 bg-white" edges={["top"]}>
         <PageHeader
@@ -239,10 +318,18 @@ export default function BuyNowPayLater() {
           onBack={handleBack}
           showBackButton={true}
         />
-        <View className="flex-1 items-center justify-center">
-          <Text className="text-[14px] font-manroperegular text-[#6B7280]">
-            Loading...
+        <View className="flex-1 items-center justify-center px-4">
+          <Text className="text-[16px] font-manropesemibold text-red-500 text-center mb-4">
+            Failed to load Pay Later data
           </Text>
+          <Button
+            onPress={() => refetch()}
+            className="rounded-full bg-[#132939] h-[48px] px-6"
+          >
+            <ButtonText className="text-white text-[14px] font-manropesemibold">
+              Try Again
+            </ButtonText>
+          </Button>
         </View>
       </SafeAreaView>
     );
@@ -265,8 +352,17 @@ export default function BuyNowPayLater() {
         className="flex-1"
         contentContainerStyle={{ paddingBottom: 100 }}
         showsVerticalScrollIndicator={false}
+        contentInsetAdjustmentBehavior="automatic"
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#244155"
+            colors={["#244155"]}
+          />
+        }
       >
-        <Box className="bg-white px-4 pt6 pb-24 flex-1">
+        <Box className="bg-white px-4 pt-6 pb-24 flex-1">
           <VStack space="lg">
             {/* Loan Balance Card */}
             <Box className="mb-[32px] bg-[#FFFFFF] rounded-[16px]">
@@ -274,15 +370,21 @@ export default function BuyNowPayLater() {
                 <Text className="font-manroperegular text-[16px] text-[#6B7280] mb-3">
                   Loan Balance
                 </Text>
-                <WalletBalance balance={bnplData.loanBalance} size="lg" />
+                <WalletBalance balance={balance} size="lg" />
+
+                {showUnpaidSummary && (
+                  <Text className="text-[12px] font-manroperegular text-[#6B7280] mt-2">
+                    {unpaidCredits.length} unpaid bills
+                  </Text>
+                )}
               </VStack>
 
               {/* Show repay button if loanBalance > 0 */}
-              {bnplData.loanBalance > 0 && (
+              {balance > 0 && (
                 <Box className="px-4 my-3">
                   {/* Warning Message */}
-                  <View className="rounded-[14px]">
-                    <Text className="text-[14px] font-manroperegular mb-3 text-red-500 text-center leading-[20px]">
+                  <View className="rounded-[14px] mb-3">
+                    <Text className="text-[14px] font-manroperegular text-red-500 text-center leading-[20px]">
                       Seriously overdue would affect your credit Score
                     </Text>
                   </View>
@@ -298,11 +400,11 @@ export default function BuyNowPayLater() {
                   </Button>
 
                   {/* Countdown Timer */}
-                  <Box className="bg-white rounded-[12px] p-4 border-[#E5E7EB]">
+                  <Box className="bg-white rounded-[12px] p-4">
                     <HStack className="items-center justify-center gap-8">
                       {/* Days */}
                       <VStack className="items-center">
-                        <Text className="text-[32px] p-1 rounded-[16px] bg-[#F8F8F8] font-manropebold text-[#000000] leading-[40px]">
+                        <Text className="text-[32px] px-3 py-1 rounded-[16px] bg-[#F8F8F8] font-manropebold text-[#000000] leading-[40px]">
                           {String(countdown.days).padStart(2, "0")}
                         </Text>
                         <Text className="text-[12px] font-manroperegular text-[#000000] mt-1">
@@ -316,7 +418,7 @@ export default function BuyNowPayLater() {
 
                       {/* Hours */}
                       <VStack className="items-center">
-                        <Text className="text-[32px] p-1 rounded-[16px] bg-[#F8F8F8] font-manropebold text-[#000000] leading-[40px]">
+                        <Text className="text-[32px] px-3 py-1 rounded-[16px] bg-[#F8F8F8] font-manropebold text-[#000000] leading-[40px]">
                           {String(countdown.hours).padStart(2, "0")}
                         </Text>
                         <Text className="text-[12px] font-manroperegular text-[#000000] mt-1">
@@ -330,7 +432,7 @@ export default function BuyNowPayLater() {
 
                       {/* Minutes */}
                       <VStack className="items-center">
-                        <Text className="text-[32px] p-1 rounded-[16px] bg-[#F8F8F8] font-manropebold text-[#000000] leading-[40px]]">
+                        <Text className="text-[32px] px-3 py-1 rounded-[16px] bg-[#F8F8F8] font-manropebold text-[#000000] leading-[40px]">
                           {String(countdown.minutes).padStart(2, "0")}
                         </Text>
                         <Text className="text-[12px] font-manroperegular text-[#000000] mt-1">
@@ -354,7 +456,7 @@ export default function BuyNowPayLater() {
                   </Text>
                 </HStack>
                 <Text className="text-[16px] font-manropesemibold text-[#000000]">
-                  {formatCurrency(bnplData.availableLimit)}
+                  {formatCurrency(availableLimit)}
                 </Text>
               </HStack>
 
@@ -367,7 +469,7 @@ export default function BuyNowPayLater() {
                   </Text>
                 </HStack>
                 <Text className="text-[16px] font-manropesemibold text-[#000000]">
-                  {formatCurrency(bnplData.totalCreditLimit)}
+                  {formatCurrency(creditLimit)}
                 </Text>
               </HStack>
             </VStack>
@@ -385,7 +487,7 @@ export default function BuyNowPayLater() {
                   return (
                     <TouchableOpacity
                       key={category.id}
-                      onPress={() => handleCategoryPress(category.id)}
+                      onPress={() => handleCategoryPress(category)}
                       activeOpacity={0.7}
                       className="items-center justify-center bg-[#FAFAFA] rounded-[16px] p-4"
                       style={{ width: "22%" }}
@@ -437,14 +539,18 @@ export default function BuyNowPayLater() {
         isRequired={!hasAcceptedTerms}
       />
 
-         {/* Confirmation Drawer */}
+      {/* Confirmation Drawer */}
       <ConfirmationDrawer
         isOpen={showConfirmDrawer}
         onClose={() => setShowConfirmDrawer(false)}
         onConfirm={handleContinueToPin}
         title="Confirm Repayment"
-        subtitle=""
-        amount={bnplData.dueAmount.toString()}
+        subtitle={
+          showUnpaidSummary
+            ? `Paying 1 of ${unpaidCredits.length} bills • ${formatCreditAmount(totalAmountDue - parseFloat(currentCredit?.amount_due || "0"))} remaining`
+            : ""
+        }
+        amount={currentCredit?.amount_due || balance.toString()}
         showAmount={true}
         amountClassName="text-[32px] font-manropebold text-[#000000] text-center mt-4"
         sections={[
@@ -452,13 +558,24 @@ export default function BuyNowPayLater() {
             containerClassName:
               "rounded-[16px] border-[#E5E7EF] border px-4 py-2 bg-white",
             details: [
-              { label: "Service", value: bnplData.service },
-              { label: "Due Date", value: formatDate(bnplData.dueDate) },
               {
-                label: "Due Amount",
-                value: `N${bnplData.dueAmount.toLocaleString()}`,
+                label: "Bill ID",
+                value: currentCredit ? `${currentCredit.bill_id}` : "N/A",
               },
-              { label: "Fee", value: bnplData.fee },
+              { label: "Service", value: repayment?.service || "Pay Later" },
+              {
+                label: "Due Date",
+                value: currentCredit
+                  ? formatCreditDate(currentCredit.due_date)
+                  : "N/A",
+              },
+              {
+                label: "Amount Due",
+                value: currentCredit
+                  ? formatCreditAmount(currentCredit.amount_due)
+                  : `₦${balance.toLocaleString()}`,
+              },
+              { label: "Fee", value: repayment?.fee || "0%" },
             ],
           },
           {
@@ -466,7 +583,7 @@ export default function BuyNowPayLater() {
             details: [
               {
                 label: "Wallet Balance",
-                value: formatCurrency(Number(wallet?.balance) || 50000),
+                value: formatCreditAmount(Number(wallet?.balance) || 0),
                 icon: <Wallet size={16} color="#FF8D28" />,
               },
               {
@@ -474,7 +591,7 @@ export default function BuyNowPayLater() {
                 value: "+₦500",
                 icon: <Gift size={16} color="#CB30E0" />,
                 valueClassName:
-                  "text-[12px] font-medium leading-[100%] font-manropesemibold text-[#10B981]",
+                  "text-[12px] font-medium font-manropesemibold text-[#10B981]",
               },
             ],
           },
@@ -487,7 +604,7 @@ export default function BuyNowPayLater() {
         onClose={() => setShowPinDrawer(false)}
         onSubmit={handlePinSubmit}
         title="Enter PIN"
-        isSubmitting={isSubmitting}
+        isSubmitting={isSubmitting || isRepaying}
         loadingText="Processing repayment..."
       />
     </SafeAreaView>

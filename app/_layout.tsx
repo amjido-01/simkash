@@ -281,17 +281,8 @@ function RootLayoutNav() {
 
   // Don't show loader - splash screen handles this
   if (!isInitialized || isLoading) {
-    console.log(
-      "⏳ Still initializing - splash screen visible",
-      "isInitialized:",
-      isInitialized,
-      "isLoading:",
-      isLoading
-    );
     return null;
   }
-
-  console.log("✅ Auth initialized, rendering Stack");
 
   return (
     <Stack screenOptions={{ headerShown: false }}>

@@ -8,7 +8,9 @@ import {
   PhoneCall,
   PhoneMissed,
   Store,
+  Tv,
   Wifi,
+  Zap,
 } from "lucide-react-native";
 
 // Payment action data
@@ -18,11 +20,36 @@ export interface MenuOption {
   label: string;
   iconColor?: string;
   route?: string; // route used for navigation
+  params?: Record<string, any>;
 }
+export type PaymentCategory = {
+  id: "airtime" | "data" | "electricity" | "tv";
+  name: string;
+  icon: any;
+  iconColor: string;
+  route: string;
+  params?: {
+    mode?: "payment" | "paylater";
+    service?: string;
+  };
+};
+
 
 export const quickActions = [
-  { id: 0, icon: ArrowUp, label: "Top Up", heading: "Top Up Wallet", color: "#006AB1" },
-  { id: 1, icon: ArrowUpRight, label: "Send", heading: "Choose Transfer Type", color: "#066042" },
+  {
+    id: 0,
+    icon: ArrowUp,
+    label: "Top Up",
+    heading: "Top Up Wallet",
+    color: "#006AB1",
+  },
+  {
+    id: 1,
+    icon: ArrowUpRight,
+    label: "Send",
+    heading: "Choose Transfer Type",
+    color: "#066042",
+  },
 ];
 
 export const paymentOptions: MenuOption[] = [
@@ -32,6 +59,7 @@ export const paymentOptions: MenuOption[] = [
     label: "Airtime",
     iconColor: "#D257E5",
     route: "/airtime",
+    params: { mode: "payment" },
   },
   {
     id: 2,
@@ -39,6 +67,7 @@ export const paymentOptions: MenuOption[] = [
     label: "Data Bundle",
     iconColor: "#00C53E",
     route: "/data",
+    params: { mode: "payment" },
   },
   {
     id: 3,
@@ -77,6 +106,7 @@ export const moreServices: MenuOption[] = [
     label: "Airtime2Cash",
     iconColor: "#D257E5",
     route: "/airtime-to-cash",
+    params: { mode: "payment" },
   },
   {
     id: 1,
@@ -84,6 +114,7 @@ export const moreServices: MenuOption[] = [
     label: "Cable TV",
     iconColor: "#00C53E",
     route: "/cable-tv",
+    params: { mode: "payment" },
   },
   {
     id: 2,
@@ -91,6 +122,7 @@ export const moreServices: MenuOption[] = [
     label: "Electricity",
     iconColor: "#D4BF00",
     route: "/electricity",
+    params: { mode: "payment" },
   },
   {
     id: 3,
@@ -112,6 +144,53 @@ export const moreServices: MenuOption[] = [
     label: "Pay Later",
     iconColor: "#D7561EDB",
     route: "/pay-later",
+  },
+];
+
+export const paymentCategories: PaymentCategory[] = [
+  {
+    id: "airtime",
+    name: "Airtime",
+    icon: PhoneMissed,
+    iconColor: "#EC4899",
+    route: "/airtime",
+    params: {
+      mode: "paylater",
+      service: "airtime",
+    },
+  },
+  {
+    id: "data",
+    name: "Data Bundle",
+    icon: Wifi,
+    iconColor: "#10B981",
+    route: "/data",
+    params: {
+      mode: "paylater",
+      service: "data",
+    },
+  },
+  {
+    id: "electricity",
+    name: "Electricity",
+    icon: Zap,
+    iconColor: "#F59E0B",
+    route: "/electricity",
+    params: {
+      mode: "paylater",
+      service: "electricity",
+    },
+  },
+  {
+    id: "tv",
+    name: "TV",
+    icon: Tv,
+    iconColor: "#3B82F6",
+    route: "/cable-tv",
+    params: {
+      mode: "paylater",
+      service: "tv",
+    },
   },
 ];
 

@@ -2,7 +2,7 @@ import DashboardSkeleton from "@/components/dashboard-skeleton";
 import Header from "@/components/header";
 import TopUpWalletDrawer from "@/components/topup-wallet-drawer";
 import { Box } from "@/components/ui/box";
-import { Button, ButtonText } from "@/components/ui/button";
+// import { Button, ButtonText } from "@/components/ui/button";
 import {
   Drawer,
   DrawerBackdrop,
@@ -28,7 +28,7 @@ import { useDashboard } from "@/hooks/use-dashboard";
 import { formatAmount } from "@/utils/formatAmount.helper";
 import { formatDate } from "@/utils/formatDate.helper";
 import { transferOptions } from "@/utils/mock";
-import * as Linking from "expo-linking";
+// import * as Linking from "expo-linking";
 import { router } from "expo-router";
 import { ChevronRight } from "lucide-react-native";
 import { useCallback, useState } from "react";
@@ -68,8 +68,6 @@ export default function HomeScreen() {
   const [showTopUpDrawer, setShowTopUpDrawer] = useState(false);
   // const [hasCompletedKYC, setHasCompletedKYC] = useState(false);
 
-  console.log(parsedTransactions, "hello");
-
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     refetch().finally(() => {
@@ -77,16 +75,26 @@ export default function HomeScreen() {
     });
   }, [refetch]);
 
-  const handlePaymentOptionPress = (option: MenuOption | any) => {
+  const handlePaymentOptionPress = (option: MenuOption) => {
     if (option.label === "More") {
       setShowDrawer(true);
+      return;
+    }
+
+    if (!option.route) {
+      console.log("Selected:", option.label);
+      return;
+    }
+
+    setShowDrawer(false);
+
+    if (option.params) {
+      router.push({
+        pathname: option.route as any,
+        params: option.params,
+      });
     } else {
-      if (option.route) {
-        setShowDrawer(false);
-        router.push(option.route);
-      } else {
-        console.log("Selected:", option.label);
-      }
+      router.push(option.route as any);
     }
   };
 
@@ -372,8 +380,12 @@ export default function HomeScreen() {
                   onPress={() => {
                     console.log("Selected service:", service.label);
                     setShowDrawer(false);
-                    if (service.route) {
-                      // Cast to any to avoid expo-router path literal typing constraints
+                    if (service.params) {
+                      router.push({
+                        pathname: service.route as any,
+                        params: service.params,
+                      });
+                    } else {
                       router.push(service.route as any);
                     }
                   }}
