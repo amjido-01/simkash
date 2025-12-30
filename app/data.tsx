@@ -47,13 +47,15 @@ import {
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
 import * as yup from "yup";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { NetworkSelectionDrawer } from "@/components/network-selection-drawer";
 import { useVerifyPhone } from "@/hooks/use-verify-phone";
 import { PageHeader } from "@/components/page-header";
 import { ConfirmationDrawer } from "@/components/confirmation-drawer";
 import { usePurchaseData } from "@/hooks/use-purchase-data";
 import { useDashboard } from "@/hooks/use-dashboard";
+import { usePayLaterDashboard } from "@/hooks/use-paylater-dashboard";
+import { usePurchaseDataPayLater } from "@/hooks/use-purchase-data-paylater";
 
 // Validation schema
 const schema = yup.object().shape({
@@ -70,13 +72,18 @@ type FormData = yup.InferType<typeof schema>;
 
 export default function DataBundle() {
   const insets = useSafeAreaInsets();
+  const params = useLocalSearchParams();
+  const mode = (params.mode as "normal" | "paylater") || "normal";
+  const isPayLater = mode === "paylater";
   const { networks, isLoading, isError } = useGetNetworks();
-      const {
-      wallet, // Wallet balance data
-    } = useDashboard();
-  
+  const {
+    wallet, // Wallet balance data
+  } = useDashboard();
+  const { availableLimit } = usePayLaterDashboard();
   const verifyPhoneMutation = useVerifyPhone();
   const { purchaseData, isLoading: isPurchasingData } = usePurchaseData();
+  const { purchaseDataPayLater, isLoading: isPurchasingDataPayLater } =
+    usePurchaseDataPayLater();
   const [showNetworkDrawer, setShowNetworkDrawer] = useState(false);
   const [showConfirmDrawer, setShowConfirmDrawer] = useState(false);
   const [showPinDrawer, setShowPinDrawer] = useState(false);
@@ -84,6 +91,10 @@ export default function DataBundle() {
   const [isVerifyingPhone, setIsVerifyingPhone] = useState(false);
   const [hasSetDefaultNetwork, setHasSetDefaultNetwork] = useState(false);
   const lastVerifiedPhone = useRef<string>("");
+
+  const isPurchasingDataLoading = isPayLater
+    ? isPurchasingDataPayLater
+    : isPurchasingData;
 
   const {
     control,
@@ -239,12 +250,9 @@ export default function DataBundle() {
           pin: pin,
         };
 
-        console.log(payload, "from data");
-
-        // Call the purchase data API
-        const result = await purchaseData(payload);
-
-        console.log("✅ Purchase result:", result);
+        const result = isPayLater
+          ? await purchaseDataPayLater(payload)
+          : await purchaseData(payload);
 
         // Success - close drawers and navigate
         setShowPinDrawer(false);
@@ -298,13 +306,45 @@ export default function DataBundle() {
         setIsSubmitting(false);
       }
     },
-    [phoneValue, networkValue, selectedBundle, networks, purchaseData, reset]
+    [
+      phoneValue,
+      networkValue,
+      selectedBundle,
+      networks,
+      purchaseData,
+      purchaseDataPayLater,
+      isPayLater,
+      reset,
+    ]
   );
   const handleContinue = useCallback(async () => {
     const valid = await trigger();
-    if (!valid) return;
+
+    if (!valid) {
+      return;
+    }
+
+    // Check credit limit for pay later
+    if (isPayLater) {
+      const amount = Number(selectedBundle?.variation_amount || 0);
+      if (amount > availableLimit) {
+        Alert.alert(
+          "Insufficient Credit",
+          `Your available credit limit is ₦${availableLimit.toLocaleString()}. Please choose a lower amount or repay existing loans.`
+        );
+        return;
+      }
+    }
+
     handleSubmit(submitForm)();
-  }, [trigger, handleSubmit, submitForm]);
+  }, [
+    trigger,
+    isPayLater,
+    handleSubmit,
+    submitForm,
+    selectedBundle?.variation_amount,
+    availableLimit,
+  ]);
 
   const handleBack = useCallback(() => {
     if (phoneValue || dataBundleValue) {
@@ -352,18 +392,20 @@ export default function DataBundle() {
     [setValue]
   );
 
-  
-    const formatCurrency = (value?: string) => {
+  const formatCurrency = (value?: string | number) => {
     if (!value) return "₦0.00";
-  
+
     const num = Number(value);
     if (isNaN(num)) return "₦0.00";
-  
+
     return `₦ ${num.toLocaleString("en-NG", {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     })}`;
   };
+
+  const balanceToDisplay = isPayLater ? availableLimit : wallet?.balance || 0;
+  const balanceLabel = isPayLater ? "Available Credit" : "Wallet Balance";
 
   return (
     <SafeAreaView className="flex-1 bg-white" edges={["top"]}>
@@ -372,7 +414,7 @@ export default function DataBundle() {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <PageHeader
-          title="Buy Data"
+          title={isPayLater ? "Buy Airtime (Pay Later)" : "Buy Airtime"}
           onBack={handleBack}
           showBackButton={true}
         />
@@ -612,8 +654,8 @@ export default function DataBundle() {
             containerClassName: "px-4 py-2",
             details: [
               {
-                label: "Wallet Balance",
-                value: formatCurrency(wallet?.balance),
+                label: balanceLabel,
+                value: formatCurrency(balanceToDisplay),
                 icon: <Wallet size={16} color="#FF8D28" />,
               },
               {
@@ -633,7 +675,7 @@ export default function DataBundle() {
         onClose={() => setShowPinDrawer(false)}
         onSubmit={handlePinSubmit}
         title="Enter PIN"
-        isSubmitting={isSubmitting || isPurchasingData}
+        isSubmitting={isSubmitting || isPurchasingDataLoading}
         loadingText="Processing transaction..."
       />
     </SafeAreaView>
