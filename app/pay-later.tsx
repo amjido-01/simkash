@@ -362,11 +362,11 @@ const handlePinSubmit = async (pin: string) => {
           />
         }
       >
-        <Box className="bg-white px-4 pt-6 pb-24 flex-1">
-          <VStack space="lg">
+        <Box className="px-4 pt-6 pb-24 flex-1">
+          <VStack className="" space="lg">
             {/* Loan Balance Card */}
-            <Box className="mb-[32px] bg-[#FFFFFF] rounded-[16px]">
-              <VStack className="w-full py-[20px] items-center bg-[#F9FAFB] rounded-[20px]">
+            <Box className="mb-[32px] rounded-[16px]">
+              <VStack className="w-full py-[20px] items-center bg-[#ffffff] rounded-[20px]">
                 <Text className="font-manroperegular text-[16px] text-[#6B7280] mb-3">
                   Loan Balance
                 </Text>
@@ -381,7 +381,7 @@ const handlePinSubmit = async (pin: string) => {
 
               {/* Show repay button if loanBalance > 0 */}
               {balance > 0 && (
-                <Box className="px-4 my-3">
+                <Box className="p-4 my-3 bg-[#ffffff] rounded-[16px]">
                   {/* Warning Message */}
                   <View className="rounded-[14px] mb-3">
                     <Text className="text-[14px] font-manroperegular text-red-500 text-center leading-[20px]">
@@ -400,7 +400,7 @@ const handlePinSubmit = async (pin: string) => {
                   </Button>
 
                   {/* Countdown Timer */}
-                  <Box className="bg-white rounded-[12px] p-4">
+                  <Box className="rounded-[12px] p-4">
                     <HStack className="items-center justify-center gap-8">
                       {/* Days */}
                       <VStack className="items-center">
@@ -446,7 +446,7 @@ const handlePinSubmit = async (pin: string) => {
             </Box>
 
             {/* Credit Limits */}
-            <VStack className="bg-[#ffffff] rounded-[16px] py-3" space="md">
+            <VStack className="bg-[#ffffff] rounded-[16px] py-4" space="md">
               {/* Available Limit */}
               <HStack className="items-center border-t border-[#E5E7EF] justify-between py-4 px-4 rounded-[12px]">
                 <HStack space="sm" className="items-center">
@@ -475,7 +475,7 @@ const handlePinSubmit = async (pin: string) => {
             </VStack>
 
             {/* Payments Section */}
-            <VStack space="md" className="mt-4">
+            <VStack space="md" className="mt-4 bg-white rounded-[16px] p-4">
               <Text className="text-[16px] font-manropesemibold text-[#565C69]">
                 Payments
               </Text>
@@ -489,11 +489,11 @@ const handlePinSubmit = async (pin: string) => {
                       key={category.id}
                       onPress={() => handleCategoryPress(category)}
                       activeOpacity={0.7}
-                      className="items-center justify-center bg-[#FAFAFA] rounded-[16px] p-4"
+                      className="items-center justify-center rounded-[16px] p-2"
                       style={{ width: "22%" }}
                     >
                       <VStack space="xs" className="items-center">
-                        <View className="w-12 h-12 rounded-[12px] items-center justify-center">
+                        <View className="w-12 h-12 bg-[#FAFAFA] rounded-[12px] items-center justify-center">
                           <IconComponent size={20} color={category.iconColor} />
                         </View>
                         <Text className="text-[12px] font-manroperegular text-[#000000] text-center">

@@ -76,7 +76,7 @@ export default function Airtime() {
   // State management
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
-  const mode = (params.mode as "normal" | "paylater") || "normal";
+  const mode = (params.mode as "payment" | "paylater") || "payment";
   const isPayLater = mode === "paylater";
   const { networks, isLoading, isError } = useGetNetworks();
   const verifyPhoneMutation = useVerifyPhone();

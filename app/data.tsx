@@ -1,12 +1,3 @@
-// KEY CHANGES SUMMARY:
-// 1. Removed DATA_BUNDLES import
-// 2. Added useGetDataPlans hook
-// 3. Updated bundle ID from 'id' to 'variation_code'
-// 4. Updated bundle price from 'price' to 'variation_amount'
-// 5. Removed 'validity' field (not in API response)
-// 6. Added loading and error states for data plans
-// 7. Only shows 5 popular plans (filtered in hook)
-
 import { Box } from "@/components/ui/box";
 import { Button, ButtonText } from "@/components/ui/button";
 import { Image } from "@/components/ui/image";
@@ -73,7 +64,7 @@ type FormData = yup.InferType<typeof schema>;
 export default function DataBundle() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
-  const mode = (params.mode as "normal" | "paylater") || "normal";
+  const mode = (params.mode as "payment" | "paylater") || "payment";
   const isPayLater = mode === "paylater";
   const { networks, isLoading, isError } = useGetNetworks();
   const {
