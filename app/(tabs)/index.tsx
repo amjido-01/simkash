@@ -2,7 +2,7 @@ import DashboardSkeleton from "@/components/dashboard-skeleton";
 import Header from "@/components/header";
 import TopUpWalletDrawer from "@/components/topup-wallet-drawer";
 import { Box } from "@/components/ui/box";
-import { Button, ButtonText } from "@/components/ui/button";
+// import { Button, ButtonText } from "@/components/ui/button";
 import {
   Drawer,
   DrawerBackdrop,
@@ -28,7 +28,7 @@ import { useDashboard } from "@/hooks/use-dashboard";
 import { formatAmount } from "@/utils/formatAmount.helper";
 import { formatDate } from "@/utils/formatDate.helper";
 import { transferOptions } from "@/utils/mock";
-import * as Linking from "expo-linking";
+// import * as Linking from "expo-linking";
 import { router } from "expo-router";
 import { ChevronRight } from "lucide-react-native";
 import { useCallback, useState } from "react";
@@ -56,10 +56,11 @@ export default function HomeScreen() {
   } = useDashboard();
   const {
     accountDetail,
-    isFetchingAccountDetail,
-    isAccountDetailError,
-    accountDetailError,
+    // isFetchingAccountDetail,
+    // isAccountDetailError,
+    // accountDetailError,
   } = useAccountDetail();
+  console.log("Account Detail:", accountDetail);
   const [refreshing, setRefreshing] = useState(false);
   const [showDrawer, setShowDrawer] = useState(false);
   const [showQuickActionDrawer, setShowQuickActionDrawer] = useState(false);
@@ -74,16 +75,26 @@ export default function HomeScreen() {
     });
   }, [refetch]);
 
-  const handlePaymentOptionPress = (option: MenuOption | any) => {
+  const handlePaymentOptionPress = (option: MenuOption) => {
     if (option.label === "More") {
       setShowDrawer(true);
+      return;
+    }
+
+    if (!option.route) {
+      console.log("Selected:", option.label);
+      return;
+    }
+
+    setShowDrawer(false);
+
+    if (option.params) {
+      router.push({
+        pathname: option.route as any,
+        params: option.params,
+      });
     } else {
-      if (option.route) {
-        setShowDrawer(false);
-        router.push(option.route);
-      } else {
-        console.log("Selected:", option.label);
-      }
+      router.push(option.route as any);
     }
   };
 
@@ -113,6 +124,7 @@ export default function HomeScreen() {
   if (isLoading || isFetching) {
     return (
       <SafeAreaView className="flex-1 bg-white">
+        <Header />
         <DashboardSkeleton />
       </SafeAreaView>
     );
@@ -127,7 +139,7 @@ export default function HomeScreen() {
         className="flex-1 pb-[20px]"
         showsVerticalScrollIndicator={false}
         contentInsetAdjustmentBehavior="automatic"
-         refreshControl={
+        refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
@@ -169,7 +181,7 @@ export default function HomeScreen() {
             ))}
           </HStack>
 
-          <Button
+          {/* <Button
             onPress={() => {
               Linking.openURL(
                 "simkash://payment-verification?reference=TEST_123&status=success"
@@ -177,7 +189,7 @@ export default function HomeScreen() {
             }}
           >
             <ButtonText>Test Deep Link</ButtonText>
-          </Button>
+          </Button> */}
 
           {/* Payments Section */}
           <View className="mb-10 px-[16px] py-[20px] rounded-[16px] bg-[#ffffff]">
@@ -225,8 +237,11 @@ export default function HomeScreen() {
             {/* Transaction List */}
             <VStack className="gap-3">
               {parsedTransactions && parsedTransactions.length > 0 ? (
-                parsedTransactions.slice(0, 3).map((transaction) => {
-                  const isCommission = transaction.transaction_type
+                parsedTransactions.slice(0, 4).map((transaction) => {
+                  // Add null checks for transaction_type
+                  const transactionType =
+                    transaction?.transaction_type || "Unknown";
+                  const isCommission = transactionType
                     .toLowerCase()
                     .includes("commission");
                   const metadata = transaction.metadata;
@@ -237,7 +252,6 @@ export default function HomeScreen() {
                       className="flex-row items-center justify-between p-4 bg[#F9FAFB] rounded-[12px]"
                       activeOpacity={0.7}
                       onPress={() => {
-                        // Navigate to transaction details if you have that screen
                         console.log("Transaction:", transaction.id);
                       }}
                     >
@@ -256,14 +270,12 @@ export default function HomeScreen() {
                               color: isCommission ? "#022742" : "#022742",
                             }}
                           >
-                            {transaction.transaction_type
-                              .charAt(0)
-                              .toUpperCase()}
+                            {transactionType.charAt(0).toUpperCase()}
                           </Text>
                         </View>
                         <VStack className="flex-1">
                           <Text className="font-manropesemibold font-medium text-[14px] text-[#000000]">
-                            {transaction.transaction_type}
+                            {transactionType}
                           </Text>
                           <Text className="font-manroperegular font-medium text-[12px] text-[#5A5A5A]">
                             {formatDate(transaction.processed_at)}
@@ -302,7 +314,7 @@ export default function HomeScreen() {
                                   : "#DC2626",
                             }}
                           >
-                            {transaction.status.toUpperCase()}
+                            {transaction?.status?.toUpperCase() || "PENDING"}
                           </Text>
                         </View>
                       </VStack>
@@ -368,8 +380,12 @@ export default function HomeScreen() {
                   onPress={() => {
                     console.log("Selected service:", service.label);
                     setShowDrawer(false);
-                    if (service.route) {
-                      // Cast to any to avoid expo-router path literal typing constraints
+                    if (service.params) {
+                      router.push({
+                        pathname: service.route as any,
+                        params: service.params,
+                      });
+                    } else {
                       router.push(service.route as any);
                     }
                   }}

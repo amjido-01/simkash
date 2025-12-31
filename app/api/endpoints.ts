@@ -1,11 +1,10 @@
 import { apiClient, authApi } from "./axios";
-import { tokenStorage } from "@/utils/tokenStorage";
+// import { tokenStorage } from "@/utils/tokenStorage";
 import { useAuthStore } from "@/store/auth-store";
 import {
   LoginResponse,
   RefreshResponse,
   RegisterPayload,
-  User,
   ApiResponse,
   RegisterResponse,
   VerifyOtpPayload,

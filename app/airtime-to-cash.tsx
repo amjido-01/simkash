@@ -28,7 +28,6 @@ import {
   AlertCircleIcon,
   CheckCircle,
   ChevronDownIcon,
-  ChevronLeft,
   Gift,
   Wallet,
 } from "lucide-react-native";
@@ -54,19 +53,7 @@ import { OtpInput } from "react-native-otp-entry";
 import { useGetNetworks } from "@/hooks/use-networks";
 import * as yup from "yup";
 import { router } from "expo-router";
-import {
-  Select,
-  SelectTrigger,
-  SelectInput,
-  SelectIcon,
-  SelectPortal,
-  SelectBackdrop,
-  SelectContent,
-  SelectDragIndicatorWrapper,
-  SelectDragIndicator,
-  SelectItem,
-} from "@/components/ui/select";
-import { NETWORKS, QUICK_AMOUNTS, PIN_LENGTH } from "@/constants/menu";
+import { QUICK_AMOUNTS, PIN_LENGTH } from "@/constants/menu";
 import { NetworkSelectionDrawer } from "@/components/network-selection-drawer";
 
 // Validation schema

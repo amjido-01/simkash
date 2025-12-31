@@ -1,9 +1,10 @@
 // hooks/useDashboard.ts
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { apiClient } from "@/app/api/axios"; // ← UPDATE THIS PATH to match where your axios file is
+import { apiClient } from "@/app/api/axios";
 import { DashboardData } from "@/types";
+import { useAuthStore } from "@/store/auth-store";
+import { useEffect } from "react";
 
-// Query Keys
 export const dashboardKeys = {
   all: ["dashboard"] as const,
   info: () => [...dashboardKeys.all, "info"] as const,
@@ -11,20 +12,30 @@ export const dashboardKeys = {
 
 export const useDashboard = () => {
   const queryClient = useQueryClient();
-
+  const syncUserFromDashboard = useAuthStore((state) => state.syncUserFromDashboard);
+  
   const dashboardQuery = useQuery({
     queryKey: dashboardKeys.info(),
     queryFn: async (): Promise<DashboardData> => {
-      // Using apiClient which automatically extracts responseBody
       const data = await apiClient<DashboardData>("/user/dashboard", {
         method: "GET",
       });
       return data;
     },
-    retry: 2, // Matches your global config
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    gcTime: 10 * 60 * 1000, // 10 minutes (cache time)
+    retry: 2,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
   });
+
+  // Sync user data to auth store when dashboard loads
+  useEffect(() => {
+    if (dashboardQuery.data?.userDetails && dashboardQuery.data?.userProfile) {
+      syncUserFromDashboard(
+        dashboardQuery.data.userDetails,
+        dashboardQuery.data.userProfile
+      );
+    }
+  }, [dashboardQuery.data, syncUserFromDashboard]);
 
   // Helper function to parse transaction metadata
   const parseTransactionMetadata = (metadataString: string) => {
@@ -35,7 +46,6 @@ export const useDashboard = () => {
     }
   };
 
-  // Get parsed transactions with metadata
   const parsedTransactions = dashboardQuery.data?.transaction.map(
     (transaction) => ({
       ...transaction,
@@ -44,7 +54,6 @@ export const useDashboard = () => {
   );
 
   return {
-    // Dashboard data
     dashboard: dashboardQuery.data,
     userDetails: dashboardQuery.data?.userDetails,
     userProfile: dashboardQuery.data?.userProfile,
@@ -54,14 +63,10 @@ export const useDashboard = () => {
     isAgent: dashboardQuery.data?.isAgent,
     isSubscribed: dashboardQuery.data?.isSubscribed,
     isStateCordinator: dashboardQuery.data?.isStateCordinator,
-
-    // Query states
     isLoading: dashboardQuery.isLoading,
     isFetching: dashboardQuery.isFetching,
     isError: dashboardQuery.isError,
     error: dashboardQuery.error,
-
-    // Query actions
     refetch: dashboardQuery.refetch,
     invalidate: () =>
       queryClient.invalidateQueries({ queryKey: dashboardKeys.info() }),

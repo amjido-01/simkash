@@ -37,7 +37,7 @@ import {
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
 import * as yup from "yup";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { QUICK_AMOUNTS } from "@/constants/menu";
 import { PinDrawer } from "@/components/pin-drawer";
 import { ConfirmationDrawer } from "@/components/confirmation-drawer";
@@ -45,6 +45,9 @@ import { PageHeader } from "@/components/page-header";
 import { QuickAmountSelector } from "@/components/quick-amount-selector";
 import { usePurchaseAirtime } from "@/hooks/use-buy-airtime";
 import { NetworkSelectionDrawer } from "@/components/network-selection-drawer";
+import { useDashboard } from "@/hooks/use-dashboard";
+import { usePayLaterDashboard } from "@/hooks/use-paylater-dashboard";
+import { usePurchaseAirtimePayLater } from "@/hooks/use-purchase-airtime-paylater";
 // Validation schema
 const schema = yup.object().shape({
   phoneNumber: yup
@@ -72,9 +75,14 @@ type FormData = yup.InferType<typeof schema>;
 export default function Airtime() {
   // State management
   const insets = useSafeAreaInsets();
+  const params = useLocalSearchParams();
+  const mode = (params.mode as "normal" | "paylater") || "normal";
+  const isPayLater = mode === "paylater";
   const { networks, isLoading, isError } = useGetNetworks();
   const verifyPhoneMutation = useVerifyPhone();
   const { purchaseAirtime, isLoading: isPurchasing } = usePurchaseAirtime();
+  const { purchaseAirtimePayLater, isLoading: isPurchasingPayLater } =
+    usePurchaseAirtimePayLater();
   const [showDrawer, setShowDrawer] = useState(false);
   const [showPinDrawer, setShowPinDrawer] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -83,6 +91,12 @@ export default function Airtime() {
   const [isVerifyingPhone, setIsVerifyingPhone] = useState(false);
   const [hasSetDefaultNetwork, setHasSetDefaultNetwork] = useState(false);
   const lastVerifiedPhone = useRef<string>("");
+  const {
+    wallet, // Wallet balance data
+  } = useDashboard();
+  const { availableLimit } = usePayLaterDashboard();
+
+  const isPurchasingAirtime = isPayLater ? isPurchasingPayLater : isPurchasing;
 
   // Form setup
   const {
@@ -150,7 +164,6 @@ export default function Airtime() {
           console.warn("⚠️ No network data in response");
           return;
         }
-
 
         // Match with your networks using serviceID
         const detectedNetwork = networks.find((network) => {
@@ -248,9 +261,10 @@ export default function Airtime() {
           network: selectedNetworkData?.serviceID,
           pin: pin,
         };
-        console.log(payload, "from airtime")
         // Call the purchase airtime API
-        const result = await purchaseAirtime(payload);
+        const result = isPayLater
+          ? await purchaseAirtimePayLater(payload)
+          : await purchaseAirtime(payload);
 
         // Success - close drawers and navigate
         setShowPinDrawer(false);
@@ -303,7 +317,16 @@ export default function Airtime() {
         setIsSubmitting(false);
       }
     },
-    [amountValue, phoneValue, networkValue, networks, purchaseAirtime, reset]
+    [
+      networks,
+      phoneValue,
+      amountValue,
+      isPayLater,
+      purchaseAirtimePayLater,
+      purchaseAirtime,
+      reset,
+      networkValue,
+    ]
   );
 
   // Continue button handler
@@ -314,8 +337,27 @@ export default function Airtime() {
       return;
     }
 
+    // Check credit limit for pay later
+    if (isPayLater) {
+      const amount = Number(amountValue);
+      if (amount > availableLimit) {
+        Alert.alert(
+          "Insufficient Credit",
+          `Your available credit limit is ₦${availableLimit.toLocaleString()}. Please choose a lower amount or repay existing loans.`
+        );
+        return;
+      }
+    }
+
     handleSubmit(submitForm)();
-  }, [trigger, handleSubmit, submitForm]);
+  }, [
+    trigger,
+    handleSubmit,
+    submitForm,
+    isPayLater,
+    amountValue,
+    availableLimit,
+  ]);
 
   // Back navigation handler
   const handleBack = useCallback(() => {
@@ -358,6 +400,18 @@ export default function Airtime() {
     return parseInt(amount, 10).toLocaleString();
   }, []);
 
+  const formatCurrency = (value?: string | number) => {
+    if (!value) return "₦0.00";
+
+    const num = Number(value);
+    if (isNaN(num)) return "₦0.00";
+
+    return `₦ ${num.toLocaleString("en-NG", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
+  };
+
   const handleNetworkSelect = useCallback(
     (serviceID: string) => {
       setValue("network", serviceID);
@@ -368,6 +422,9 @@ export default function Airtime() {
   // Get selected network details
   const selectedNetwork = networks.find((n) => n.serviceID === networkValue);
 
+  const balanceToDisplay = isPayLater ? availableLimit : wallet?.balance || 0;
+  const balanceLabel = isPayLater ? "Available Credit" : "Wallet Balance";
+
   return (
     <SafeAreaView className="flex-1 bg-white" edges={["top"]}>
       <KeyboardAvoidingView
@@ -377,7 +434,7 @@ export default function Airtime() {
       >
         {/* Header */}
         <PageHeader
-          title="Buy Airtime"
+           title={isPayLater ? "Buy Airtime (Pay Later)" : "Buy Airtime"}
           onBack={handleBack}
           showBackButton={true}
         />
@@ -595,8 +652,8 @@ export default function Airtime() {
             containerClassName: "p-4",
             details: [
               {
-                label: "Wallet Balance",
-                value: "₦50,000",
+                label: balanceLabel,
+                value: formatCurrency(balanceToDisplay),
                 icon: <Wallet size={16} color="#FF8D28" />,
               },
               {
@@ -617,7 +674,7 @@ export default function Airtime() {
         onClose={() => setShowPinDrawer(false)}
         onSubmit={handlePinSubmit}
         title="Enter PIN"
-        isSubmitting={isSubmitting || isPurchasing}
+        isSubmitting={isSubmitting || isPurchasingAirtime}
         loadingText="Processing transaction..."
       />
     </SafeAreaView>

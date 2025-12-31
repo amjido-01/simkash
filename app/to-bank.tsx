@@ -1,15 +1,6 @@
 import { Box } from "@/components/ui/box";
 import { Button, ButtonText } from "@/components/ui/button";
 import {
-  Drawer,
-  DrawerBackdrop,
-  DrawerBody,
-  DrawerCloseButton,
-  DrawerContent,
-  DrawerFooter,
-  DrawerHeader,
-} from "@/components/ui/drawer";
-import {
   FormControl,
   FormControlError,
   FormControlErrorIcon,
@@ -17,7 +8,6 @@ import {
   FormControlLabel,
   FormControlLabelText,
 } from "@/components/ui/form-control";
-import { Heading } from "@/components/ui/heading";
 import { HStack } from "@/components/ui/hstack";
 import { Input, InputField } from "@/components/ui/input";
 import { Text } from "@/components/ui/text";
@@ -46,19 +36,20 @@ import {
   SafeAreaView,
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
-import { OtpInput } from "react-native-otp-entry";
 import * as yup from "yup";
 import { router } from "expo-router";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
-import {
-  ACCOUNT_VERIFICATION_DELAY,
-  PIN_LENGTH,
-} from "@/constants/menu";
+import { ACCOUNT_VERIFICATION_DELAY, PIN_LENGTH } from "@/constants/menu";
 import { useGetBanks } from "@/hooks/use-banks";
 import BankSelector from "@/components/bank-selector";
 import { useVerifyAccount } from "@/hooks/use-verify-account";
 import { useSendMoney } from "@/hooks/use-send-money";
 import { PinDrawer } from "@/components/pin-drawer";
+import {
+  ConfirmationDrawer,
+  ConfirmationSection,
+} from "@/components/confirmation-drawer";
+
 // Validation schema
 const schema = yup.object().shape({
   phone: yup
@@ -100,7 +91,6 @@ export default function ToBank() {
   const [showPinDrawer, setShowPinDrawer] = useState(false);
   const [accountName, setAccountName] = useState("");
   const [phoneVerified, setPhoneVerified] = useState(false);
-  // const [isVerifyingAccount, setIsVerifyingAccount] = useState(false);
   const [pin, setPin] = useState("");
   const [pinError, setPinError] = useState("");
   const [stage, setStage] = useState<Stage>("account");
@@ -199,7 +189,7 @@ export default function ToBank() {
 
   // Continue to PIN entry
   const handleContinueToPin = useCallback(() => {
-    setShowDrawer(true);
+    setShowDrawer(false);
     // Small delay for smooth transition
     setTimeout(() => {
       setShowPinDrawer(true);
@@ -238,7 +228,6 @@ export default function ToBank() {
         setPin("");
         reset();
 
- 
         await new Promise((resolve) => setTimeout(resolve, 300));
 
         router.push({
@@ -342,6 +331,40 @@ export default function ToBank() {
 
   const selectedBankName =
     banks.find((b) => b.code === bankValue)?.name || bankValue;
+
+  // Prepare sections for ConfirmationDrawer
+  const confirmationSections: ConfirmationSection[] = [
+    {
+      details: [
+        { label: "Recipient", value: accountName },
+        { label: "Account Number", value: phoneValue },
+        { label: "Bank", value: selectedBankName },
+        { label: "Amount", value: `₦${formatAmount(amountValue)}` },
+        ...(narrationValue
+          ? [{ label: "Narration", value: narrationValue }]
+          : []),
+      ],
+      showDividers: true,
+    },
+    {
+      details: [
+        {
+          label: "Wallet Balance",
+          value: "₦50,000",
+          icon: <Wallet size={16} color="#FF8D28" />,
+        },
+        {
+          label: "Cashback",
+          value: "+₦500",
+          icon: <Gift size={16} color="#CB30E0" />,
+          valueClassName:
+            "text-[12px] font-medium leading-[100%] font-manropesemibold text-[#10B981]",
+        },
+      ],
+      containerClassName: "px-4",
+      showDividers: true,
+    },
+  ];
 
   return (
     <SafeAreaView className="flex-1 bg-white" edges={["top"]}>
@@ -543,7 +566,7 @@ export default function ToBank() {
                             }`}
                           >
                             <View className="absolute left-4  border-r pr-2 border-gray-200 h-full top[12px] z-10">
-                              <Text className="text-[14px] font-manropesemibold text-center mt-3 text-[#000000]">
+                              <Text className="text-[14px] font-manropesemibold text-center mt-4 text-[#000000]">
                                 ₦
                               </Text>
                             </View>
@@ -636,7 +659,6 @@ export default function ToBank() {
           <Button
             className="rounded-full bg-[#132939] h-[48px] w-full"
             size="xl"
-            // disabled={isVerifyingAccount || (stage === "account" ? !phoneVerified || !isValid : !isValid)}
             onPress={handleContinue}
           >
             <ButtonText className="text-white text-[16px] font-medium leading-[24px]">
@@ -646,158 +668,18 @@ export default function ToBank() {
         </View>
       </KeyboardAvoidingView>
 
-      {/* CONFIRMATION DRAWER */}
-      <Drawer
-        className="border-t-0"
+      {/* CONFIRMATION DRAWER - Now using reusable component */}
+      <ConfirmationDrawer
         isOpen={showDrawer}
-        size="lg"
-        anchor="bottom"
         onClose={() => setShowDrawer(false)}
-      >
-        <DrawerBackdrop
-          style={{
-            backgroundColor: "#24242440",
-            opacity: 1,
-          }}
-        />
-        <DrawerContent
-          className="rounded-t-[30px] pt-[28px] bg-[#FFFFFF]"
-          style={{
-            borderTopWidth: 0,
-            borderColor: "transparent",
-            shadowOpacity: 0,
-            elevation: 0,
-            // paddingBottom: Platform.OS === "ios" ? 34 : 16,
-            paddingBottom: insets.bottom || 16,
-          }}
-        >
-          <DrawerHeader className="border-b-0 pb2 px-6">
-            <VStack>
-              <VStack>
-                <Heading className="font-manropesemibold text-center text-[18px] text-[#000000] mb2">
-                  Confirm Transaction
-                </Heading>
-                <Text className="text-center text-[12px] font-manroperegular text-[#6B7280] px-2">
-                  Please review details carefully. Transactions are
-                  irreversible.
-                </Text>
-              </VStack>
-              <Heading className="text-[28px] font-medium text-center mt-[18px] font-manropebold text-[#000000]">
-                ₦{formatAmount(amountValue)}
-              </Heading>
-            </VStack>
-            <DrawerCloseButton />
-          </DrawerHeader>
-
-          <DrawerBody className="pt-4 px-1 pb6">
-            <VStack space="md">
-              {/* Transaction Details */}
-              <View className="rounded-[20px] border-[#E5E7EF] border px-4 py-2">
-                <VStack space="sm">
-                  <HStack className="justify-between items-center py-3">
-                    <Text className="text-[12px] font-manroperegular text-[#303237]">
-                      Recipient
-                    </Text>
-                    <Text className="text-[12px] font-medium leading-[100%] font-manropesemibold text-[#141316]">
-                      {accountName}
-                    </Text>
-                  </HStack>
-
-                  <View className="h-[1px] bg-[#E5E7EB]" />
-
-                  <HStack className="justify-between items-center py-3">
-                    <Text className="text-[12px] font-manroperegular text-[#303237]">
-                      Account Number
-                    </Text>
-                    <Text className="text-[12px] font-medium leading-[100%] font-manropesemibold text-[#141316]">
-                      {phoneValue}
-                    </Text>
-                  </HStack>
-
-                  <View className="h-[1px] bg-[#E5E7EB]" />
-
-                  <HStack className="justify-between items-center py-3">
-                    <Text className="text-[12px] font-manroperegular text-[#303237]">
-                      Bank
-                    </Text>
-                    <Text className="text-[12px] font-medium leading-[100%] font-manropesemibold text-[#141316]">
-                      {selectedBankName}
-                    </Text>
-                  </HStack>
-
-                  <View className="h-[1px] bg-[#E5E7EB]" />
-
-                  <HStack className="justify-between items-center py-3">
-                    <Text className="text-[12px] font-manroperegular text-[#303237]">
-                      Amount
-                    </Text>
-                    <Text className="text-[12px] font-medium leading-[100%] font-manropesemibold text-[#141316]">
-                      ₦{formatAmount(amountValue)}
-                    </Text>
-                  </HStack>
-
-                  {narrationValue && (
-                    <>
-                      <View className="h-[1px] bg-[#E5E7EB]" />
-                      <HStack className="justify-between items-start py-3">
-                        <Text className="text-[12px] font-manroperegular text-[#303237]">
-                          Narration
-                        </Text>
-                        <Text className="text-[12px] font-medium leading-[100%] font-manropesemibold text-[#141316] text-right flex-1 ml-4">
-                          {narrationValue}
-                        </Text>
-                      </HStack>
-                    </>
-                  )}
-                </VStack>
-              </View>
-
-              {/* Wallet & Cashback */}
-              <View className="px-4">
-                <VStack space="sm">
-                  <HStack className="justify-between items-center py-3">
-                    <HStack space="sm" className="items-center">
-                      <Wallet size={16} color="#FF8D28" />
-                      <Text className="text-[12px] font-manroperegular text-[#303237]">
-                        Wallet Balance
-                      </Text>
-                    </HStack>
-                    <Text className="text-[12px] font-medium leading-[100%] font-manropesemibold text-[#141316]">
-                      ₦50,000
-                    </Text>
-                  </HStack>
-
-                  <View className="h-[1px] bg-[#E5E7EB]" />
-
-                  <HStack className="justify-between items-center py-3">
-                    <HStack space="sm" className="items-center">
-                      <Gift size={16} color="#CB30E0" />
-                      <Text className="text-[12px] font-manroperegular text-[#303237]">
-                        Cashback
-                      </Text>
-                    </HStack>
-                    <Text className="text-[12px] font-medium leading-[100%] font-manropesemibold text-[#10B981]">
-                      +₦500
-                    </Text>
-                  </HStack>
-                </VStack>
-              </View>
-            </VStack>
-          </DrawerBody>
-
-          <DrawerFooter className="px-4 pt-4 pb-0">
-            <Button
-              className="rounded-full bg-[#132939] h-[48px] w-full"
-              size="xl"
-              onPress={handleContinueToPin}
-            >
-              <ButtonText className="text-white text-[16px] font-medium leading-[24px]">
-                Continue
-              </ButtonText>
-            </Button>
-          </DrawerFooter>
-        </DrawerContent>
-      </Drawer>
+        onConfirm={handleContinueToPin}
+        title="Confirm Transaction"
+        subtitle="Please review details carefully. Transactions are irreversible."
+        amount={amountValue}
+        showAmount={true}
+        sections={confirmationSections}
+        confirmButtonText="Continue"
+      />
 
       {/* PIN DRAWER */}
       <PinDrawer

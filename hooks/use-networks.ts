@@ -10,7 +10,6 @@ export const useGetNetworks = () => {
       const networks = await apiClient<Network[]>("/billpayment/airtime/network", {
         method: "GET",
       });
-      console.log("Fetched networks:", networks);
       return networks;
     },
     staleTime: 1000 * 60 * 30, // Cache for 10 minutes
