@@ -24,7 +24,7 @@ import {
   Gift,
   Wallet,
 } from "lucide-react-native";
-import React, { useCallback, useState, useEffect, useRef } from "react";
+import React, { useCallback, useState, useEffect, useRef, use } from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
   KeyboardAvoidingView,
@@ -40,13 +40,16 @@ import {
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
 import * as yup from "yup";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { PinDrawer } from "@/components/pin-drawer";
 import { ConfirmationDrawer } from "@/components/confirmation-drawer";
 import { PageHeader } from "@/components/page-header";
 import CableServiceDrawer from "@/components/cable-service-drawer";
 import { ACCOUNT_VERIFICATION_DELAY } from "@/constants/menu";
 import { useDashboard } from "@/hooks/use-dashboard";
+import { usePayLaterDashboard } from "@/hooks/use-paylater-dashboard";
+import { usePurchaseCable } from "@/hooks/use-purchase-cable";
+import { usePurchaseCablePayLater } from "@/hooks/use-purchase-cable-paylater";
 
 // Validation schema
 const schema = yup.object().shape({
@@ -64,9 +67,17 @@ type FormData = yup.InferType<typeof schema>;
 
 export default function CableTV() {
   const insets = useSafeAreaInsets();
+  const params = useLocalSearchParams();
+  const mode = (params.mode as "payment" | "paylater") || "payment";
+  const isPayLater = mode === "paylater";
   const {
     wallet, // Wallet balance data
+    userDetails,
   } = useDashboard();
+  const { availableLimit } = usePayLaterDashboard();
+  const { purchaseCable, isLoading: isPurchasing } = usePurchaseCable();
+  const { purchaseCablePayLater, isLoading: isPurchasingPayLater } =
+    usePurchaseCablePayLater();
   const { cableServices, isLoading, isError } = useGetCableServices();
   const { mutateAsync: verifyCard, isPending: isVerifyingCard } =
     useVerifyCard();
@@ -81,6 +92,10 @@ export default function CableTV() {
   const verificationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
     null
   );
+
+  const isPurchasingCableLoading = isPayLater
+    ? isPurchasingPayLater
+    : isPurchasing;
 
   const {
     control,
@@ -188,6 +203,18 @@ export default function CableTV() {
     const valid = await trigger();
     if (!valid) return;
 
+    // Check credit limit for paylater
+    if (isPayLater) {
+      const price = Number(selectedPackage?.price || 0);
+      if (price > availableLimit) {
+        Alert.alert(
+          "Insufficient Credit",
+          `Your available credit limit is ₦${availableLimit.toLocaleString()}. Please choose a lower package or repay existing loans.`
+        );
+        return;
+      }
+    }
+
     if (!cardVerified) {
       Alert.alert(
         "Card Verification Required",
@@ -199,10 +226,17 @@ export default function CableTV() {
     handleSubmit(() => {
       setShowConfirmationDrawer(true);
     })();
-  }, [trigger, cardVerified, handleSubmit]);
+  }, [
+    trigger,
+    cardVerified,
+    handleSubmit,
+    isPayLater,
+    selectedPackage?.price,
+    availableLimit,
+  ]);
 
   const handleContinueToPin = useCallback(() => {
-    setShowConfirmationDrawer(false);
+    setShowConfirmationDrawer(true);
     setTimeout(() => {
       setShowPinDrawer(true);
     }, 300);
@@ -213,33 +247,103 @@ export default function CableTV() {
       setIsSubmitting(true);
 
       try {
-        console.log("🔐 PIN entered, processing purchase...");
+        const payload = {
+          serviceID: cableServiceValue,
+          billersCode: smartCardValue,
+          packageName: selectedPackage?.name || "",
+          variation_code: selectedPackage?.id || "",
+          amount: selectedPackage?.price || 0,
+          phone: userDetails?.phone || "",
+          pin: pin,
+        };
 
-        // API call will go here
-        await new Promise((resolve) => setTimeout(resolve, 2000));
+        const result = isPayLater
+          ? await purchaseCablePayLater(payload)
+          : await purchaseCable(payload);
 
-        setShowPinDrawer(false);
-        reset();
+        // Handle response similar to other screens
+        if (result.responseSuccessful) {
+          // Success - close drawers and navigate
+          setShowPinDrawer(false);
+          setShowConfirmationDrawer(false);
+          reset();
 
-        router.push({
-          pathname: "/transaction-success",
-          params: {
-            amount: selectedPackage?.price.toString() || "0",
-            recipient: smartCardValue,
-            transactionType: "cable",
-            network: selectedProvider?.name || "",
-            package: selectedPackage?.name || "",
-            cardName: cardNameValue,
-            message: "Cable TV subscription successful",
-          },
-        });
+          router.push({
+            pathname: "/transaction-success",
+            params: {
+              amount: (selectedPackage?.price || 0).toString(),
+              recipient: smartCardValue,
+              transactionType: "cable",
+              network: selectedProvider?.name || "",
+              package: selectedPackage?.name || "",
+              cardName: cardNameValue,
+              message:
+                result.responseMessage || "Cable TV subscription successful",
+            },
+          });
+        } else {
+          console.error("Cable purchase failed:", result.responseMessage);
+
+          let errorMessage =
+            result.responseMessage || "Transaction failed. Please try again.";
+
+          // Normalize user-friendly messages
+          if (
+            errorMessage.toLowerCase().includes("pin") ||
+            errorMessage.toLowerCase().includes("incorrect")
+          ) {
+            errorMessage = "Invalid PIN. Please try again.";
+          } else if (errorMessage.toLowerCase().includes("insufficient")) {
+            errorMessage = "Insufficient balance. Please fund your wallet.";
+          } else if (errorMessage.toLowerCase().includes("network")) {
+            errorMessage = "Network error. Please check your connection.";
+          }
+
+          // Throw so PinDrawer can catch and display the error
+          throw new Error(errorMessage);
+        }
       } catch (error: any) {
-        throw new Error("Transaction failed. Please try again.");
+        console.error("Cable purchase error:", error);
+
+        let errorMessage = "Transaction failed. Please try again.";
+
+        if (error?.message) {
+          errorMessage = error.message;
+        } else if (error?.responseMessage) {
+          errorMessage = error.responseMessage;
+        }
+
+        if (
+          errorMessage.toLowerCase().includes("pin") ||
+          errorMessage.toLowerCase().includes("incorrect")
+        ) {
+          errorMessage = "Invalid PIN. Please try again.";
+        } else if (errorMessage.toLowerCase().includes("insufficient")) {
+          errorMessage = "Insufficient balance. Please fund your wallet.";
+        } else if (errorMessage.toLowerCase().includes("network")) {
+          errorMessage = "Network error. Please check your connection.";
+        }
+
+        // Re-throw to allow PinDrawer to display the error
+        throw new Error(errorMessage);
       } finally {
         setIsSubmitting(false);
       }
     },
-    [selectedPackage, smartCardValue, selectedProvider, cardNameValue, reset]
+    [
+      cableServiceValue,
+      smartCardValue,
+      selectedPackage?.name,
+      selectedPackage?.id,
+      selectedPackage?.price,
+      userDetails?.phone,
+      isPayLater,
+      purchaseCablePayLater,
+      purchaseCable,
+      reset,
+      selectedProvider?.name,
+      cardNameValue,
+    ]
   );
 
   const handleBack = useCallback(() => {
@@ -263,8 +367,7 @@ export default function CableTV() {
     }
   }, [packageValue, smartCardValue]);
 
-
-  const formatCurrency = (value?: string) => {
+  const formatCurrency = (value?: string | number) => {
     if (!value) return "₦0.00";
 
     const num = Number(value);
@@ -276,6 +379,9 @@ export default function CableTV() {
     })}`;
   };
 
+  const balanceToDisplay = isPayLater ? availableLimit : wallet?.balance || 0;
+  const balanceLabel = isPayLater ? "Available Credit" : "Wallet Balance";
+
   return (
     <SafeAreaView className="flex-1 bg-white" edges={["top"]}>
       <KeyboardAvoidingView
@@ -283,7 +389,7 @@ export default function CableTV() {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <PageHeader
-          title="Cable Tv Payment"
+          title={isPayLater ? "Cable TV (Pay Later)" : "Cable TV"}
           onBack={handleBack}
           showBackButton={true}
         />
@@ -549,8 +655,8 @@ export default function CableTV() {
             containerClassName: "p-4",
             details: [
               {
-                label: "Wallet Balance",
-                value: formatCurrency(wallet?.balance),
+                label: balanceLabel,
+                value: formatCurrency(balanceToDisplay),
                 icon: <Wallet size={16} color="#FF8D28" />,
               },
               {

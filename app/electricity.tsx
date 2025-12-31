@@ -265,7 +265,6 @@ export default function Electricity() {
 
   // Form submission
   const submitForm = useCallback((data: FormData) => {
-    console.log("✔ Valid form:", data);
     setShowConfirmDrawer(true);
   }, []);
 
@@ -329,7 +328,6 @@ export default function Electricity() {
 
         // Check if the transaction was successful
         if (result.responseSuccessful) {
-          console.log("Electricity Purchase Success => ", result);
 
           // Success - close drawers and navigate
           setShowPinDrawer(false);
