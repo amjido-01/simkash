@@ -75,7 +75,7 @@ export default function Header() {
             </Badge>
             
             {isProfileLoaded ? (
-              <Text className="text-sm font-semibold font-manropesemibold text-[#000000]">
+              <Text className="text-[14px] font-semibold font-manropesemibold text-[#000000]">
                 {getDisplayName()}
               </Text>
             ) : (

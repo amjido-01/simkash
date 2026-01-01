@@ -183,13 +183,12 @@ export default function ToBank() {
 
   // Form submission
   const submitForm = useCallback((data: FormData) => {
-    console.log("✔ Valid form:", data);
     setShowDrawer(true);
   }, []);
 
   // Continue to PIN entry
   const handleContinueToPin = useCallback(() => {
-    setShowDrawer(false);
+    setShowDrawer(true);
     // Small delay for smooth transition
     setTimeout(() => {
       setShowPinDrawer(true);
@@ -215,12 +214,10 @@ export default function ToBank() {
         narration: narrationValue || undefined,
       };
 
-      console.log(payload, "transfer");
 
       try {
         const response = await sendMoney(payload);
 
-        console.log("Transfer successful:", response);
 
         // Close drawers first
         setShowPinDrawer(false);

@@ -104,7 +104,6 @@ export default function SignUp() {
   const submitForm = async (data: any) => {
     try {
       setIsLoading(true);
-      console.log("📤 Submitting registration:", data.email);
 
       // Call the register endpoint with all 3 parameters
       const message = await authEndpoints.register({
@@ -113,8 +112,6 @@ export default function SignUp() {
         confirm_password: data.confirmPassword,
       });
 
-      console.log("✅ Registration successful:", message);
-      // Expected: "OTP has been successfully sent"
 
       // Optionally show success message
       setAlert({
@@ -174,10 +171,10 @@ export default function SignUp() {
             >
               {/* Header Section */}
               <VStack space="sm" className="mt-8">
-                <Heading className="text-[18px] font-manropesemibold leading-[28px] mt-[32px]">
+                <Heading className="text-[20px] font-manropesemibold leading-[28px] mt-[32px]">
                   Create your Account
                 </Heading>
-                <Text className="mb-[51px] text-[#303237] font-medium text-[14px] leading-[100%]">
+                <Text className="mb-[51px] text-[#303237] font-medium text-[16px] leading-[100%]">
                   Join us in seconds and enjoy seamless payments and services
                 </Text>
               </VStack>
@@ -197,7 +194,7 @@ export default function SignUp() {
                 {/* EMAIL */}
                 <FormControl isInvalid={Boolean(errors.email)}>
                   <FormControlLabel>
-                    <FormControlLabelText className="text-[12px] text-[#414651] mb-[6px]">
+                    <FormControlLabelText className="text-[14px] text-[#414651] mb-[6px]">
                       Email
                     </FormControlLabelText>
                   </FormControlLabel>
@@ -244,7 +241,7 @@ export default function SignUp() {
                 {/* PASSWORD - Now a 6-digit PIN */}
                 <FormControl isInvalid={Boolean(errors.password)}>
                   <FormControlLabel>
-                    <FormControlLabelText className="text-[12px] text-[#414651] mb-[6px]">
+                    <FormControlLabelText className="text-[14px] text-[#414651] mb-[6px]">
                       Create 6-Digit Password
                     </FormControlLabelText>
                   </FormControlLabel>
@@ -305,7 +302,7 @@ export default function SignUp() {
                 {/* CONFIRM PASSWORD - Now a 6-digit PIN */}
                 <FormControl isInvalid={Boolean(errors.confirmPassword)}>
                   <FormControlLabel>
-                    <FormControlLabelText className="text-[12px] text-[#414651] mb-[6px]">
+                    <FormControlLabelText className="text-[14px] text-[#414651] mb-[6px]">
                       Confirm 6-Digit Password
                     </FormControlLabelText>
                   </FormControlLabel>

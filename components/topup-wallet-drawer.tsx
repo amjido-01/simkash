@@ -410,21 +410,17 @@ const pollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
     
     try {
       setCurrentView('processing');
-      console.log('💰 Initiating payment for amount:', amountNum);
       
       const response = await initiateDeposit({ amount: amountNum });
-      console.log('✅ Payment initiated:', response);
       
       if (response?.authorization_url) {
         // Store reference for polling
         paymentReferenceRef.current = response.reference;
         deepLinkHandledRef.current = false;
         
-        console.log('🔄 Starting payment polling');
         // Start polling (fallback mechanism)
         startPaymentPolling(response.reference, amountNum);
         
-        console.log('🌐 Opening Paystack checkout');
         // Open Paystack checkout
         const result = await WebBrowser.openBrowserAsync(
           response.authorization_url,
@@ -438,7 +434,6 @@ const pollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
           }
         );
         
-        console.log('📱 Browser result:', result.type);
         
         // Browser closed - stop polling
         stopPaymentPolling();
@@ -644,7 +639,7 @@ const isProcessing = isInitiating || isVerifying;
           </HStack>
 
           <HStack className="items-center gap-2">
-            <Text className="text-[12px] font-bold font-manropesemibold text-[#000000]">
+            <Text className="text-[10px] font-bold font-manropesemibold text-[#000000]">
               {accountName}
             </Text>
             <View className="w-1 h-1 rounded-full bg-[#6B7280]" />

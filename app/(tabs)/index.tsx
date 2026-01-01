@@ -152,7 +152,7 @@ export default function HomeScreen() {
         <View className="mt-[22px] px-4">
           <Box className="mb-[32px] bg-[#FFFFFF] rounded-[16px]">
             <VStack className="w-full  py-[32px] items-center bg[#F9FAFB] rounded-[20px]">
-              <Text className="font-manroperegular text-[14px] text-[#6B7280] mb-2">
+              <Text className="font-manroperegular text-[15px] text-[#6B7280] mb-2">
                 Wallet Balance
               </Text>
               <WalletBalance balance={wallet?.balance} size="lg" />
@@ -167,14 +167,13 @@ export default function HomeScreen() {
                 className="flex-1 items-center justify-center"
                 // activeOpacity={0.7}
                 onPress={() => {
-                  console.log("PRESSED:", action.label);
                   handleQuickActionPress(action);
                 }}
               >
                 <View className="h12 bg-[#FFFFFF] w-full py-[13px] px-[30px] rounded-[16px] items-center justify-center roundedfull mb-2">
                   <action.icon size={24} color={action.color} />
                 </View>
-                <Text className="font-manroperegular font-medium text-[12px] text-[#141316]">
+                <Text className="font-manroperegular font-medium text-[14px] text-[#141316]">
                   {action.label}
                 </Text>
               </Pressable>
@@ -211,7 +210,7 @@ export default function HomeScreen() {
                     <option.icon size={24} color={option.iconColor} />
                   </View>
                   <Text
-                    className="font-manroperegular font-medium text-[12px] text-[#000000] text-center"
+                    className="font-manroperegular font-medium text-[14px] text-[#000000] text-center"
                     numberOfLines={2}
                   >
                     {option.label}
@@ -224,11 +223,11 @@ export default function HomeScreen() {
           {/* Transactions Section */}
           <View className="mb-6 px-[16px] py-[20px] bg-[#ffffff] rounded-[16px]">
             <HStack className="justify-between items-center mb-4">
-              <Text className="font-manropesemibold font-medium text-[14px] text-[#565C69] mb4">
+              <Text className="font-manropesemibold font-medium text-[16px] text-[#565C69] mb4">
                 Transactions
               </Text>
               <TouchableOpacity activeOpacity={0.7}>
-                <Text className="font-manropesemibold fontbold text-[14px] text-[#022742]">
+                <Text className="font-manropesemibold fontbold text-[16px] text-[#022742]">
                   View More
                 </Text>
               </TouchableOpacity>
@@ -274,10 +273,10 @@ export default function HomeScreen() {
                           </Text>
                         </View>
                         <VStack className="flex-1">
-                          <Text className="font-manropesemibold font-medium text-[14px] text-[#000000]">
+                          <Text className="font-manropesemibold font-medium text-[15px] text-[#000000]">
                             {transactionType}
                           </Text>
-                          <Text className="font-manroperegular font-medium text-[12px] text-[#5A5A5A]">
+                          <Text className="font-manroperegular font-medium text-[13px] text-[#5A5A5A]">
                             {formatDate(transaction.processed_at)}
                           </Text>
                           {metadata?.network && (
@@ -394,7 +393,7 @@ export default function HomeScreen() {
                     <service.icon size={26} color={service.iconColor} />
                   </View>
                   <Text
-                    className="font-manroperegular font-medium text-[12px] text-[#000000] text-center"
+                    className="font-manroperegular font-medium text-[14px] text-[#000000] text-center"
                     numberOfLines={2}
                   >
                     {service.label}

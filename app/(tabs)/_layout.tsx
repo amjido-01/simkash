@@ -35,7 +35,7 @@ export default function TabsLayout() {
           }),
         },
         tabBarLabelStyle: {
-          fontSize: 12,
+          fontSize: 14,
           fontWeight: "700",
           fontFamily: "ManropeMedium",
           marginTop: 4,

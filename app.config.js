@@ -106,7 +106,7 @@ export default {
     // 👇 THIS IS THE IMPORTANT PART
     extra: {
       router: {},
-      API_BASE_URL: process.env.EXPO_PUBLIC_API_BASE_URL,
+      API_BASE_URL: process.env.EXPO_PUBLIC_API_URL || "https://api.simkash.com/api/v1",
       eas: {
         projectId: "24c4f6ee-3cae-4ad4-bb8f-ce4f9ac4b1ef"
       }

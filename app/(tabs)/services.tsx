@@ -222,7 +222,7 @@ export default function ServicesScreen() {
                     />
                   </View>
                   <Text
-                    className="font-manroperegular text-[12px] text-[#141316] font-medium text-center"
+                    className="font-manroperegular text-[14px] text-[#141316] font-medium text-center"
                     numberOfLines={1}
                   >
                     {service.label}

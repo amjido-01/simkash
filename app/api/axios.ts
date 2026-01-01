@@ -1,21 +1,28 @@
 import axios, { AxiosError } from 'axios';
 import { tokenStorage } from '@/utils/tokenStorage';
 import { ApiResponse, ApiError } from '@/types';
-import { BASE_URL } from '@/constants/api';
 import { useAuthStore } from '@/store/auth-store';
 import Constants from 'expo-constants';
 // Get base URL from environment variables
 
-const API_URL = Constants.expoConfig?.extra?.API_BASE_URL;
+
+export const BASE_URL = Constants.expoConfig?.extra?.API_BASE_URL;
+console.log("BASE URL:", BASE_URL);
+
+if (!BASE_URL) {
+  throw new Error("❌ API_BASE_URL is missing. Make sure EXPO_PUBLIC_API_BASE_URL is set.");
+}
+
 
 export const api = axios.create({
-  baseURL: BASE_URL || API_URL,
+  baseURL: BASE_URL,
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
+console.log("API BASE URL:", api);
 
 api.interceptors.request.use(
   async (config) => {

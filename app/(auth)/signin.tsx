@@ -66,7 +66,6 @@ export default function Login() {
   const loadSavedUserInfo = async () => {
     try {
       const userInfo = await userStorage.getUserInfo();
-      console.log("🔍 Loaded user info from storage:", userInfo);
 
       if (userInfo.email && userInfo.shouldRemember) {
         setSavedUserInfo({
@@ -75,7 +74,6 @@ export default function Login() {
           phone: userInfo.phone,
         });
         setValue("email", userInfo.email);
-        console.log("✅ Loaded saved user info:", userInfo.email);
       } else {
         setShowEmailInput(true);
       }
@@ -88,17 +86,14 @@ export default function Login() {
   const submitForm = async (data: any) => {
     try {
       setIsLoading(true);
-      console.log("🔐 Attempting login...");
 
       let response;
 
       if (savedUserInfo.email && !showEmailInput) {
         // Quick login with saved email
-        console.log("🚀 Quick login with saved email:", savedUserInfo.email);
         response = await authEndpoints.quickLogin(data.password);
       } else {
         // Full login with email
-        console.log("🚀 Full login with email:", data.email);
 
         if (!data.email) {
           throw new Error("Please enter your email");
@@ -107,7 +102,6 @@ export default function Login() {
         response = await authEndpoints.login(data.email, data.password);
       }
 
-      console.log("✅ Login successful!");
 
       // setAlert({
       //   show: true,
@@ -161,10 +155,10 @@ export default function Login() {
       >
         <Box className="bg-white p-6 w-full h-full pt-16 flex1">
           <VStack space="sm" className="mt-8">
-            <Heading className="text-[18px] font-manropesemibold leading-[28px] mt-[32px]">
+            <Heading className="text-[20px] font-manropesemibold leading-[28px] mt-[32px]">
               Welcome Back
             </Heading>
-            <Text className="mb-[51px] text-[#303237] font-medium text-[14px] leading-[100%]">
+            <Text className="mb-[51px] text-[#303237] font-medium text-[16px] leading-[100%]">
               Your account is just a step away.
             </Text>
           </VStack>
@@ -182,7 +176,7 @@ export default function Login() {
             {showEmailInput && (
               <FormControl isInvalid={Boolean(errors.email)}>
                 <FormControlLabel>
-                  <FormControlLabelText className="text-[12px] text-[#414651] mb-[6px]">
+                  <FormControlLabelText className="text-[14px] text-[#414651] mb-[6px]">
                     Email
                   </FormControlLabelText>
                 </FormControlLabel>
@@ -230,7 +224,7 @@ export default function Login() {
             {/* PASSWORD */}
             <FormControl isInvalid={Boolean(errors.password)}>
               <FormControlLabel>
-                <FormControlLabelText className="text-[12px] text-[#414651] mb-[6px]">
+                <FormControlLabelText className="text-[14px] text-[#414651] mb-[6px]">
                   Password
                 </FormControlLabelText>
               </FormControlLabel>
@@ -290,7 +284,7 @@ export default function Login() {
                   onPress={handleSwitchAccount}
                   className="self-start -mt-2"
                 >
-                  <ButtonText className="text-[13px] text-[#132939] underline underline-offset-8">
+                  <ButtonText className="text-[14px] text-[#132939] underline underline-offset-8">
                     Switch account
                   </ButtonText>
                 </Button>
@@ -304,7 +298,7 @@ export default function Login() {
                 variant="link"
                 className="p-0"
               >
-                <ButtonText className="text-[12px] font-manroperegular text-[#132939] font-bold">
+                <ButtonText className="text-[14px] font-manroperegular text-[#132939] font-bold">
                   Forgot Password?
                 </ButtonText>
               </Button>
