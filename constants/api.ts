@@ -1,1 +1,4 @@
-export const BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL!
+import Constants from "expo-constants";
+
+export const BASE_URL =
+  Constants.expoConfig?.extra?.API_BASE_URL || "https://api.simkash.com/api/v1";

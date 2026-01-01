@@ -3,10 +3,13 @@ import { tokenStorage } from '@/utils/tokenStorage';
 import { ApiResponse, ApiError } from '@/types';
 import { BASE_URL } from '@/constants/api';
 import { useAuthStore } from '@/store/auth-store';
+import Constants from 'expo-constants';
 // Get base URL from environment variables
 
+const API_URL = Constants.expoConfig?.extra?.API_BASE_URL;
+
 export const api = axios.create({
-  baseURL: BASE_URL,
+  baseURL: BASE_URL || API_URL,
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
