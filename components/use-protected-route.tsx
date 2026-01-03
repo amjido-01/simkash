@@ -6,7 +6,7 @@ import { useAuthStore } from '@/store/auth-store';
 export function useProtectedRoute() {
   const segments = useSegments();
   const router = useRouter();
-  const { isAuthenticated, isLoading, isInitialized } = useAuthStore();
+  const { isAuthenticated, isLoading, isInitialized, needsProfileSetup } = useAuthStore();
 
   useEffect(() => {
     console.log('🔄 useProtectedRoute effect triggered:', {
@@ -40,14 +40,26 @@ export function useProtectedRoute() {
       isPublicRoute,
     });
 
-     if (!isAuthenticated && !isPublicRoute) {
-      // Not authenticated and trying to access protected route
+    // Priority 1: Not authenticated and trying to access protected route
+    if (!isAuthenticated && !isPublicRoute) {
       console.log('❌ Not authenticated, redirecting to sign in');
       router.replace('/(auth)/signin');
-    } else if (isAuthenticated && currentSegment === '(auth)') {
-      // Authenticated but on auth screen, go to tabs
-      console.log('✅ Authenticated, redirecting to home');
-      router.replace('/(tabs)');
+      return;
     }
-  }, [isAuthenticated, segments, isLoading, isInitialized, router]);
+
+    // Priority 2: Authenticated but needs profile setup
+    if (isAuthenticated && needsProfileSetup && currentSegment !== 'profile-setup') {
+      console.log('👤 Profile setup required, redirecting...');
+      router.replace('/profile-setup');
+      return;
+    }
+
+    // Priority 3: Authenticated, profile complete, but on auth/setup screens
+    if (isAuthenticated && !needsProfileSetup && (currentSegment === '(auth)' || currentSegment === 'profile-setup')) {
+      console.log('✅ Authenticated and profile complete, redirecting to home');
+      router.replace('/(tabs)');
+      return;
+    }
+
+  }, [isAuthenticated, segments, isLoading, isInitialized, router, needsProfileSetup]);
 }

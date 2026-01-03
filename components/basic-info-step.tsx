@@ -9,24 +9,19 @@ import {
   FormControlLabelText,
 } from "@/components/ui/form-control";
 import { Heading } from "@/components/ui/heading";
+import { Icon } from "@/components/ui/icon";
 import { Input, InputField, InputIcon } from "@/components/ui/input";
 import { Text } from "@/components/ui/text";
 import { VStack } from "@/components/ui/vstack";
 import { GENDER } from "@/constants/menu";
+import { useGetCountries } from "@/hooks/use-get-countries";
 import { ProfileFormData, StepProps } from "@/types";
 import { yupResolver } from "@hookform/resolvers/yup";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { Picker } from "@react-native-picker/picker";
 import { format } from "date-fns";
-import {
-  AlertCircleIcon,
-  CalendarIcon,
-  ChevronDownIcon,
-  Loader2,
-} from "lucide-react-native";
+import { AlertCircleIcon, CalendarIcon, Loader2 } from "lucide-react-native";
 import React, { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
-import { useCountries } from "@/hooks/use-countries";
 import {
   Keyboard,
   KeyboardAvoidingView,
@@ -35,13 +30,14 @@ import {
   ScrollView,
   TouchableWithoutFeedback,
   useWindowDimensions,
-  ActivityIndicator,
   View,
 } from "react-native";
-import { Icon } from "@/components/ui/icon";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as yup from "yup";
+import CountrySelector from "./country-selector";
+import GenderSelector from "./gender-selector";
 import { StepIndicator } from "./step-indicator";
+import PhoneCodeSelector from "./phone-code-selector";
 
 // Validation schema
 const profileSchema = yup.object({
@@ -49,10 +45,11 @@ const profileSchema = yup.object({
     .string()
     .required("Full name is required")
     .min(2, "Full name must be at least 2 characters"),
+  phoneCode: yup.string().required("Country code is required"),
   phoneNumber: yup
     .string()
     .required("Phone number is required")
-    .matches(/^\+\d{1,4}-\d{7,15}$/, "Please enter a valid phone number"),
+    .matches(/^[0-9]{7,15}$/, "Please enter a valid phone number"),
   gender: yup
     .string()
     .required("Gender is required")
@@ -64,45 +61,51 @@ const profileSchema = yup.object({
   country: yup.string().required("Country is required"),
 });
 
-export function BasicInfo({ onNext, initialData }: StepProps<ProfileFormData>) {
-  console.log('🟢 BasicInfo - Component Mounted');
-  console.log('🟢 BasicInfo - Props:', { 
-    hasOnNext: !!onNext, 
-    initialData: JSON.stringify(initialData) 
+interface ProfileFormDataWithPhoneCode extends ProfileFormData {
+  phoneCode: string;
+}
+
+export function BasicInfo({
+  onNext,
+  initialData,
+}: StepProps<ProfileFormDataWithPhoneCode>) {
+  console.log("🟢 BasicInfo - Component Mounted");
+  console.log("🟢 BasicInfo - Props:", {
+    hasOnNext: !!onNext,
+    initialData: JSON.stringify(initialData),
   });
   const { height } = useWindowDimensions();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const {
     countriesForPicker,
     countryCodesForPicker,
-    loading: countriesLoading,
-    error: countriesError,
+    isLoading: countriesLoading,
+    isError: countriesError,
     refetch: refetchCountries,
-  } = useCountries();
+  } = useGetCountries();
 
-
-  console.log('🟢 BasicInfo - Countries loaded:', {
+  console.log("🟢 BasicInfo - Countries loaded:", {
     countriesCount: countriesForPicker?.length || 0,
     codesCount: countryCodesForPicker?.length || 0,
     loading: countriesLoading,
     error: countriesError,
   });
 
-
   const [showDatePicker, setShowDatePicker] = useState(false);
-
 
   const {
     control,
     handleSubmit,
-    formState: { errors, isValid },
+    formState: { errors },
     setValue,
     watch,
-  } = useForm<ProfileFormData>({
+  } = useForm<ProfileFormDataWithPhoneCode>({
     resolver: yupResolver(profileSchema),
     defaultValues: {
       fullName: initialData?.fullName || "",
-      phoneNumber: initialData?.phoneNumber || "+234-",
+      phoneCode:
+        (initialData as ProfileFormDataWithPhoneCode)?.phoneCode || "234",
+      phoneNumber: initialData?.phoneNumber?.replace(/^\+\d+/, "") || "", // ✅ Remove code from number
       gender: initialData?.gender || "",
       dateOfBirth: initialData?.dateOfBirth || "",
       country: initialData?.country || "",
@@ -110,20 +113,32 @@ export function BasicInfo({ onNext, initialData }: StepProps<ProfileFormData>) {
     mode: "onChange",
   });
 
-  const onSubmit = (data: ProfileFormData) => {
+  // Update the onSubmit function to format phone correctly
+  const onSubmit = (data: ProfileFormDataWithPhoneCode) => {
     console.log("✅ BasicInfo - Form submitted:", JSON.stringify(data));
-    
+
     try {
       if (onNext) {
-        console.log("✅ BasicInfo - Calling onNext");
-        onNext(data);
+        // ✅ Format phone with country code for API
+          let cleanNumber = data.phoneNumber.replace(/^0+/, ''); 
+        const formattedData = {
+        ...data,
+        phoneNumber: `+${data.phoneCode}${cleanNumber}`, // Format: +2348038172350
+      };
+
+        console.log(
+          "✅ BasicInfo - Calling onNext with formatted data:",
+          formattedData
+        );
+        onNext(formattedData as any); // Cast to bypass type checking
       } else {
-        console.error("🔴 BasicInfo - onNext is undefined!");
+        console.error("BasicInfo - onNext is undefined!");
       }
     } catch (error) {
-      console.error("🔴 BasicInfo - Error calling onNext:", error);
+      console.error("BasicInfo - Error calling onNext:", error);
     }
   };
+
   const handleDateChange = (event: any, selectedDate?: Date) => {
     setShowDatePicker(false);
     if (selectedDate) {
@@ -153,7 +168,7 @@ export function BasicInfo({ onNext, initialData }: StepProps<ProfileFormData>) {
               showsVerticalScrollIndicator={false}
             >
               {/* Title */}
-              <VStack space="sm" className="mt-20">
+              <VStack space="sm" className="mt20">
                 <Text className="text-[#303237] font-medium text-[14px] leading-[100%]">
                   Profile Setup
                 </Text>
@@ -212,113 +227,71 @@ export function BasicInfo({ onNext, initialData }: StepProps<ProfileFormData>) {
                   )}
                 </FormControl>
 
-              {/* Country Selection */}
-<FormControl isInvalid={Boolean(errors.country)}>
-  <FormControlLabel>
-    <FormControlLabelText className="text-[12px] text-[#414651] mb-[6px]">
-      Country
-    </FormControlLabelText>
-  </FormControlLabel>
+                {/* Phone Number with Country Code */}
+                <FormControl isInvalid={Boolean(errors.phoneNumber)}>
+                  <FormControlLabel>
+                    <FormControlLabelText className="text-[12px] text-[#414651] mb-[6px]">
+                      Phone Number
+                    </FormControlLabelText>
+                  </FormControlLabel>
 
-  <Controller
-    control={control}
-    name="country"
-    render={({ field: { onChange, value } }) => (
-      <View
-        className={`w-full px-2 rounded-[99px] border min-h-[48px] bg-white ${
-          errors.country
-            ? "border-2 border-red-500"
-            : "border border-[#D0D5DD]"
-        }`}
-      >
-        {countriesLoading ? (
-          <View className="flex-row items-center justify-center h-[48px] px-4">
-            <ActivityIndicator size="small" color="#132939" />
-            <Text className="ml-2 text-[14px] text-[#717680]">
-              Loading countries...
-            </Text>
-          </View>
-        ) : countriesError ? (
-          <View className="flex-row items-center justify-between h-[48px] px-4">
-            <Text className="text-[14px] text-red-500">
-              Failed to load countries
-            </Text>
-            <Button
-              size="sm"
-              variant="link"
-              onPress={refetchCountries}
-            >
-              <ButtonText className="text-[#132939] text-[12px]">
-                Retry
-              </ButtonText>
-            </Button>
-          </View>
-        ) : !Array.isArray(countriesForPicker) || countriesForPicker.length === 0 ? (
-          <View className="flex-row items-center justify-center h-[48px] px-4">
-            <Text className="text-[14px] text-[#717680]">
-              No countries available
-            </Text>
-          </View>
-        ) : (
-          <Picker
-            selectedValue={value}
-            onValueChange={(itemValue) => {
-              console.log('🟢 Country selected:', itemValue);
-              if (itemValue !== "") {
-                onChange(itemValue);
-              }
-            }}
-            style={{
-              height: 48,
-              width: "100%",
-              paddingLeft: Platform.OS === "ios" ? 16 : 12,
-              paddingRight: 16,
-            }}
-            itemStyle={{
-              fontSize: 14,
-              height: 48,
-              ...(Platform.OS === "ios" && {
-                textAlign: "center",
-              }),
-            }}
-            dropdownIconColor="#717680"
-            mode="dropdown"
-          >
-            <Picker.Item
-              label="Select your country"
-              value=""
-              color="#717680"
-              style={{ fontSize: 14 }}
-            />
-            {countriesForPicker.map((country) => (
-              <Picker.Item
-                key={country.value}
-                label={country.label}
-                value={country.value}
-                style={{
-                  fontSize: 14,
-                  color: "#414651",
-                }}
-              />
-            ))}
-          </Picker>
-        )}
-      </View>
-    )}
-  />
+                  <View
+                    className={`w-full rounded-[99px] border min-h-[48px] flex-row items-center ${
+                      errors.phoneNumber
+                        ? "border-2 border-red-500"
+                        : "border border-[#D0D5DD]"
+                    }`}
+                  >
+                    <Controller
+                      control={control}
+                      name="phoneCode"
+                      render={({ field: { onChange, value } }) => (
+                        <PhoneCodeSelector
+                          value={value}
+                          onValueChange={onChange}
+                          countryCodes={countryCodesForPicker}
+                          error={Boolean(errors.phoneNumber)}
+                          loading={countriesLoading}
+                        />
+                      )}
+                    />
 
-  {errors.country && (
-    <FormControlError>
-      <FormControlErrorIcon
-        className="text-red-500"
-        as={AlertCircleIcon}
-      />
-      <FormControlErrorText className="text-red-500 text-[12px]">
-        {errors.country?.message}
-      </FormControlErrorText>
-    </FormControlError>
-  )}
-</FormControl>
+                    <Controller
+                      control={control}
+                      name="phoneNumber"
+                      render={({ field: { onChange, onBlur, value } }) => (
+                        <Input
+                          variant="outline"
+                          className="flex-1 border-0 h-[48px]"
+                        >
+                          <InputField
+                            placeholder="Enter your phone number"
+                            className="text-[14px] text-[#303237] h-[48px] px-4"
+                            placeholderTextColor="#717680"
+                            value={value}
+                            onChangeText={onChange}
+                            onBlur={onBlur}
+                            keyboardType="phone-pad"
+                            maxLength={15}
+                          />
+                        </Input>
+                      )}
+                    />
+                  </View>
+
+                  {errors.phoneNumber && (
+                    <FormControlError>
+                      <FormControlErrorIcon
+                        className="text-red-500"
+                        as={AlertCircleIcon}
+                      />
+                      <FormControlErrorText className="text-red-500 text-[12px]">
+                        {errors.phoneNumber?.message}
+                      </FormControlErrorText>
+                    </FormControlError>
+                  )}
+                </FormControl>
+
                 {/* Gender Selection */}
                 <FormControl isInvalid={Boolean(errors.gender)}>
                   <FormControlLabel>
@@ -331,55 +304,13 @@ export function BasicInfo({ onNext, initialData }: StepProps<ProfileFormData>) {
                     control={control}
                     name="gender"
                     render={({ field: { onChange, value } }) => (
-                      <View
-                        className={`w-full px-2 rounded-[99px] flex items-center justify-center border min-h-[48px] ${
-                          errors.gender
-                            ? "border-2 border-red-500"
-                            : "border border-[#D0D5DD]"
-                        }`}
-                      >
-                        <Picker
-                          selectedValue={value}
-                          onValueChange={(itemValue) => {
-                            if (itemValue !== "") {
-                              onChange(itemValue);
-                            }
-                          }}
-                          style={{
-                            height: 48,
-                            width: "100%",
-                            paddingLeft: Platform.OS === "ios" ? 16 : 12,
-                            paddingRight: 16,
-                          }}
-                          itemStyle={{
-                            fontSize: 14,
-                            height: 48,
-                            ...(Platform.OS === "ios" && {
-                              textAlign: "center",
-                            }),
-                          }}
-                          dropdownIconColor="#717680"
-                          mode="dropdown"
-                        >
-                          <Picker.Item
-                            label="Select gender"
-                            value=""
-                            color="#717680"
-                            style={{ fontSize: 14 }}
-                          />
-                          {GENDER.map((gender) => (
-                            <Picker.Item
-                              key={gender.value}
-                              label={gender.label}
-                              value={gender.value}
-                              style={{
-                                fontSize: 14,
-                                color: "#414651",
-                              }}
-                            />
-                          ))}
-                        </Picker>
-                      </View>
+                      <GenderSelector
+                        value={value}
+                        onValueChange={onChange}
+                        genders={GENDER}
+                        placeholder="Select gender"
+                        error={Boolean(errors.gender)}
+                      />
                     )}
                   />
 
@@ -395,7 +326,6 @@ export function BasicInfo({ onNext, initialData }: StepProps<ProfileFormData>) {
                     </FormControlError>
                   )}
                 </FormControl>
-
                 {/* Date of Birth */}
                 <FormControl isInvalid={Boolean(errors.dateOfBirth)}>
                   <FormControlLabel>
@@ -468,113 +398,41 @@ export function BasicInfo({ onNext, initialData }: StepProps<ProfileFormData>) {
                   )}
                 </FormControl>
 
-                {/* Country Selection */}
-<FormControl isInvalid={Boolean(errors.country)}>
-  <FormControlLabel>
-    <FormControlLabelText className="text-[12px] text-[#414651] mb-[6px]">
-      Country
-    </FormControlLabelText>
-  </FormControlLabel>
+                <FormControl isInvalid={Boolean(errors.country)}>
+                  <FormControlLabel>
+                    <FormControlLabelText className="text-[12px] text-[#414651] mb-[6px]">
+                      Country
+                    </FormControlLabelText>
+                  </FormControlLabel>
 
-  <Controller
-    control={control}
-    name="country"
-    render={({ field: { onChange, value } }) => (
-      <View
-        className={`w-full px-2 rounded-[99px] border min-h-[48px] bg-white ${
-          errors.country
-            ? "border-2 border-red-500"
-            : "border border-[#D0D5DD]"
-        }`}
-      >
-        {countriesLoading ? (
-          <View className="flex-row items-center justify-center h-[48px] px-4">
-            <ActivityIndicator size="small" color="#132939" />
-            <Text className="ml-2 text-[14px] text-[#717680]">
-              Loading countries...
-            </Text>
-          </View>
-        ) : countriesError ? (
-          <View className="flex-row items-center justify-between h-[48px] px-4">
-            <Text className="text-[14px] text-red-500">
-              Failed to load countries
-            </Text>
-            <Button
-              size="sm"
-              variant="link"
-              onPress={refetchCountries}
-            >
-              <ButtonText className="text-[#132939] text-[12px]">
-                Retry
-              </ButtonText>
-            </Button>
-          </View>
-        ) : !Array.isArray(countriesForPicker) || countriesForPicker.length === 0 ? (
-          <View className="flex-row items-center justify-center h-[48px] px-4">
-            <Text className="text-[14px] text-[#717680]">
-              No countries available
-            </Text>
-          </View>
-        ) : (
-          <Picker
-            selectedValue={value}
-            onValueChange={(itemValue) => {
-              console.log('🟢 Country selected:', itemValue);
-              if (itemValue !== "") {
-                onChange(itemValue);
-              }
-            }}
-            style={{
-              height: 48,
-              width: "100%",
-              paddingLeft: Platform.OS === "ios" ? 16 : 12,
-              paddingRight: 16,
-            }}
-            itemStyle={{
-              fontSize: 14,
-              height: 48,
-              ...(Platform.OS === "ios" && {
-                textAlign: "center",
-              }),
-            }}
-            dropdownIconColor="#717680"
-            mode="dropdown"
-          >
-            <Picker.Item
-              label="Select your country"
-              value=""
-              color="#717680"
-              style={{ fontSize: 14 }}
-            />
-            {countriesForPicker.map((country) => (
-              <Picker.Item
-                key={country.value}
-                label={country.label}
-                value={country.value}
-                style={{
-                  fontSize: 14,
-                  color: "#414651",
-                }}
-              />
-            ))}
-          </Picker>
-        )}
-      </View>
-    )}
-  />
+                  <Controller
+                    control={control}
+                    name="country"
+                    render={({ field: { onChange, value } }) => (
+                      <CountrySelector
+                        value={value}
+                        onValueChange={onChange}
+                        countries={countriesForPicker}
+                        placeholder="Select your country"
+                        error={Boolean(errors.country)}
+                        loading={countriesLoading}
+                        onRetry={refetchCountries}
+                      />
+                    )}
+                  />
 
-  {errors.country && (
-    <FormControlError>
-      <FormControlErrorIcon
-        className="text-red-500"
-        as={AlertCircleIcon}
-      />
-      <FormControlErrorText className="text-red-500 text-[12px]">
-        {errors.country?.message}
-      </FormControlErrorText>
-    </FormControlError>
-  )}
-</FormControl>
+                  {errors.country && (
+                    <FormControlError>
+                      <FormControlErrorIcon
+                        className="text-red-500"
+                        as={AlertCircleIcon}
+                      />
+                      <FormControlErrorText className="text-red-500 text-[12px]">
+                        {errors.country?.message}
+                      </FormControlErrorText>
+                    </FormControlError>
+                  )}
+                </FormControl>
 
                 {/* Spacer to push button to bottom */}
                 <Box className="flex-1 min-h-[24px]" />
@@ -582,7 +440,7 @@ export function BasicInfo({ onNext, initialData }: StepProps<ProfileFormData>) {
 
               {/* Continue Button */}
               <VStack space="sm" className="mt-auto pt-6">
-                 {/* {isLoading ? (
+                {/* {isLoading ? (
                                     <>
                                       <Icon
                                         as={Loader2}
@@ -605,7 +463,7 @@ export function BasicInfo({ onNext, initialData }: StepProps<ProfileFormData>) {
                   onPress={handleSubmit(onSubmit)}
                   accessibilityLabel="Continue to next step"
                 >
-                    {isSubmitting ? (
+                  {isSubmitting ? (
                     <>
                       <Icon
                         as={Loader2}

@@ -16,8 +16,10 @@ import {
   CountryPickerItem,
   CountryCodePickerItem,
   ProfileSetupResponse,
+  ApiError,
 } from "@/types";
 import { userStorage } from "@/utils/userStorage";
+import { queryClient } from "../_layout";
 
 /**
  * Auth endpoints
@@ -69,7 +71,7 @@ export const authEndpoints = {
 
       // Store tokens
       // await tokenStorage.setTokens(accessToken, refreshToken);
-       await useAuthStore.getState().setAuth(user, accessToken, refreshToken);
+      await useAuthStore.getState().setAuth(user, accessToken, refreshToken);
 
       return data.responseBody;
     } catch (error: any) {
@@ -114,21 +116,38 @@ export const authEndpoints = {
     payload: ProfileSetupPayload
   ): Promise<ProfileSetupResponse> => {
     try {
-      const res = await apiClient<ProfileSetupResponse>("/user/profile-setup", {
-        method: "PUT",
-        data: payload,
-      });
+      console.log("📤 Sending profile setup (WITH AUTH):", payload);
 
-      return res;
+      // ✅ Use apiClient - it will attach the auth token automatically
+      const result = await apiClient<ProfileSetupResponse>(
+        "/user/profile-setup",
+        {
+          method: "PUT",
+          data: payload,
+        }
+      );
+
+      console.log("✅ Profile setup successful:", result);
+
+      // apiClient already extracts responseBody, so result has user and userProfile
+      return result;
     } catch (error: any) {
-      console.error("Profile setup API error:", error);
+      console.error("❌ Profile setup API error:", error);
 
-      // Better error extraction
-      const message =
-        error?.response?.data?.responseMessage ??
-        error?.responseMessage ?? // For ApiError objects
-        error?.message ??
-        (typeof error === "string" ? error : "Profile setup failed");
+      let message = "Profile setup failed";
+
+      if (error instanceof ApiError) {
+        message = error.message;
+        console.error("ApiError details:", {
+          message: error.message,
+          status: error.status,
+          data: error.data,
+        });
+      } else if (error?.response?.data?.responseMessage) {
+        message = error.response.data.responseMessage;
+      } else if (error?.message) {
+        message = error.message;
+      }
 
       throw new Error(message);
     }
@@ -136,6 +155,12 @@ export const authEndpoints = {
 
   login: async (email: string, password: string) => {
     try {
+      // clear old user info on new login attempt
+      await userStorage.clearUserInfo();
+
+      // Clear any existing query cache
+      queryClient.clear();
+
       const response = await authApi.post<ApiResponse<LoginResponse>>(
         "/auth/login",
         { email, password }
@@ -145,8 +170,7 @@ export const authEndpoints = {
         const { accessToken, refreshToken, user } = response.data.responseBody;
         console.log("🔐 Login successful for user:", response.data);
         // Store tokens
-       await useAuthStore.getState().setAuth(user, accessToken, refreshToken);
-
+        await useAuthStore.getState().setAuth(user, accessToken, refreshToken);
 
         return response.data.responseBody;
       }
@@ -209,7 +233,6 @@ export const authEndpoints = {
     return response.data.responseBody;
   },
 };
-
 
 /**
  * Country endpoints

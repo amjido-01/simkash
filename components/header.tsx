@@ -14,7 +14,9 @@ import React from "react";
 import { View, ActivityIndicator } from "react-native";
 
 export default function Header() {
-  const { user, userProfile, signOut } = useAuthStore();
+  const { 
+    // user, 
+    userProfile, signOut } = useAuthStore();
   
   // Check if profile is loaded
   const isProfileLoaded = !!userProfile?.fullname;

@@ -106,20 +106,10 @@ export default function OtpVerification() {
 
       setOtp("");
 
-     // In otp-verification.tsx
-setTimeout(() => {
-  setAlert({ show: false, type: "info", message: "" });
-  
-  // ✅ Add small delay to ensure token storage completes
-  setTimeout(() => {
-    router.replace({
-      pathname: "/(profile)/basic-info",
-      params: { email: email },
-    });
-  }, 300); // Give token storage time to complete
-  
-}, 1500);
-
+     setTimeout(() => {
+      setAlert({ show: false, type: "info", message: "" });
+      // Navigation happens automatically
+    }, 1000);
     } catch (error: any) {
       console.error("OTP verification failed:", error);
 

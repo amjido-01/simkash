@@ -38,6 +38,7 @@ export interface ResendOtpPayload {
 export interface ProfileFormData {
   fullName: string;
   phoneNumber: string;
+   phoneCode: string;
   gender: string;
   dateOfBirth: string;
   country: string;
@@ -83,21 +84,27 @@ export interface RefreshResponse {
   accessToken: string;
 }
 
+// types/index.ts (or wherever your User type is defined)
+
 export interface User {
   id: number;
-  username: string | null;
+  username?: string | null;
   email: string;
-  phone: string;
-  password: string;
+  phone?: string;
+  password?: string;
   status: string;
-  pin: string | null;
+  pin?: string | null;
   isVerified: boolean;
   source: string;
-  fmcToken: string | null;
-  refereshToken: string | null;
+  fmcToken?: string | null;
+  refereshToken?: string | null;
   lastLogin: string;
   createdAt: string;
   updatedAt: string;
+  isProfileComplete?: boolean; // ✅ Add this
+  isAgent?: boolean;
+  isStateCordinator?: boolean;
+  isSubscribed?: boolean;
 }
 
 export interface UserProfile {
@@ -112,7 +119,10 @@ export interface UserProfile {
   updatedAt: string;
 }
 
-export type ProfileSetupResponse = ApiResponse<null>; 
+export interface ProfileSetupResponse {
+  user: User;
+  userProfile: UserProfile;
+} 
 
 // Custom error class
 export class ApiError extends Error {

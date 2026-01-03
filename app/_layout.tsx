@@ -186,7 +186,7 @@ function onAppStateChange(status: AppStateStatus) {
   }
 }
 
-const queryClient = new QueryClient({
+export const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 2 } },
 });
 

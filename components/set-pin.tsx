@@ -33,16 +33,15 @@ import {
   DrawerContent,
   DrawerHeader,
 } from "@/components/ui/drawer";
-import { router } from "expo-router";
 import { StepIndicator } from "./step-indicator";
 import * as yup from "yup";
 import { StepProps } from "@/types";
 import { authEndpoints } from "@/app/api/endpoints";
 import { Icon } from "./ui/icon";
 import { useCountries } from "@/hooks/use-countries";
-import { HStack } from "./ui/hstack";
 import { CustomAlert } from "./custom-alert";
-
+import { useAuthStore } from "@/store/auth-store";
+import { useGetCountries } from "@/hooks/use-get-countries";
 // Validation schema
 const pinSchema = yup.object({
   newPin: yup
@@ -78,18 +77,17 @@ export default function SetPin({
   onBack,
   initialData,
 }: StepProps<PinFormData>) {
-
   const isSubmittingRef = useRef(false);
-const isNavigatingRef = useRef(false);
-const isMountedRef = useRef(true);
+  const isNavigatingRef = useRef(false);
+  const isMountedRef = useRef(true);
 
-useEffect(() => {
-  return () => {
-    isMountedRef.current = false;
-  };
-}, []);
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
-  const { countriesForPicker } = useCountries();
+  const { countriesForPicker } = useGetCountries();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showDrawer, setShowDrawer] = useState(false);
   const [alert, setAlert] = useState<AlertState>({
@@ -117,11 +115,10 @@ useEffect(() => {
 
   const newPinValue = watch("newPin");
 
-// 2. Fix the onSubmit function
 const onSubmit = async (formData: PinFormData) => {
   // Prevent duplicate submissions
   if (isSubmittingRef.current) {
-    console.log('⚠️ Already submitting, ignoring duplicate call');
+    console.log("⚠️ Already submitting, ignoring duplicate call");
     return;
   }
 
@@ -143,8 +140,9 @@ const onSubmit = async (formData: PinFormData) => {
       );
     }
 
-    // Clean phone number
-    const cleanPhone = initialData.phoneNumber.replace(/-/g, "");
+    // ✅ Phone is already formatted as +2348114528984 from BasicInfo
+    const cleanPhone = initialData.phoneNumber;
+    const phoneForBackend = cleanPhone.replace(/^\+/, ''); 
 
     // Get country label
     const countryObj = countriesForPicker.find(
@@ -159,7 +157,7 @@ const onSubmit = async (formData: PinFormData) => {
     // Prepare payload
     const payload: ProfileSetupPayload = {
       fullname: initialData.fullName,
-      phone: cleanPhone,
+      phone: phoneForBackend,
       gender: initialData.gender as Gender,
       country: cleanCountry,
       pin: formData.newPin,
@@ -168,20 +166,25 @@ const onSubmit = async (formData: PinFormData) => {
     console.log("Payload being sent:", payload);
 
     // Call API
-    const message = await authEndpoints.profileSetup(payload);
+    const response = await authEndpoints.profileSetup(payload);
 
     if (!isMountedRef.current) {
-      console.log('⚠️ Component unmounted, stopping');
+      console.log("⚠️ Component unmounted, stopping");
       return;
     }
 
-    console.log("✅ Profile setup successful:", message);
+    console.log("✅ Profile setup successful:", response);
 
-    // Save user info
+    // ✅ Sync user and profile from backend
+    useAuthStore
+      .getState()
+      .syncUserFromDashboard(response.user, response.userProfile);
+
+    // ✅ Save user info with full name from profile
     await userStorage.saveUserInfo(
-      initialData?.email || '',
-      initialData.fullName,
-      cleanPhone
+      response.user.email,
+      response.userProfile.fullname,
+      response.user.phone || cleanPhone
     );
 
     // Show success drawer
@@ -224,52 +227,43 @@ const onSubmit = async (formData: PinFormData) => {
   }
 };
 
-// 3. Fix the handleGetStarted function
-const handleGetStarted = async () => {
-  // Prevent duplicate navigation
-  if (isNavigatingRef.current) {
-    console.log('⚠️ Already navigating, ignoring duplicate call');
-    return;
-  }
-
-  isNavigatingRef.current = true;
-
-  try {
-    console.log('🟢 Get Started clicked');
-    
-    // Close drawer first
-    setShowDrawer(false);
-    
-    // Wait for drawer animation
-    await new Promise(resolve => setTimeout(resolve, 400));
-    
-    if (!isMountedRef.current) {
-      console.log('⚠️ Component unmounted during navigation');
+  // 3. Fix the handleGetStarted function
+  const handleGetStarted = async () => {
+    // Prevent duplicate navigation
+    if (isNavigatingRef.current) {
+      console.log("⚠️ Already navigating, ignoring duplicate call");
       return;
     }
-    
-    console.log('🟢 Navigating to tabs...');
-    
-    // Use replace to prevent going back
-    router.replace('/(tabs)');
-  } catch (error) {
-    console.error('❌ Navigation error:', error);
-    
-    // Fallback navigation with safety check
-    if (isMountedRef.current) {
-      try {
-        router.replace('/');
-      } catch (fallbackError) {
-        console.error('❌ Fallback navigation failed:', fallbackError);
+
+    isNavigatingRef.current = true;
+
+    try {
+      console.log("🟢 Get Started clicked");
+
+      // Close drawer first
+      setShowDrawer(false);
+
+      // Wait for drawer animation
+      await new Promise((resolve) => setTimeout(resolve, 400));
+
+      if (!isMountedRef.current) {
+        console.log("⚠️ Component unmounted during navigation");
+        return;
       }
+
+      console.log("🟢 Navigation will be handled by useProtectedRoute");
+
+      // ✅ Don't manually navigate - useProtectedRoute will handle it
+      // The route guard will detect needsProfileSetup = false and redirect to tabs
+    } catch (error) {
+      console.error("❌ Error:", error);
+    } finally {
+      // Reset after delay
+      setTimeout(() => {
+        isNavigatingRef.current = false;
+      }, 1000);
     }
-  } finally {
-    // Reset after delay
-    setTimeout(() => {
-      isNavigatingRef.current = false;
-    }, 1000);
-  }
-};
+  };
 
   return (
     <SafeAreaView style={{ flex: 1 }}>
