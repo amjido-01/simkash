@@ -6,25 +6,14 @@ export default {
     slug: "simkash",
     version: "1.0.0",
     orientation: "portrait",
-    icon: "./assets/images/icon.png",
     scheme: "simkash",
+    icon: "./assets/images/app-icon.png",
     userInterfaceStyle: "automatic",
     newArchEnabled: true,
-
-    splash: {
-      image: "./assets/images/splash.png",
-      resizeMode: "contain",
-      backgroundColor: "#ffffff"
-    },
 
     ios: {
       supportsTablet: true,
       bundleIdentifier: "com.anonymous.simkash",
-      splash: {
-        image: "./assets/images/splash.png",
-        resizeMode: "contain",
-        backgroundColor: "#ffffff"
-      },
       associatedDomains: [
         "applinks:simkash.com",
         "applinks:www.simkash.com"
@@ -37,16 +26,6 @@ export default {
         foregroundImage: "./assets/images/android-icon-foreground.png",
         backgroundImage: "./assets/images/android-icon-background.png",
         monochromeImage: "./assets/images/android-icon-monochrome.png"
-      },
-      splash: {
-        image: "./assets/images/splash.png",
-        resizeMode: "contain",
-        backgroundColor: "#ffffff",
-        mdpi: "./assets/images/splash.png",
-        hdpi: "./assets/images/splash.png",
-        xhdpi: "./assets/images/splash.png",
-        xxhdpi: "./assets/images/splash.png",
-        xxxhdpi: "./assets/images/splash.png"
       },
       edgeToEdgeEnabled: true,
       predictiveBackGestureEnabled: false,
@@ -85,10 +64,13 @@ export default {
       [
         "expo-splash-screen",
         {
-          image: "./assets/images/plants.png",
-          imageWidth: 200,
-          resizeMode: "contain",
-          backgroundColor: "#ffffff"
+          backgroundColor: "#ffffff",
+          image: "./assets/images/splash-light.png",
+          "dark": {
+            image: "./assets/images/splash-dark.png",
+            backgroundColor: "#000000"
+          },
+          imageWidth: 200
         }
       ],
       "expo-secure-store",

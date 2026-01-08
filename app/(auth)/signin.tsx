@@ -250,7 +250,6 @@ export default function Login() {
                       onChangeText={onChange}
                       onBlur={onBlur}
                       autoCapitalize="none"
-                      keyboardType="number-pad"
                       maxLength={10}
                     />
                     <InputSlot

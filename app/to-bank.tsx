@@ -49,6 +49,7 @@ import {
   ConfirmationDrawer,
   ConfirmationSection,
 } from "@/components/confirmation-drawer";
+import { useDashboard } from "@/hooks/use-dashboard";
 
 // Validation schema
 const schema = yup.object().shape({
@@ -87,6 +88,9 @@ export default function ToBank() {
   const { sendMoney, isLoading: isSendingMoney } = useSendMoney();
   const { mutateAsync: verifyAccount, isPending: isVerifyingAccount } =
     useVerifyAccount();
+  const {
+    wallet, // Wallet balance data
+  } = useDashboard();
   const [showDrawer, setShowDrawer] = useState(false);
   const [showPinDrawer, setShowPinDrawer] = useState(false);
   const [accountName, setAccountName] = useState("");
@@ -214,10 +218,8 @@ export default function ToBank() {
         narration: narrationValue || undefined,
       };
 
-
       try {
         const response = await sendMoney(payload);
-
 
         // Close drawers first
         setShowPinDrawer(false);
@@ -326,6 +328,19 @@ export default function ToBank() {
     return parseInt(amount, 10).toLocaleString();
   }, []);
 
+  const formatCurrency = (value?: string | number) => {
+    if (!value) return "₦0.00";
+
+    const num = Number(value);
+    if (isNaN(num)) return "₦0.00";
+
+    return `₦ ${num.toLocaleString("en-NG", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
+  };
+
+
   const selectedBankName =
     banks.find((b) => b.code === bankValue)?.name || bankValue;
 
@@ -347,7 +362,7 @@ export default function ToBank() {
       details: [
         {
           label: "Wallet Balance",
-          value: "₦50,000",
+          value: formatCurrency(wallet?.balance),
           icon: <Wallet size={16} color="#FF8D28" />,
         },
         {

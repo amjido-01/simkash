@@ -47,6 +47,7 @@ export default function BuyNowPayLater() {
     isError,
     refetch,
   } = usePayLaterDashboard();
+  console.log(balance, hasOutstandingLoan, "balance");
   const {
     unpaidCredits,
     totalAmountDue,
@@ -55,6 +56,7 @@ export default function BuyNowPayLater() {
     formatDate: formatCreditDate,
     // isOverdue,
   } = usePayLaterCredits();
+  console.log(unpaidCredits, isError, "unpaidCredits hook");
   const { wallet } = useDashboard();
   const { repay, isRepaying } = usePayLaterRepay();
 
