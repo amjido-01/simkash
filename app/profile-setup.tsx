@@ -116,7 +116,6 @@ const ProfileSetup = () => {
           />
         );
       default:
-        console.log('🔴 Invalid step:', currentStep);
         return null;
     }
   }, [currentStep, handleNext, handleBack]);

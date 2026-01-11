@@ -59,6 +59,7 @@
     "lucide-react": "^0.553.0",
     "lucide-react-native": "^0.510.0",
     "nativewind": "^4.2.1",
+    "pressto": "^0.6.0",
     "react": "19.1.0",
     "react-aria": "^3.33.0",
     "react-dom": "19.1.0",

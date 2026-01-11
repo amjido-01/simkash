@@ -69,11 +69,6 @@ export function BasicInfo({
   onNext,
   initialData,
 }: StepProps<ProfileFormDataWithPhoneCode>) {
-  console.log("🟢 BasicInfo - Component Mounted");
-  console.log("🟢 BasicInfo - Props:", {
-    hasOnNext: !!onNext,
-    initialData: JSON.stringify(initialData),
-  });
   const { height } = useWindowDimensions();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const {
