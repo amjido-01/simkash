@@ -84,14 +84,14 @@ export const servicesGrid: ServiceOption[][] = [
       icon: Banknote,
       label: "Data2Cash",
       iconColor: "#1400C5",
-      route: "/data2cash",
+      route: "/data-to-cash",
     },
     {
       id: 6,
       icon: ArrowUp,
       label: "Airtime2Cash",
       iconColor: "#006AB1",
-      route: "/airtime2cash",
+      route: "/airtime-to-cash",
     },
   ],
   [
@@ -160,7 +160,7 @@ export const servicesGrid: ServiceOption[][] = [
       icon: Cpu,
       label: "5G Wireless",
       iconColor: "#06B6D4",
-      route: "/5g-wireless",
+      route: "/wireless",
     },
   ],
 ];

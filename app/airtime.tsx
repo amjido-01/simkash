@@ -359,31 +359,31 @@ export default function Airtime() {
     availableLimit,
   ]);
 
-  // Back navigation handler
-  const handleBack = useCallback(() => {
-    if (phoneValue || amountValue) {
-      Alert.alert(
-        "Discard Changes?",
-        "Are you sure you want to go back? All entered information will be lost.",
-        [
-          { text: "Cancel", style: "cancel" },
-          {
-            text: "Discard",
-            style: "destructive",
-            onPress: () => {
-              lastVerifiedPhone.current = "";
-              setHasSetDefaultNetwork(false);
-              router.push("/(tabs)");
-            },
+ // Back navigation handler
+const handleBack = useCallback(() => {
+  if (phoneValue || amountValue) {
+    Alert.alert(
+      "Discard Changes?",
+      "Are you sure you want to go back? All entered information will be lost.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Discard",
+          style: "destructive",
+          onPress: () => {
+            lastVerifiedPhone.current = "";
+            setHasSetDefaultNetwork(false);
+            router.back(); // ✅ Changed from router.push("/(tabs)")
           },
-        ]
-      );
-    } else {
-      lastVerifiedPhone.current = "";
-      setHasSetDefaultNetwork(false);
-      router.back();
-    }
-  }, [phoneValue, amountValue]);
+        },
+      ]
+    );
+  } else {
+    lastVerifiedPhone.current = "";
+    setHasSetDefaultNetwork(false);
+    router.back(); // ✅ This part was already correct
+  }
+}, [phoneValue, amountValue]);
 
   // Handle quick amount selection
   const handleQuickAmountSelect = useCallback(

@@ -87,7 +87,7 @@ type FormData = yup.InferType<typeof schema>;
 
 const OTP_LENGTH = 6;
 
-export default function AirtimeToCash() {
+export default function DataToCash() {
   // State management
   const insets = useSafeAreaInsets();
   const verifyPhoneMutation = useVerifyPhone();
@@ -452,7 +452,7 @@ export default function AirtimeToCash() {
     }
   }, []);
 
-// Back navigation handler
+ // Back navigation handler
 const handleBack = useCallback(() => {
   // Confirm before leaving if form has data
   if (phoneValue || amountValue || networkValue || sharePinValue) {
@@ -515,7 +515,7 @@ const handleBack = useCallback(() => {
         keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
       >
         <PageHeader
-          title=" Airtime to Cash"
+          title=" Data to Cash"
           onBack={handleBack}
           showBackButton={true}
         />

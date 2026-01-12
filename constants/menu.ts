@@ -88,7 +88,7 @@ export const paymentOptions: MenuOption[] = [
     icon: Banknote,
     label: "Data2cash",
     iconColor: "#1400C5",
-    route: "/data2cash",
+    route: "/data-to-cash",
   },
   {
     id: 6,

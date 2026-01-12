@@ -12,7 +12,7 @@ import { router } from "expo-router";
 import { PageHeader } from "@/components/page-header";
 
 
-export default function Kyc() {
+export default function VirtualNumber() {
 
   const handleBack = () => {
     router.back();
@@ -22,7 +22,7 @@ export default function Kyc() {
     <SafeAreaView className="flex-1 bg-white" edges={["top"]}>
       {/* Header */}
       <PageHeader
-        title="KYC"
+        title="Virtual Number"
         onBack={handleBack}
         showBackButton={true}
       />
@@ -37,7 +37,7 @@ export default function Kyc() {
            Coming Soon
          </Text>
          <Text className="text-xl text-gray-black text-center leading-6">
-           KYC functionality is coming soon!, please stay tuned.
+            Virtual Number functionality is coming soon!, please stay tuned.
          </Text>
        </View>
       </ScrollView>
