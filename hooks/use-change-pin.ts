@@ -4,9 +4,9 @@ import { dashboardKeys } from "./use-dashboard";
 
 // Request payload type
 export interface ChangePinPayload {
-  old_password: string;  // Changed from old_pin to old_password
-  new_password: string;  // Changed from new_pin to new_password
-  confirm_new_password: string;  // Changed from confirm_new_pin to confirm_new_password
+  old_pin: string;  // Changed from old_pin to old_password
+  new_pin: string;  // Changed from new_pin to new_password
+  confirm_new_pin: string;  // Changed from confirm_new_pin to confirm_new_password
 }
 
 // User type from response
@@ -16,17 +16,19 @@ export interface User {
   email: string;
   phone: string;
   password: string;
-  status: string;
+  status: "active" | "inactive" | "suspended"; // extend if needed
   pin: string;
   isProfileComplete: boolean;
   isVerified: boolean;
-  source: string;
+  isCompany: boolean;
+  source: "app" | "web" | string;
   fmcToken: string | null;
   refereshToken: string | null;
-  lastLogin: string;
-  createdAt: string;
-  updatedAt: string;
+  lastLogin: string;   // ISO date string
+  createdAt: string;  // ISO date string
+  updatedAt: string;  // ISO date string
 }
+
 
 // Response type
 export interface ChangePinResponse {
@@ -43,13 +45,12 @@ export const useChangePin = () => {
       payload: ChangePinPayload
     ): Promise<ChangePinResponse> => {
       const response = await apiClient<ChangePinResponse>(
-        "/user/password",
+        "/user/pin",
         {
           method: "PUT",
           data: payload,
         }
       );
-
       return response;
     },
     onSuccess: (data) => {

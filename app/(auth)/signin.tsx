@@ -250,7 +250,7 @@ export default function Login() {
                       onChangeText={onChange}
                       onBlur={onBlur}
                       autoCapitalize="none"
-                      maxLength={10}
+                      maxLength={20}
                     />
                     <InputSlot
                       className="pr-3"

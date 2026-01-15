@@ -29,6 +29,7 @@ import {
   DrawerContent,
   DrawerHeader,
 } from "@/components/ui/drawer";
+import { ApiError } from "@/types";
 
 type PinStep = "current" | "new" | "confirm";
 
@@ -98,9 +99,9 @@ export default function ChangeTransactionPin() {
 
       try {
         const response = await changePin({
-          old_password: currentPin,
-          new_password: newPin,
-          confirm_new_password: pin,
+          old_pin: currentPin,
+          new_pin: newPin,
+          confirm_new_pin: pin,
         });
 
         if (response.responseSuccessful) {
@@ -110,6 +111,11 @@ export default function ChangeTransactionPin() {
           setConfirmPin("");
         }
       } catch (err: any) {
+                if (err instanceof ApiError) {
+            console.log('Status:', err.status);
+            console.log('Message:', err.message);
+            console.log('Full payload:', err.data);
+          }
         console.error("Error changing PIN:", err);
         setError(
           err?.responseMessage ||

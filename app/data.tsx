@@ -20,7 +20,7 @@ import {
   Wallet,
 } from "lucide-react-native";
 import { useGetNetworks } from "@/hooks/use-networks";
-import { useGetDataPlans } from "@/hooks/use-getdata-plans";
+import { useGetDataPlans, PlanDuration } from "@/hooks/use-getdata-plans";
 import { PinDrawer } from "@/components/pin-drawer";
 import React, { useCallback, useRef, useState, useEffect } from "react";
 import { Controller, useForm } from "react-hook-form";
@@ -67,9 +67,7 @@ export default function DataBundle() {
   const mode = (params.mode as "payment" | "paylater") || "payment";
   const isPayLater = mode === "paylater";
   const { networks, isLoading, isError } = useGetNetworks();
-  const {
-    wallet, // Wallet balance data
-  } = useDashboard();
+  const { wallet } = useDashboard();
   const { availableLimit } = usePayLaterDashboard();
   const verifyPhoneMutation = useVerifyPhone();
   const { purchaseData, isLoading: isPurchasingData } = usePurchaseData();
@@ -82,6 +80,7 @@ export default function DataBundle() {
   const [isVerifyingPhone, setIsVerifyingPhone] = useState(false);
   const [hasSetDefaultNetwork, setHasSetDefaultNetwork] = useState(false);
   const lastVerifiedPhone = useRef<string>("");
+  const [selectedDuration, setSelectedDuration] = useState<PlanDuration>("all");
 
   const isPurchasingDataLoading = isPayLater
     ? isPurchasingDataPayLater
@@ -109,12 +108,16 @@ export default function DataBundle() {
   const networkValue = watch("network");
   const dataBundleValue = watch("dataBundle");
 
-  // NEW: Fetch data plans hook
+  // Fetch data plans hook
   const {
-    popularPlans,
+    getPlansByDuration,
     isLoading: isLoadingPlans,
     isError: isPlansError,
   } = useGetDataPlans(networkValue, !!networkValue);
+
+  const getDisplayedPlans = useCallback(() => {
+    return getPlansByDuration(selectedDuration);
+  }, [getPlansByDuration, selectedDuration]);
 
   // Set MTN as default
   useEffect(() => {
@@ -134,6 +137,14 @@ export default function DataBundle() {
       setHasSetDefaultNetwork(true);
     }
   }, [isLoading, networks, hasSetDefaultNetwork, setValue]);
+
+  // Reset duration when network changes
+  useEffect(() => {
+    if (networkValue) {
+      setSelectedDuration("all");
+      setValue("dataBundle", "", { shouldValidate: false });
+    }
+  }, [networkValue, setValue]);
 
   // Verify phone and auto-detect network
   const verifyAndSetNetwork = useCallback(
@@ -198,7 +209,7 @@ export default function DataBundle() {
   }, [phoneValue, verifyAndSetNetwork]);
 
   const selectedNetwork = networks.find((n) => n.serviceID === networkValue);
-  const selectedBundle = popularPlans.find(
+  const selectedBundle = getDisplayedPlans().find(
     (b) => b.variation_code === dataBundleValue
   );
 
@@ -218,7 +229,6 @@ export default function DataBundle() {
       setIsSubmitting(true);
 
       try {
-        // Get the selected network data
         const selectedNetworkData = networks.find(
           (n) => n.serviceID === networkValue
         );
@@ -245,14 +255,28 @@ export default function DataBundle() {
           ? await purchaseDataPayLater(payload)
           : await purchaseData(payload);
 
-        // Success - close drawers and navigate
+        console.log(result, "from data");
+
+        const transactionStatus = result.responseBody?.status?.toLowerCase();
+        
+        // Only proceed if transaction was successful
+        if (transactionStatus !== "success") {
+          // Transaction failed or has unknown status
+          const failureMessage = 
+            result.responseMessage || 
+            result.responseBody?.description ||
+            "Transaction failed. Please try again or contact support.";
+          
+          throw new Error(failureMessage);
+        }
+
+        // ✅ Transaction successful - proceed with navigation
         setShowPinDrawer(false);
         setShowConfirmDrawer(false);
         reset();
 
         await new Promise((resolve) => setTimeout(resolve, 300));
 
-        // Reset tracking
         setHasSetDefaultNetwork(false);
         lastVerifiedPhone.current = "";
 
@@ -265,15 +289,14 @@ export default function DataBundle() {
             transactionType: "data",
             network: selectedNetworkData.name,
             dataBundle: selectedBundle.name,
-            transactionId: result.responseBody?.transactionId || "",
-            reference: result.responseBody?.reference || "",
+            transactionId: result.responseBody?.transactionId || result.responseBody?.id?.toString() || "",
+            reference: result.responseBody?.reference || result.responseBody?.transaction_reference || "",
             message: result.responseMessage || "Data purchased successfully",
           },
         });
       } catch (error: any) {
         console.error("❌ Data purchase error:", error);
 
-        // Handle specific error messages
         let errorMessage = "Transaction failed. Please try again.";
 
         if (error?.message) {
@@ -282,7 +305,7 @@ export default function DataBundle() {
           errorMessage = error.responseMessage;
         }
 
-        // Show user-friendly error messages based on content
+        // Provide user-friendly error messages
         if (errorMessage.toLowerCase().includes("pin")) {
           errorMessage = "Invalid PIN. Please try again.";
         } else if (errorMessage.toLowerCase().includes("insufficient")) {
@@ -291,7 +314,7 @@ export default function DataBundle() {
           errorMessage = "Network error. Please check your connection.";
         }
 
-        // Throw error to be caught by PinDrawer component
+        // Re-throw error to be caught by PinDrawer
         throw new Error(errorMessage);
       } finally {
         setIsSubmitting(false);
@@ -308,6 +331,7 @@ export default function DataBundle() {
       reset,
     ]
   );
+
   const handleContinue = useCallback(async () => {
     const valid = await trigger();
 
@@ -315,7 +339,6 @@ export default function DataBundle() {
       return;
     }
 
-    // Check credit limit for pay later
     if (isPayLater) {
       const amount = Number(selectedBundle?.variation_amount || 0);
       if (amount > availableLimit) {
@@ -370,7 +393,6 @@ export default function DataBundle() {
   const handleNetworkSelect = useCallback(
     (networkVal: string) => {
       setValue("network", networkVal, { shouldValidate: true });
-      // Clear selected bundle when network changes
       setValue("dataBundle", "", { shouldValidate: false });
     },
     [setValue]
@@ -405,7 +427,7 @@ export default function DataBundle() {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <PageHeader
-          title={isPayLater ? "Buy Airtime (Pay Later)" : "Buy Airtime"}
+          title={isPayLater ? "Buy Data (Pay Later)" : "Buy Data"}
           onBack={handleBack}
           showBackButton={true}
         />
@@ -418,6 +440,7 @@ export default function DataBundle() {
         >
           <Box className="bg-white px-4 pt-6 pb-24 flex-1">
             <VStack space="lg" className="flex-1">
+              {/* Phone Number Input Section */}
               <FormControl
                 isInvalid={Boolean(errors.phoneNumber || errors.network)}
               >
@@ -496,10 +519,10 @@ export default function DataBundle() {
                 )}
               </FormControl>
 
-              {/* Data Bundle Selection - NEW VERSION */}
+              {/* Data Bundle Selection with Tabs */}
               {networkValue && (
                 <FormControl
-                  className="mt-[32px]"
+                  className="my-[32px]"
                   isInvalid={Boolean(errors.dataBundle)}
                 >
                   <FormControlLabel>
@@ -507,6 +530,82 @@ export default function DataBundle() {
                       Popular Data Bundles
                     </FormControlLabelText>
                   </FormControlLabel>
+
+                  {/* Duration Filter Tabs */}
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    className="mb-8"
+                    contentContainerStyle={{ gap: 8 }}
+                  >
+                    <TouchableOpacity
+                      onPress={() => setSelectedDuration("all")}
+                      className={`px-4 py-2 rounded-full ${
+                        selectedDuration === "all"
+                          ? "bg-[#132939]"
+                          : "bg-white border border-[#E5E7EB]"
+                      }`}
+                    >
+                      <Text
+                        className={`text-[14px] font-medium ${
+                          selectedDuration === "all" ? "text-white" : "text-[#6B7280]"
+                        }`}
+                      >
+                        All
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      onPress={() => setSelectedDuration("daily")}
+                      className={`px-4 py-2 rounded-full ${
+                        selectedDuration === "daily"
+                          ? "bg-[#132939]"
+                          : "bg-white border border-[#E5E7EB]"
+                      }`}
+                    >
+                      <Text
+                        className={`text-[14px] font-medium ${
+                          selectedDuration === "daily" ? "text-white" : "text-[#6B7280]"
+                        }`}
+                      >
+                        Daily Plans
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      onPress={() => setSelectedDuration("weekly")}
+                      className={`px-4 py-2 rounded-full ${
+                        selectedDuration === "weekly"
+                          ? "bg-[#132939]"
+                          : "bg-white border border-[#E5E7EB]"
+                      }`}
+                    >
+                      <Text
+                        className={`text-[14px] font-medium ${
+                          selectedDuration === "weekly" ? "text-white" : "text-[#6B7280]"
+                        }`}
+                      >
+                        Weekly Plans
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      onPress={() => setSelectedDuration("monthly")}
+                      className={`px-4 py-2 rounded-full ${
+                        selectedDuration === "monthly"
+                          ? "bg-[#132939]"
+                          : "bg-white border border-[#E5E7EB]"
+                      }`}
+                    >
+                      <Text
+                        className={`text-[14px] font-medium ${
+                          selectedDuration === "monthly" ? "text-white" : "text-[#6B7280]"
+                        }`}
+                      >
+                        Monthly Plans
+                      </Text>
+                    </TouchableOpacity>
+                  </ScrollView>
 
                   <Controller
                     control={control}
@@ -532,7 +631,7 @@ export default function DataBundle() {
 
                         {!isLoadingPlans &&
                           !isPlansError &&
-                          popularPlans.map((bundle) => (
+                          getDisplayedPlans().map((bundle) => (
                             <TouchableOpacity
                               key={bundle.variation_code}
                               onPress={() =>
@@ -557,10 +656,10 @@ export default function DataBundle() {
 
                         {!isLoadingPlans &&
                           !isPlansError &&
-                          popularPlans.length === 0 && (
+                          getDisplayedPlans().length === 0 && (
                             <View className="py-8 px-4">
                               <Text className="text-[14px] text-[#6B7280] text-center">
-                                No data plans available for this network.
+                                No {selectedDuration === "all" ? "" : selectedDuration} data plans available for this network.
                               </Text>
                             </View>
                           )}

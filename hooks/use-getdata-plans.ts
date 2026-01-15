@@ -16,8 +16,10 @@ export interface DataPlansResponse {
   variations: DataPlan[];
 }
 
+export type PlanDuration = "all" | "daily" | "weekly" | "monthly";
+
 export const useGetDataPlans = (serviceID: string, enabled: boolean = true) => {
-    console.log("Fetching data plans for serviceID:", `${serviceID}-data`);
+  
   const dataPlansQuery = useQuery({
     queryKey: ["dataPlans", serviceID],
     queryFn: async (): Promise<DataPlansResponse> => {
@@ -27,39 +29,64 @@ export const useGetDataPlans = (serviceID: string, enabled: boolean = true) => {
           method: "GET",
         }
       );
-      console.log(response, "from tt")
       return response;
     },
-    enabled: enabled && !!serviceID, // Only run if serviceID exists and enabled is true
-   staleTime: 1000 * 60 * 30, // 30 minutes 
+    enabled: enabled && !!serviceID,
+    staleTime: 1000 * 60 * 30, // 30 minutes
     retry: 2,
   });
 
-  // Helper function to get popular plans (first 5)
-  const getPopularPlans = (): DataPlan[] => {
+  // Filter out unwanted plans
+  const getFilteredPlans = (): DataPlan[] => {
     if (!dataPlansQuery.data?.variations) return [];
     
-    // Filter out special plans and get the most commonly used ones
-    // You can customize this logic based on your business requirements
-    const popularPlans = dataPlansQuery.data.variations
-      .filter((plan) => {
-        // Filter out TV, campus, social bundles, and mega plans
-        const name = plan.name.toLowerCase();
-        return !name.includes('tv') && 
-               !name.includes('campus') && 
-               !name.includes('social') && 
-               !name.includes('mega') &&
-               !name.includes('night') &&
-               !name.includes('weekend');
-      })
-      .slice(0, 5); // Get first 5 plans
+    return dataPlansQuery.data.variations.filter((plan) => {
+      const name = plan.name.toLowerCase();
+      return !name.includes('tv') && 
+             !name.includes('campus') && 
+             !name.includes('social') && 
+             !name.includes('mega') &&
+             !name.includes('night') &&
+             !name.includes('weekend') &&
+             !name.includes('broadband') &&
+             !name.includes('hynetflex') &&
+             !name.includes('router');
+    });
+  };
 
-    return popularPlans;
+  // Categorize plans by duration
+  const getPlansByDuration = (duration: PlanDuration): DataPlan[] => {
+    const filtered = getFilteredPlans();
+    
+    if (duration === "all") {
+      return filtered.slice(0, 10); // Show top 10 for "All"
+    }
+
+    return filtered.filter((plan) => {
+      const name = plan.name.toLowerCase();
+      
+      switch (duration) {
+        case "daily":
+          return name.includes("daily") || name.includes("day)") || name.includes("1 day") || name.includes("2 days");
+        case "weekly":
+          return name.includes("weekly") || name.includes("week") || name.includes("7 days");
+        case "monthly":
+          return name.includes("monthly") || name.includes("month") || name.includes("30 days") || name.includes("30days");
+        default:
+          return false;
+      }
+    });
+  };
+
+  // Helper function to get popular plans (backwards compatibility)
+  const getPopularPlans = (): DataPlan[] => {
+    return getFilteredPlans().slice(0, 5);
   };
 
   return {
     dataPlans: dataPlansQuery.data?.variations ?? [],
     popularPlans: getPopularPlans(),
+    getPlansByDuration,
     serviceName: dataPlansQuery.data?.ServiceName ?? "",
     serviceID: dataPlansQuery.data?.serviceID ?? "",
     convenienceFee: dataPlansQuery.data?.convinience_fee ?? "0 %",

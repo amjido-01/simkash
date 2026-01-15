@@ -1,18 +1,17 @@
+// use-purchase-data.ts - FIXED VERSION
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/app/api/axios";
 import { dashboardKeys } from "./use-dashboard";
 
-// Request payload type - matches your exact data payload structure
 export interface PurchaseDataPayload {
-  serviceID: string; // e.g., "mtn-data", "airtel-data", "glo-data", "9mobile-data"
-  billersCode: string; // Phone number as string
-  variation_code: string; // Data plan code e.g., "mtn-10mb-100"
+  serviceID: string;
+  billersCode: string;
+  variation_code: string;
   amount: number;
-  phone: string | number; // Can be string or number
+  phone: string | number;
   pin: number | string;
 }
 
-// Response type - matches your expected response structure
 export interface PurchaseDataResponse {
   responseSuccessful: boolean;
   responseMessage: string;
@@ -22,7 +21,7 @@ export interface PurchaseDataResponse {
     transaction_type?: string;
     amount?: number;
     transaction_reference?: string;
-    status?: string;
+    status?: string; // ← Important: can be "success", "failed", "pending"
     processed_at?: string;
     description?: string;
     metadata?: string;
@@ -39,19 +38,17 @@ export const usePurchaseData = () => {
     mutationFn: async (
       payload: PurchaseDataPayload
     ): Promise<PurchaseDataResponse> => {
-      // Prepare the payload exactly as your API expects
       const formattedPayload = {
         serviceID: payload.serviceID,
         billersCode: payload.billersCode,
         variation_code: payload.variation_code,
         amount: payload.amount,
-        phone: typeof payload.phone === 'string' 
-          ? parseInt(payload.phone.replace(/\D/g, ''), 10) // Convert string phone to number
-          : payload.phone, // Keep as number if already a number
-        pin: payload.pin.toString(), // Ensure PIN is a string
+        phone:
+          typeof payload.phone === "string"
+            ? parseInt(payload.phone.replace(/\D/g, ""), 10)
+            : payload.phone,
+        pin: payload.pin.toString(),
       };
-
-      console.log("📱 Data purchase payload:", formattedPayload);
 
       const response = await apiClient<PurchaseDataResponse>(
         "/billpayment/data/purchase",
@@ -61,25 +58,40 @@ export const usePurchaseData = () => {
         }
       );
 
-      console.log("✅ Data purchase response:", response);
+      // ⚠️ CRITICAL FIX: Check if transaction actually succeeded
+      // API returns 200 even for failed transactions, so we must check status
+      if (response.responseBody?.status === "failed") {
+        // Transaction failed - throw error to trigger catch block
+        throw new Error(
+          response.responseMessage ||
+            "Transaction failed. Please try again or contact support."
+        );
+      }
+
+      // Additional safety check: verify responseSuccessful flag
+      if (response.responseSuccessful === false) {
+        throw new Error(
+          response.responseMessage || "Transaction could not be completed."
+        );
+      }
 
       return response;
     },
+
     onSuccess: (data) => {
       console.log("✅ Data purchased successfully:", data);
 
-      // Invalidate dashboard to refresh wallet balance
-      queryClient.invalidateQueries({ queryKey: dashboardKeys.info() });
-
-      // Optional: Invalidate other queries if needed
-      // queryClient.invalidateQueries({ queryKey: ["account-detail"] });
-      // queryClient.invalidateQueries({ queryKey: ["transactions"] });
-      // queryClient.invalidateQueries({ queryKey: ["transaction-history"] });
+      // Only invalidate if transaction truly succeeded
+      if (data.responseBody?.status === "success") {
+        queryClient.invalidateQueries({ queryKey: dashboardKeys.info() });
+      }
     },
+
     onError: (error: any) => {
       console.error("❌ Data purchase failed:", error);
     },
   });
+
   return {
     purchaseData: purchaseDataMutation.mutateAsync,
     isLoading: purchaseDataMutation.isPending,

@@ -64,7 +64,19 @@ export const usePurchaseDataPayLater = () => {
         }
       );
 
-      console.log("✅ Pay-Later Data purchase response:", response);
+      // ⚠️ CRITICAL FIX: Check if transaction actually succeeded
+      if (response.responseBody?.status === "failed") {
+        throw new Error(
+          response.responseMessage ||
+            "Transaction failed. Please try again or contact support."
+        );
+      }
+
+      if (response.responseSuccessful === false) {
+        throw new Error(
+          response.responseMessage || "Transaction could not be completed."
+        );
+      }
 
       return response;
     },
