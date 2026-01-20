@@ -74,7 +74,7 @@ export const paymentOptions: MenuOption[] = [
     icon: CreditCard,
     label: "Request SIM",
     iconColor: "#D4BF00",
-    route: "/request-sim",
+    route: "/(tabs)/device-sim",
   },
   {
     id: 4,

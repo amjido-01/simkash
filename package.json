@@ -10,7 +10,7 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "lint": "expo lint",
-    "eas-build": "npx eas build -p android --profile internal"
+    "eas-build": "npx eas build -p android --profile internal --clear-cache"
   },
   "dependencies": {
     "@expo/html-elements": "^0.12.5",

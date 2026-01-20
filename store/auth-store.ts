@@ -4,7 +4,6 @@ import { tokenStorage } from "@/utils/tokenStorage";
 import { userStorage } from "@/utils/userStorage";
 import { User, UserProfile } from "@/types";
 import { queryClient } from "@/app/_layout";
-import { Q } from "@expo/html-elements";
 
 interface AuthState {
   // State

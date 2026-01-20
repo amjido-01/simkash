@@ -60,7 +60,6 @@ export default function HomeScreen() {
     // isAccountDetailError,
     // accountDetailError,
   } = useAccountDetail();
-  console.log("Account Detail:", accountDetail);
   const [refreshing, setRefreshing] = useState(false);
   const [showDrawer, setShowDrawer] = useState(false);
   const [showQuickActionDrawer, setShowQuickActionDrawer] = useState(false);
@@ -82,7 +81,6 @@ export default function HomeScreen() {
     }
 
     if (!option.route) {
-      console.log("Selected:", option.label);
       return;
     }
 
@@ -377,7 +375,6 @@ export default function HomeScreen() {
                   style={{ width: "30%" }}
                   activeOpacity={0.7}
                   onPress={() => {
-                    console.log("Selected service:", service.label);
                     setShowDrawer(false);
                     if (service.params) {
                       router.push({

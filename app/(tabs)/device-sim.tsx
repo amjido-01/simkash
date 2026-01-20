@@ -91,7 +91,6 @@ export default function DeviceSimScreen() {
     isError: isOverviewError,
     refetch: refetchOverview,
   } = useSimOverview();
-  console.log(simActivated, activeSims, sims);
 
   const [refreshing, setRefreshing] = useState(false);
   const [selectedSim, setSelectedSim] = useState<UserSim | null>(null);
