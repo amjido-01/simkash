@@ -21,7 +21,13 @@ import {
   Wallet,
 } from "lucide-react-native";
 import { useGetNetworks } from "@/hooks/use-networks";
-import React, { useCallback, useRef, useEffect, useState } from "react";
+import React, {
+  useCallback,
+  useRef,
+  useEffect,
+  useState,
+  useMemo,
+} from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
   KeyboardAvoidingView,
@@ -48,6 +54,31 @@ import { NetworkSelectionDrawer } from "@/components/network-selection-drawer";
 import { useDashboard } from "@/hooks/use-dashboard";
 import { usePayLaterDashboard } from "@/hooks/use-paylater-dashboard";
 import { usePurchaseAirtimePayLater } from "@/hooks/use-purchase-airtime-paylater";
+
+// Helper function to calculate Pay Later details
+const calculatePayLaterDetails = (amount: string) => {
+  const numAmount = Number(amount);
+  const feePercentage = 10; // 10%
+  const feeAmount = numAmount * (feePercentage / 100);
+  const totalAmount = numAmount + feeAmount;
+
+  // Calculate due date (7 days from now)
+  const dueDate = new Date();
+  dueDate.setDate(dueDate.getDate() + 7);
+
+  return {
+    dueAmount: numAmount,
+    fee: feeAmount,
+    feePercentage,
+    totalAmount,
+    dueDate: dueDate.toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    }),
+  };
+};
+
 // Validation schema
 const schema = yup.object().shape({
   phoneNumber: yup
@@ -121,6 +152,14 @@ export default function Airtime() {
   const networkValue = watch("network");
   const amountValue = watch("amount");
 
+  // Calculate Pay Later details
+  const payLaterDetails = useMemo(() => {
+    if (isPayLater && amountValue) {
+      return calculatePayLaterDetails(amountValue);
+    }
+    return null;
+  }, [isPayLater, amountValue]);
+
   // Set MTN as default when networks finish loading (ONLY ONCE)
   useEffect(() => {
     if (!isLoading && networks.length > 0 && !hasSetDefaultNetwork) {
@@ -128,7 +167,7 @@ export default function Airtime() {
       const mtnNetwork = networks.find(
         (network) =>
           network.serviceID?.toLowerCase() === "mtn" ||
-          network.name?.toLowerCase() === "mtn"
+          network.name?.toLowerCase() === "mtn",
       );
 
       if (mtnNetwork) {
@@ -192,7 +231,7 @@ export default function Airtime() {
           console.warn("⚠️ Could not match network. API ID:", networkData.id);
           console.warn(
             "Available networks:",
-            networks.map((n) => ({ id: n.id, serviceID: n.serviceID }))
+            networks.map((n) => ({ id: n.id, serviceID: n.serviceID })),
           );
         }
       } catch (error: any) {
@@ -203,7 +242,7 @@ export default function Airtime() {
         setIsVerifyingPhone(false);
       }
     },
-    [networks, setValue, verifyPhoneMutation]
+    [networks, setValue, verifyPhoneMutation],
   );
 
   // Watch for phone number changes and verify when complete
@@ -225,7 +264,7 @@ export default function Airtime() {
     if (phoneValue.length < 11) {
       lastVerifiedPhone.current = "";
     }
-  }, [phoneValue, verifyAndSetNetwork]); // Remove verifyAndSetNetwork from dependencies to prevent loop
+  }, [phoneValue, verifyAndSetNetwork]);
 
   // Form submission
   const submitForm = useCallback((data: FormData) => {
@@ -248,7 +287,7 @@ export default function Airtime() {
       try {
         // Get the selected network data
         const selectedNetworkData = networks.find(
-          (n) => n.serviceID === networkValue
+          (n) => n.serviceID === networkValue,
         );
 
         if (!selectedNetworkData) {
@@ -326,7 +365,7 @@ export default function Airtime() {
       purchaseAirtime,
       reset,
       networkValue,
-    ]
+    ],
   );
 
   // Continue button handler
@@ -343,7 +382,7 @@ export default function Airtime() {
       if (amount > availableLimit) {
         Alert.alert(
           "Insufficient Credit",
-          `Your available credit limit is ₦${availableLimit.toLocaleString()}. Please choose a lower amount or repay existing loans.`
+          `Your available credit limit is ₦${availableLimit.toLocaleString()}. Please choose a lower amount or repay existing loans.`,
         );
         return;
       }
@@ -359,31 +398,31 @@ export default function Airtime() {
     availableLimit,
   ]);
 
- // Back navigation handler
-const handleBack = useCallback(() => {
-  if (phoneValue || amountValue) {
-    Alert.alert(
-      "Discard Changes?",
-      "Are you sure you want to go back? All entered information will be lost.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Discard",
-          style: "destructive",
-          onPress: () => {
-            lastVerifiedPhone.current = "";
-            setHasSetDefaultNetwork(false);
-            router.back(); // ✅ Changed from router.push("/(tabs)")
+  // Back navigation handler
+  const handleBack = useCallback(() => {
+    if (phoneValue || amountValue) {
+      Alert.alert(
+        "Discard Changes?",
+        "Are you sure you want to go back? All entered information will be lost.",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Discard",
+            style: "destructive",
+            onPress: () => {
+              lastVerifiedPhone.current = "";
+              setHasSetDefaultNetwork(false);
+              router.back();
+            },
           },
-        },
-      ]
-    );
-  } else {
-    lastVerifiedPhone.current = "";
-    setHasSetDefaultNetwork(false);
-    router.back(); // ✅ This part was already correct
-  }
-}, [phoneValue, amountValue]);
+        ],
+      );
+    } else {
+      lastVerifiedPhone.current = "";
+      setHasSetDefaultNetwork(false);
+      router.back();
+    }
+  }, [phoneValue, amountValue]);
 
   // Handle quick amount selection
   const handleQuickAmountSelect = useCallback(
@@ -391,7 +430,7 @@ const handleBack = useCallback(() => {
       setValue("amount", amount);
       setSelectedAmount(amount);
     },
-    [setValue]
+    [setValue],
   );
 
   // Format amount for display
@@ -406,7 +445,7 @@ const handleBack = useCallback(() => {
     const num = Number(value);
     if (isNaN(num)) return "₦0.00";
 
-    return `₦ ${num.toLocaleString("en-NG", {
+    return `₦${num.toLocaleString("en-NG", {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     })}`;
@@ -416,7 +455,7 @@ const handleBack = useCallback(() => {
     (serviceID: string) => {
       setValue("network", serviceID);
     },
-    [setValue]
+    [setValue],
   );
 
   // Get selected network details
@@ -434,7 +473,7 @@ const handleBack = useCallback(() => {
       >
         {/* Header */}
         <PageHeader
-           title={isPayLater ? "Buy Airtime (Pay Later)" : "Buy Airtime"}
+          title={isPayLater ? "Buy Airtime (Pay Later)" : "Buy Airtime"}
           onBack={handleBack}
           showBackButton={true}
         />
@@ -630,42 +669,96 @@ const handleBack = useCallback(() => {
         title="Choose network Provider"
       />
 
-      {/* CONFIRMATION DRAWER */}
+      {/* CONFIRMATION DRAWER - Dynamic based on payment mode */}
       <ConfirmationDrawer
         isOpen={showDrawer}
         onClose={() => setShowDrawer(false)}
         onConfirm={handleContinueToPin}
-        title="Confirm Purchase"
-        subtitle="Please review details carefully. Transactions are irreversible."
-        amount={amountValue}
-        sections={[
-          {
-            containerClassName:
-              "rounded-[20px] border-[#E5E7EF] border px-4 py-2",
-            details: [
-              { label: "Phone Number", value: phoneValue },
-              { label: "Network", value: selectedNetwork?.name || "" },
-              { label: "Amount", value: `₦${formatAmount(amountValue)}` },
-            ],
-          },
-          {
-            containerClassName: "p-4",
-            details: [
-              {
-                label: balanceLabel,
-                value: formatCurrency(balanceToDisplay),
-                icon: <Wallet size={16} color="#FF8D28" />,
-              },
-              {
-                label: "Cashback",
-                value: "+₦500",
-                icon: <Gift size={16} color="#CB30E0" />,
-                valueClassName:
-                  "text-[12px] font-medium leading-[100%] font-manropesemibold text-[#10B981]",
-              },
-            ],
-          },
-        ]}
+        title={isPayLater ? "Confirm Repayment" : "Confirm Purchase"}
+        subtitle={
+          isPayLater
+            ? "Please review repayment details carefully. You'll be charged the total amount on the due date."
+            : "Please review details carefully. Transactions are irreversible."
+        }
+        amount={
+          isPayLater && payLaterDetails
+            ? payLaterDetails.totalAmount.toString()
+            : amountValue
+        }
+        sections={
+          isPayLater && payLaterDetails
+            ? [
+                {
+                  containerClassName:
+                    "rounded-[20px] border-[#E5E7EF] border px-4 py-2",
+                  details: [
+                    { label: "Service", value: "Airtime" },
+                    { label: "Phone Number", value: phoneValue },
+                    { label: "Network", value: selectedNetwork?.name || "" },
+                    {
+                      label: "Due Date",
+                      value: payLaterDetails.dueDate,
+                    },
+                    {
+                      label: "Due Amount",
+                      value: formatCurrency(payLaterDetails.dueAmount),
+                    },
+                    {
+                      label: "Fee",
+                      value: `${payLaterDetails.feePercentage}%`,
+                      valueClassName:
+                        "text-[12px] font-medium leading-[100%] font-manropesemibold text-[#EF4444]",
+                    },
+                  ],
+                },
+                {
+                  containerClassName: "px-4 py-2",
+                  showDividers: false,
+                  details: [
+                    {
+                      label: "Wallet Balance",
+                      value: formatCurrency(wallet?.balance),
+                      icon: <Wallet size={16} color="#FF8D28" />,
+                    },
+                    {
+                      label: "Cashback",
+                      value: "+₦500",
+                      icon: <Gift size={16} color="#CB30E0" />,
+                      valueClassName:
+                        "text-[12px] font-medium leading-[100%] font-manropesemibold text-[#10B981]",
+                    },
+                  ],
+                },
+              ]
+            : [
+                {
+                  containerClassName:
+                    "rounded-[20px] border-[#E5E7EF] border px-4 py-2",
+                  details: [
+                    { label: "Phone Number", value: phoneValue },
+                    { label: "Network", value: selectedNetwork?.name || "" },
+                    { label: "Amount", value: `₦${formatAmount(amountValue)}` },
+                  ],
+                },
+                {
+                  containerClassName: "p-4",
+                  details: [
+                    {
+                      label: balanceLabel,
+                      value: formatCurrency(balanceToDisplay),
+                      icon: <Wallet size={16} color="#FF8D28" />,
+                    },
+                    {
+                      label: "Cashback",
+                      value: "+₦500",
+                      icon: <Gift size={16} color="#CB30E0" />,
+                      valueClassName:
+                        "text-[12px] font-medium leading-[100%] font-manropesemibold text-[#10B981]",
+                    },
+                  ],
+                },
+              ]
+        }
       />
 
       {/* PIN DRAWER */}

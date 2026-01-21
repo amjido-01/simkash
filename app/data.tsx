@@ -22,7 +22,13 @@ import {
 import { useGetNetworks } from "@/hooks/use-networks";
 import { useGetDataPlans, PlanDuration } from "@/hooks/use-getdata-plans";
 import { PinDrawer } from "@/components/pin-drawer";
-import React, { useCallback, useRef, useState, useEffect } from "react";
+import React, {
+  useCallback,
+  useRef,
+  useState,
+  useEffect,
+  useMemo,
+} from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
   KeyboardAvoidingView,
@@ -47,6 +53,30 @@ import { usePurchaseData } from "@/hooks/use-purchase-data";
 import { useDashboard } from "@/hooks/use-dashboard";
 import { usePayLaterDashboard } from "@/hooks/use-paylater-dashboard";
 import { usePurchaseDataPayLater } from "@/hooks/use-purchase-data-paylater";
+
+// Helper function to calculate Pay Later details
+const calculatePayLaterDetails = (amount: string) => {
+  const numAmount = Number(amount);
+  const feePercentage = 10; // 10%
+  const feeAmount = numAmount * (feePercentage / 100);
+  const totalAmount = numAmount + feeAmount;
+
+  // Calculate due date (7 days from now)
+  const dueDate = new Date();
+  dueDate.setDate(dueDate.getDate() + 7);
+
+  return {
+    dueAmount: numAmount,
+    fee: feeAmount,
+    feePercentage,
+    totalAmount,
+    dueDate: dueDate.toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    }),
+  };
+};
 
 // Validation schema
 const schema = yup.object().shape({
@@ -119,13 +149,26 @@ export default function DataBundle() {
     return getPlansByDuration(selectedDuration);
   }, [getPlansByDuration, selectedDuration]);
 
+  const selectedNetwork = networks.find((n) => n.serviceID === networkValue);
+  const selectedBundle = getDisplayedPlans().find(
+    (b) => b.variation_code === dataBundleValue,
+  );
+
+  // Calculate Pay Later details
+  const payLaterDetails = useMemo(() => {
+    if (isPayLater && selectedBundle?.variation_amount) {
+      return calculatePayLaterDetails(selectedBundle.variation_amount);
+    }
+    return null;
+  }, [isPayLater, selectedBundle?.variation_amount]);
+
   // Set MTN as default
   useEffect(() => {
     if (!isLoading && networks.length > 0 && !hasSetDefaultNetwork) {
       const mtnNetwork = networks.find(
         (network) =>
           network.serviceID?.toLowerCase() === "mtn" ||
-          network.name?.toLowerCase() === "mtn"
+          network.name?.toLowerCase() === "mtn",
       );
 
       if (mtnNetwork) {
@@ -187,7 +230,7 @@ export default function DataBundle() {
         setIsVerifyingPhone(false);
       }
     },
-    [networks, setValue, verifyPhoneMutation]
+    [networks, setValue, verifyPhoneMutation],
   );
 
   useEffect(() => {
@@ -208,11 +251,6 @@ export default function DataBundle() {
     }
   }, [phoneValue, verifyAndSetNetwork]);
 
-  const selectedNetwork = networks.find((n) => n.serviceID === networkValue);
-  const selectedBundle = getDisplayedPlans().find(
-    (b) => b.variation_code === dataBundleValue
-  );
-
   const submitForm = useCallback((data: FormData) => {
     setShowConfirmDrawer(true);
   }, []);
@@ -230,7 +268,7 @@ export default function DataBundle() {
 
       try {
         const selectedNetworkData = networks.find(
-          (n) => n.serviceID === networkValue
+          (n) => n.serviceID === networkValue,
         );
 
         if (!selectedNetworkData) {
@@ -258,15 +296,15 @@ export default function DataBundle() {
         console.log(result, "from data");
 
         const transactionStatus = result.responseBody?.status?.toLowerCase();
-        
+
         // Only proceed if transaction was successful
         if (transactionStatus !== "success") {
           // Transaction failed or has unknown status
-          const failureMessage = 
-            result.responseMessage || 
+          const failureMessage =
+            result.responseMessage ||
             result.responseBody?.description ||
             "Transaction failed. Please try again or contact support.";
-          
+
           throw new Error(failureMessage);
         }
 
@@ -289,8 +327,14 @@ export default function DataBundle() {
             transactionType: "data",
             network: selectedNetworkData.name,
             dataBundle: selectedBundle.name,
-            transactionId: result.responseBody?.transactionId || result.responseBody?.id?.toString() || "",
-            reference: result.responseBody?.reference || result.responseBody?.transaction_reference || "",
+            transactionId:
+              result.responseBody?.transactionId ||
+              result.responseBody?.id?.toString() ||
+              "",
+            reference:
+              result.responseBody?.reference ||
+              result.responseBody?.transaction_reference ||
+              "",
             message: result.responseMessage || "Data purchased successfully",
           },
         });
@@ -329,7 +373,7 @@ export default function DataBundle() {
       purchaseDataPayLater,
       isPayLater,
       reset,
-    ]
+    ],
   );
 
   const handleContinue = useCallback(async () => {
@@ -344,7 +388,7 @@ export default function DataBundle() {
       if (amount > availableLimit) {
         Alert.alert(
           "Insufficient Credit",
-          `Your available credit limit is ₦${availableLimit.toLocaleString()}. Please choose a lower amount or repay existing loans.`
+          `Your available credit limit is ₦${availableLimit.toLocaleString()}. Please choose a lower amount or repay existing loans.`,
         );
         return;
       }
@@ -373,10 +417,10 @@ export default function DataBundle() {
             onPress: () => {
               lastVerifiedPhone.current = "";
               setHasSetDefaultNetwork(false);
-              router.push("/(tabs)");
+              router.back();
             },
           },
-        ]
+        ],
       );
     } else {
       lastVerifiedPhone.current = "";
@@ -395,14 +439,14 @@ export default function DataBundle() {
       setValue("network", networkVal, { shouldValidate: true });
       setValue("dataBundle", "", { shouldValidate: false });
     },
-    [setValue]
+    [setValue],
   );
 
   const handleBundleSelect = useCallback(
     (bundleCode: string) => {
       setValue("dataBundle", bundleCode, { shouldValidate: true });
     },
-    [setValue]
+    [setValue],
   );
 
   const formatCurrency = (value?: string | number) => {
@@ -411,7 +455,7 @@ export default function DataBundle() {
     const num = Number(value);
     if (isNaN(num)) return "₦0.00";
 
-    return `₦ ${num.toLocaleString("en-NG", {
+    return `₦${num.toLocaleString("en-NG", {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     })}`;
@@ -548,7 +592,9 @@ export default function DataBundle() {
                     >
                       <Text
                         className={`text-[14px] font-medium ${
-                          selectedDuration === "all" ? "text-white" : "text-[#6B7280]"
+                          selectedDuration === "all"
+                            ? "text-white"
+                            : "text-[#6B7280]"
                         }`}
                       >
                         All
@@ -565,7 +611,9 @@ export default function DataBundle() {
                     >
                       <Text
                         className={`text-[14px] font-medium ${
-                          selectedDuration === "daily" ? "text-white" : "text-[#6B7280]"
+                          selectedDuration === "daily"
+                            ? "text-white"
+                            : "text-[#6B7280]"
                         }`}
                       >
                         Daily Plans
@@ -582,7 +630,9 @@ export default function DataBundle() {
                     >
                       <Text
                         className={`text-[14px] font-medium ${
-                          selectedDuration === "weekly" ? "text-white" : "text-[#6B7280]"
+                          selectedDuration === "weekly"
+                            ? "text-white"
+                            : "text-[#6B7280]"
                         }`}
                       >
                         Weekly Plans
@@ -599,7 +649,9 @@ export default function DataBundle() {
                     >
                       <Text
                         className={`text-[14px] font-medium ${
-                          selectedDuration === "monthly" ? "text-white" : "text-[#6B7280]"
+                          selectedDuration === "monthly"
+                            ? "text-white"
+                            : "text-[#6B7280]"
                         }`}
                       >
                         Monthly Plans
@@ -659,7 +711,11 @@ export default function DataBundle() {
                           getDisplayedPlans().length === 0 && (
                             <View className="py-8 px-4">
                               <Text className="text-[14px] text-[#6B7280] text-center">
-                                No {selectedDuration === "all" ? "" : selectedDuration} data plans available for this network.
+                                No{" "}
+                                {selectedDuration === "all"
+                                  ? ""
+                                  : selectedDuration}{" "}
+                                data plans available for this network.
                               </Text>
                             </View>
                           )}
@@ -717,47 +773,103 @@ export default function DataBundle() {
         title="Choose network Provider"
       />
 
+      {/* CONFIRMATION DRAWER - Dynamic based on payment mode */}
       <ConfirmationDrawer
         isOpen={showConfirmDrawer}
         onClose={() => setShowConfirmDrawer(false)}
         onConfirm={handleContinueToPin}
-        title="Confirm Transaction"
-        subtitle="Please review details carefully. Transactions are irreversible."
-        amount={selectedBundle?.variation_amount}
+        title={isPayLater ? "Confirm Repayment" : "Confirm Transaction"}
+        subtitle={
+          isPayLater
+            ? "Please review repayment details carefully. You'll be charged the total amount on the due date."
+            : "Please review details carefully. Transactions are irreversible."
+        }
+        amount={
+          isPayLater && payLaterDetails
+            ? payLaterDetails.totalAmount.toString()
+            : selectedBundle?.variation_amount
+        }
         showAmount={true}
         amountClassName="text-[24px] font-medium text-center mt-[18px] font-manropebold text-[#000000]"
-        sections={[
-          {
-            containerClassName:
-              "rounded-[20px] border-[#E5E7EF] border px-4 py-2",
-            details: [
-              { label: "Phone Number", value: phoneValue },
-              { label: "Network", value: selectedNetwork?.name || "" },
-              { label: "Data Plan", value: selectedBundle?.name || "" },
-              {
-                label: "Amount",
-                value: `₦${formatAmount(selectedBundle?.variation_amount || "0")}`,
-              },
-            ],
-          },
-          {
-            containerClassName: "px-4 py-2",
-            details: [
-              {
-                label: balanceLabel,
-                value: formatCurrency(balanceToDisplay),
-                icon: <Wallet size={16} color="#FF8D28" />,
-              },
-              {
-                label: "Cashback",
-                value: "+₦500",
-                icon: <Gift size={16} color="#CB30E0" />,
-                valueClassName:
-                  "text-[12px] font-medium leading-[100%] font-manropesemibold text-[#10B981]",
-              },
-            ],
-          },
-        ]}
+        sections={
+          isPayLater && payLaterDetails
+            ? [
+                {
+                  containerClassName:
+                    "rounded-[20px] border-[#E5E7EF] border px-4 py-2",
+                  details: [
+                    { label: "Service", value: "Data" },
+                    { label: "Phone Number", value: phoneValue },
+                    { label: "Network", value: selectedNetwork?.name || "" },
+                    { label: "Data Plan", value: selectedBundle?.name || "" },
+                    {
+                      label: "Due Date",
+                      value: payLaterDetails.dueDate,
+                    },
+                    {
+                      label: "Due Amount",
+                      value: formatCurrency(payLaterDetails.dueAmount),
+                    },
+                    {
+                      label: "Fee",
+                      value: `${payLaterDetails.feePercentage}%`,
+                      valueClassName:
+                        "text-[12px] font-medium leading-[100%] font-manropesemibold text-[#EF4444]",
+                    },
+                  ],
+                },
+                {
+                  containerClassName: "px-4 py-2",
+                  showDividers: false,
+                  details: [
+                    {
+                      label: "Wallet Balance",
+                      value: formatCurrency(wallet?.balance),
+                      icon: <Wallet size={16} color="#FF8D28" />,
+                    },
+                    {
+                      label: "Cashback",
+                      value: "+₦500",
+                      icon: <Gift size={16} color="#CB30E0" />,
+                      valueClassName:
+                        "text-[12px] font-medium leading-[100%] font-manropesemibold text-[#10B981]",
+                    },
+                  ],
+                },
+              ]
+            : [
+                {
+                  containerClassName:
+                    "rounded-[20px] border-[#E5E7EF] border px-4 py-2",
+                  details: [
+                    { label: "Phone Number", value: phoneValue },
+                    { label: "Network", value: selectedNetwork?.name || "" },
+                    { label: "Data Plan", value: selectedBundle?.name || "" },
+                    {
+                      label: "Amount",
+                      value: `₦${formatAmount(selectedBundle?.variation_amount || "0")}`,
+                    },
+                  ],
+                },
+                {
+                  containerClassName: "px-4 py-2",
+                  details: [
+                    {
+                      label: balanceLabel,
+                      value: formatCurrency(balanceToDisplay),
+                      icon: <Wallet size={16} color="#FF8D28" />,
+                    },
+                    {
+                      label: "Cashback",
+                      value: "+₦500",
+                      icon: <Gift size={16} color="#CB30E0" />,
+                      valueClassName:
+                        "text-[12px] font-medium leading-[100%] font-manropesemibold text-[#10B981]",
+                    },
+                  ],
+                },
+              ]
+        }
       />
 
       <PinDrawer
