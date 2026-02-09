@@ -92,6 +92,7 @@ export default function DeviceSimScreen() {
     refetch: refetchOverview,
   } = useSimOverview();
 
+
   const [refreshing, setRefreshing] = useState(false);
   const [selectedSim, setSelectedSim] = useState<UserSim | null>(null);
   const [showSimDrawer, setShowSimDrawer] = useState(false);
@@ -234,7 +235,7 @@ const handleSimPress = (sim: UserSim) => {
                               <Text className="text-[16px] font-normal font-manropesemibold text-[#132939]">
                                 {sim.batch.batch_name}
                               </Text>
-                              {sim.status.toLowerCase() === "active" ? (
+                              {sim.status.toLowerCase() === "success" ? (
                                 <HStack
                                   space="xs"
                                   className="items-center bg-[#ECFDF5] px-2 py-1 rounded-full"

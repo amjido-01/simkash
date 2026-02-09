@@ -1,21 +1,22 @@
 // components/sim-details-drawer.tsx
-import React from "react";
 import {
-  Drawer,
-  DrawerBackdrop,
-  DrawerBody,
-  DrawerCloseButton,
-  DrawerContent,
-  // DrawerFooter,
-  DrawerHeader,
+    Drawer,
+    DrawerBackdrop,
+    DrawerBody,
+    DrawerCloseButton,
+    DrawerContent,
+    // DrawerFooter,
+    DrawerHeader,
 } from "@/components/ui/drawer";
 import { Heading } from "@/components/ui/heading";
 import { HStack } from "@/components/ui/hstack";
 import { Text } from "@/components/ui/text";
 import { VStack } from "@/components/ui/vstack";
+import React from "react";
+import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { View, Alert } from "react-native";
 import { UserSim } from "./use-user-sims";
+import CountdownTimer from "./countdown-timer";
 
 interface SimDetailsDrawerProps {
   isOpen: boolean;
@@ -44,6 +45,13 @@ export default function SimDetailsDrawer({
     const date = new Date(createdDate);
     date.setFullYear(date.getFullYear() + 1);
     return formatDate(date.toISOString());
+  };
+
+  // Get expiry date as Date object for countdown
+  const getExpiryDateObject = (createdDate: string) => {
+    const date = new Date(createdDate);
+    date.setFullYear(date.getFullYear() + 1);
+    return date;
   };
 
   const simDetails = [
@@ -103,8 +111,11 @@ export default function SimDetailsDrawer({
             <DrawerCloseButton />
           </DrawerHeader>
 
-          <DrawerBody className="pt-4 px1 flex-1">
+          <DrawerBody className="pt-1 px1 flex-1">
             <View className="flex-1 px-3">
+              {/* Countdown Timer */}
+              <CountdownTimer expiryDate={getExpiryDateObject(sim.createdAt)} />
+
               <View className="rounded-[20px] border-[#E5E7EF] border px-4 py-2">
                 <VStack space="sm">
                   {simDetails.map((detail, index) => (
@@ -127,7 +138,6 @@ export default function SimDetailsDrawer({
               </View>
             </View>
           </DrawerBody>
-
         </View>
       </DrawerContent>
     </Drawer>
