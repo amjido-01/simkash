@@ -1,23 +1,24 @@
+import { PageHeader } from "@/components/page-header";
+import { RenewalAlert } from "@/components/renewal-alert";
+import SimDetailsDrawer from "@/components/sim-details-drawer";
+import { Box } from "@/components/ui/box";
+import { Button, ButtonIcon } from "@/components/ui/button";
+import { HStack } from "@/components/ui/hstack";
+import { Text } from "@/components/ui/text";
+import { VStack } from "@/components/ui/vstack";
+import { UserSim, useUserSims } from "@/components/use-user-sims";
+import { useSimOverview } from "@/hooks/use-sim-overview";
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
+import { router } from "expo-router";
+import { CheckCircle2, ChevronRight, Plus, XCircle } from "lucide-react-native";
 import { useState } from "react";
 import {
-  View,
+  RefreshControl,
   ScrollView,
   TouchableOpacity,
-  RefreshControl,
+  View,
 } from "react-native";
-import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { PageHeader } from "@/components/page-header";
-import { Text } from "@/components/ui/text";
-import { Box } from "@/components/ui/box";
-import { HStack } from "@/components/ui/hstack";
-import { VStack } from "@/components/ui/vstack";
-import { router } from "expo-router";
-import { useSimOverview } from "@/hooks/use-sim-overview";
-import { UserSim, useUserSims } from "@/components/use-user-sims";
-import { ChevronRight, Plus, CheckCircle2, XCircle } from "lucide-react-native";
-import { Button, ButtonIcon } from "@/components/ui/button";
-import SimDetailsDrawer from "@/components/sim-details-drawer";
 
 // Skeleton Loading Component
 const SkeletonLoader = () => {
@@ -75,7 +76,6 @@ const SkeletonLoader = () => {
   );
 };
 
-
 export default function DeviceSimScreen() {
   const {
     sims,
@@ -92,10 +92,21 @@ export default function DeviceSimScreen() {
     refetch: refetchOverview,
   } = useSimOverview();
 
+  console.log("sims", sims[0]);
 
   const [refreshing, setRefreshing] = useState(false);
   const [selectedSim, setSelectedSim] = useState<UserSim | null>(null);
   const [showSimDrawer, setShowSimDrawer] = useState(false);
+
+  const expiringSim = sims.find((sim) => {
+    const createdAt = new Date(sim.createdAt);
+    const expiryDate = new Date(createdAt);
+    expiryDate.setFullYear(expiryDate.getFullYear() + 1);
+    const now = new Date();
+    const diff = expiryDate.getTime() - now.getTime();
+    const threeDaysInMs = 3 * 24 * 60 * 60 * 1000;
+    return diff > 0 && diff <= threeDaysInMs;
+  });
 
   const isLoading = isLoadingOverview || isLoadingSims;
   const isError = isOverviewError || isSimsError;
@@ -106,7 +117,7 @@ export default function DeviceSimScreen() {
     setRefreshing(false);
   };
 
-const handleSimPress = (sim: UserSim) => {
+  const handleSimPress = (sim: UserSim) => {
     setSelectedSim(sim);
     setShowSimDrawer(true);
   };
@@ -201,6 +212,11 @@ const handleSimPress = (sim: UserSim) => {
                 </Box>
               </HStack>
             </VStack>
+
+            {/* Renewal Alert Section */}
+            {expiringSim && (
+              <RenewalAlert sim={expiringSim} onRenew={handleSimPress} />
+            )}
 
             {/* My Device SIMs Section */}
             <VStack space="md">
@@ -308,7 +324,7 @@ const handleSimPress = (sim: UserSim) => {
       </View>
 
       {/* SIM Details Drawer */}
-        {selectedSim && (
+      {selectedSim && (
         <SimDetailsDrawer
           isOpen={showSimDrawer}
           onClose={() => setShowSimDrawer(false)}

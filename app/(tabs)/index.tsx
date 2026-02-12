@@ -3,6 +3,8 @@ import Header from "@/components/header";
 import TopUpWalletDrawer from "@/components/topup-wallet-drawer";
 import { Box } from "@/components/ui/box";
 // import { Button, ButtonText } from "@/components/ui/button";
+import { RenewalAlert } from "@/components/renewal-alert";
+import SimDetailsDrawer from "@/components/sim-details-drawer";
 import {
   Drawer,
   DrawerBackdrop,
@@ -16,6 +18,7 @@ import { Heading } from "@/components/ui/heading";
 import { HStack } from "@/components/ui/hstack";
 import { Pressable } from "@/components/ui/pressable";
 import { VStack } from "@/components/ui/vstack";
+import { useUserSims } from "@/components/use-user-sims";
 import { WalletBalance } from "@/components/wallet-balance";
 import {
   MenuOption,
@@ -65,7 +68,24 @@ export default function HomeScreen() {
   const [showQuickActionDrawer, setShowQuickActionDrawer] = useState(false);
   const [selectedQuickAction, setSelectedQuickAction] = useState<any>(null);
   const [showTopUpDrawer, setShowTopUpDrawer] = useState(false);
-  // const [hasCompletedKYC, setHasCompletedKYC] = useState(false);
+  const { sims } = useUserSims();
+  const [selectedSim, setSelectedSim] = useState<any>(null);
+  const [showSimDrawer, setShowSimDrawer] = useState(false);
+
+  const expiringSim = sims.find((sim) => {
+    const createdAt = new Date(sim.createdAt);
+    const expiryDate = new Date(createdAt);
+    expiryDate.setFullYear(expiryDate.getFullYear() + 1);
+    const now = new Date();
+    const diff = expiryDate.getTime() - now.getTime();
+    const threeDaysInMs = 3 * 24 * 60 * 60 * 1000;
+    return diff > 0 && diff <= threeDaysInMs;
+  });
+
+  const handleRenewPress = (sim: any) => {
+    setSelectedSim(sim);
+    setShowSimDrawer(true);
+  };
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -177,6 +197,11 @@ export default function HomeScreen() {
               </Pressable>
             ))}
           </HStack>
+
+          {/* Renewal Alert Section */}
+          {expiringSim && (
+            <RenewalAlert sim={expiringSim} onRenew={handleRenewPress} />
+          )}
 
           {/* <Button
             onPress={() => {
@@ -476,6 +501,14 @@ export default function HomeScreen() {
         accountName={accountDetail?.account_name || ""}
         bankName={accountDetail?.bank_name || ""}
       />
+
+      {selectedSim && (
+        <SimDetailsDrawer
+          isOpen={showSimDrawer}
+          onClose={() => setShowSimDrawer(false)}
+          sim={selectedSim}
+        />
+      )}
     </SafeAreaView>
   );
 }
